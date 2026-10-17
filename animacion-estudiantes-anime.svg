@@ -1,0 +1,497 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 480" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" aria-label="Estudiantes del CEA estilo Anime caminando">
+  <defs>
+    <!-- Degradados Anime para Sombras y Luces -->
+    <linearGradient id="animeSkinBoy" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="80%" stop-color="#fcd34d"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+
+    <linearGradient id="animeSkinGirl" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffedd5"/>
+      <stop offset="85%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#fdba74"/>
+    </linearGradient>
+
+    <!-- Verde Deportivo CEA -->
+    <linearGradient id="animeGreenJacket" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16a34a"/>
+      <stop offset="50%" stop-color="#15803d"/>
+      <stop offset="100%" stop-color="#0f4a1e"/>
+    </linearGradient>
+
+    <linearGradient id="animeGreenJacketShadow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#15803d"/>
+      <stop offset="100%" stop-color="#064e3b"/>
+    </linearGradient>
+
+    <!-- Cabello Anime Varón (Castaño Profundo con Reflejo) -->
+    <linearGradient id="animeHairBoy" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="40%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+
+    <!-- Cabello Anime Mujer (Negro/Azulado con Brillo) -->
+    <linearGradient id="animeHairGirl" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="35%" stop-color="#312e81"/>
+      <stop offset="70%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+
+    <!-- Ojos Anime -->
+    <radialGradient id="irisBoy" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="60%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#451a03"/>
+    </radialGradient>
+
+    <radialGradient id="irisGirl" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="50%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#064e3b"/>
+    </radialGradient>
+
+    <!-- Sombra de suelo estilizada -->
+    <radialGradient id="animeGroundShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#041a0b" stop-opacity="0.45"/>
+      <stop offset="70%" stop-color="#041a0b" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#041a0b" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Filtro de resplandor para brillos anime -->
+    <filter id="animeGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <style>
+    /* ==============================================================
+       CICLOS DE CAMINATA ESTILO ANIME (60 FPS FLUIDOS)
+       ============================================================== */
+    
+    /* 1. Rebote y cadencia del Chico Anime */
+    .anime-boy-root {
+      animation: animeBoyBob 1.35s ease-in-out infinite;
+      transform-origin: 140px 300px;
+    }
+    .anime-boy-leg-L {
+      animation: boyLegStrideL 1.35s ease-in-out infinite;
+      transform-origin: 135px 335px;
+    }
+    .anime-boy-leg-R {
+      animation: boyLegStrideR 1.35s ease-in-out infinite;
+      transform-origin: 155px 335px;
+    }
+    .anime-boy-arm-L {
+      animation: boyArmSwingL 1.35s ease-in-out infinite;
+      transform-origin: 130px 210px;
+    }
+    .anime-boy-arm-R {
+      animation: boyArmSwingR 1.35s ease-in-out infinite;
+      transform-origin: 170px 210px;
+    }
+    .anime-boy-hair {
+      animation: boyHairFlicker 1.35s ease-in-out infinite;
+      transform-origin: 145px 125px;
+    }
+    .anime-boy-bag {
+      animation: boyBagBounce 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      transform-origin: 110px 200px;
+    }
+
+    /* 2. Rebote y cadencia de la Chica Anime (desfasada para marcha natural) */
+    .anime-girl-root {
+      animation: animeGirlBob 1.35s ease-in-out infinite;
+      animation-delay: -0.35s;
+      transform-origin: 340px 300px;
+    }
+    .anime-girl-leg-L {
+      animation: girlLegStrideL 1.35s ease-in-out infinite;
+      animation-delay: -0.35s;
+      transform-origin: 335px 335px;
+    }
+    .anime-girl-leg-R {
+      animation: girlLegStrideR 1.35s ease-in-out infinite;
+      animation-delay: -0.35s;
+      transform-origin: 355px 335px;
+    }
+    .anime-girl-arm-L {
+      animation: girlArmSwingL 1.35s ease-in-out infinite;
+      animation-delay: -0.35s;
+      transform-origin: 330px 210px;
+    }
+    .anime-girl-arm-R {
+      animation: girlArmSwingR 1.35s ease-in-out infinite;
+      animation-delay: -0.35s;
+      transform-origin: 365px 210px;
+    }
+    .anime-girl-ponytail {
+      animation: girlPonytailWave 1.35s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+      animation-delay: -0.35s;
+      transform-origin: 310px 145px;
+    }
+    .anime-girl-bag {
+      animation: girlBagBounce 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      animation-delay: -0.35s;
+      transform-origin: 315px 205px;
+    }
+
+    /* 3. Brisas y destellos de pisadas anime */
+    .sparkle-dust1 {
+      animation: dustFloat 2.7s ease-out infinite;
+    }
+    .sparkle-dust2 {
+      animation: dustFloat 2.7s ease-out infinite;
+      animation-delay: -1.35s;
+    }
+
+    /* ==============================================================
+       KEYFRAMES DE ANIMACIÓN
+       ============================================================== */
+    @keyframes animeBoyBob {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      25% { transform: translateY(-7px) rotate(0.8deg); }
+      50% { transform: translateY(1.5px) rotate(0deg); }
+      75% { transform: translateY(-6px) rotate(-0.8deg); }
+    }
+    @keyframes boyLegStrideL {
+      0%, 100% { transform: rotate(24deg); }
+      50% { transform: rotate(-24deg); }
+    }
+    @keyframes boyLegStrideR {
+      0%, 100% { transform: rotate(-24deg); }
+      50% { transform: rotate(24deg); }
+    }
+    @keyframes boyArmSwingL {
+      0%, 100% { transform: rotate(-14deg); }
+      50% { transform: rotate(18deg); }
+    }
+    @keyframes boyArmSwingR {
+      0%, 100% { transform: rotate(12deg) translateY(-2px); }
+      50% { transform: rotate(-10deg) translateY(0px); }
+    }
+    @keyframes boyHairFlicker {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-3deg) translateY(-2px); }
+      50% { transform: rotate(1deg); }
+      75% { transform: rotate(-2deg); }
+    }
+    @keyframes boyBagBounce {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      30% { transform: translateY(-9px) rotate(2deg); }
+      55% { transform: translateY(2px) rotate(-1deg); }
+      80% { transform: translateY(-7px) rotate(1deg); }
+    }
+
+    @keyframes animeGirlBob {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      25% { transform: translateY(-7px) rotate(-0.7deg); }
+      50% { transform: translateY(1.5px) rotate(0deg); }
+      75% { transform: translateY(-6px) rotate(0.7deg); }
+    }
+    @keyframes girlLegStrideL {
+      0%, 100% { transform: rotate(22deg); }
+      50% { transform: rotate(-22deg); }
+    }
+    @keyframes girlLegStrideR {
+      0%, 100% { transform: rotate(-22deg); }
+      50% { transform: rotate(22deg); }
+    }
+    @keyframes girlArmSwingL {
+      0%, 100% { transform: rotate(12deg); }
+      50% { transform: rotate(-14deg); }
+    }
+    @keyframes girlArmSwingR {
+      0%, 100% { transform: rotate(-6deg) translateY(-2px); }
+      50% { transform: rotate(8deg) translateY(0px); }
+    }
+    @keyframes girlPonytailWave {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-10deg) translateY(-4px); }
+      50% { transform: rotate(4deg); }
+      75% { transform: rotate(-7deg) translateY(-2px); }
+    }
+    @keyframes girlBagBounce {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      30% { transform: translateY(-9px) rotate(-2deg); }
+      55% { transform: translateY(2px) rotate(1deg); }
+      80% { transform: translateY(-6px) rotate(-1deg); }
+    }
+
+    @keyframes dustFloat {
+      0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+      20% { opacity: 0.8; }
+      80% { opacity: 0.5; }
+      100% { transform: translate(-35px, -20px) scale(1.2); opacity: 0; }
+    }
+  </style>
+
+  <!-- ==============================================================
+       SOMBRAS DE CONTACTO (100% TRANSPARENTE ALREDEDOR)
+       ============================================================== -->
+  <g id="anime-ground-shadows">
+    <ellipse cx="145" cy="458" rx="65" ry="12" fill="url(#animeGroundShadow)"/>
+    <ellipse cx="345" cy="458" rx="62" ry="11.5" fill="url(#animeGroundShadow)"/>
+
+    <!-- Partículas sutiles de paso anime -->
+    <g class="sparkle-dust1" transform="translate(100, 450)">
+      <circle cx="0" cy="0" r="3" fill="#34d399" opacity="0.6" filter="url(#animeGlow)"/>
+      <circle cx="8" cy="-6" r="2" fill="#fef08a" opacity="0.7"/>
+    </g>
+    <g class="sparkle-dust2" transform="translate(300, 450)">
+      <circle cx="0" cy="0" r="2.8" fill="#34d399" opacity="0.6" filter="url(#animeGlow)"/>
+      <circle cx="-6" cy="-5" r="1.8" fill="#fef08a" opacity="0.7"/>
+    </g>
+  </g>
+
+  <!-- ==============================================================
+       1. ESTUDIANTE VARÓN (ANIME SHONEN - IZQUIERDA)
+       ============================================================== -->
+  <g id="anime-estudiante-varon">
+    <!-- PIERNA TRASERA (IZQUIERDA) -->
+    <g class="anime-boy-leg-L">
+      <!-- Muslo y Pantalón Oscuro con pliegues anime -->
+      <path d="M135 330 L118 395 L108 435 L128 436 L142 395 L148 330 Z" fill="#0f172a"/>
+      <path d="M124 365 L118 395 L132 390" stroke="#1e293b" stroke-width="2" fill="none"/>
+      <!-- Pantorrilla y Dobladillo -->
+      <path d="M108 435 L102 450 L124 450 L128 436 Z" fill="#1e293b"/>
+      <!-- Zapatilla Deportiva Anime (Blanca con verde CEA y suela estilizada) -->
+      <path d="M96 448 L126 448 Q130 458 122 458 L90 458 Q88 453 96 448 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+      <path d="M96 454 L124 454" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M88 456 L124 456" stroke="#0f172a" stroke-width="1.2"/>
+    </g>
+
+    <!-- BRAZO TRASERO (IZQUIERDO - SOSTENIENDO LIBRETA DE APUNTES) -->
+    <g class="anime-boy-arm-L">
+      <!-- Manga Chamarra Verde con Franja Blanca -->
+      <path d="M130 205 L112 255 L138 288 L148 280 L128 252 L140 205 Z" fill="url(#animeGreenJacketShadow)"/>
+      <path d="M132 206 L115 254 L138 285" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round"/>
+      
+      <!-- Mano Anime sosteniendo libreta -->
+      <path d="M140 282 Q148 278 152 286 Q150 292 142 292 Z" fill="url(#animeSkinBoy)"/>
+      <!-- Cuaderno / Libreta de apuntes del CEA -->
+      <g transform="rotate(18 145 285)">
+        <rect x="135" y="260" width="28" height="36" rx="2.5" fill="#ffffff" stroke="#0f4a1e" stroke-width="1.8"/>
+        <!-- Lomo verde institucional -->
+        <rect x="135" y="260" width="6" height="36" rx="1" fill="#16a34a"/>
+        <!-- Anillado / renglones -->
+        <line x1="145" y1="268" x2="158" y2="268" stroke="#94a3b8" stroke-width="1.5"/>
+        <line x1="145" y1="274" x2="158" y2="274" stroke="#94a3b8" stroke-width="1.5"/>
+        <line x1="145" y1="280" x2="156" y2="280" stroke="#94a3b8" stroke-width="1.5"/>
+      </g>
+    </g>
+
+    <!-- TORSO, CABEZA Y MOCHILA (BOBBING AL CAMINAR) -->
+    <g class="anime-boy-root">
+      <!-- MOCHILA ANIME AL HOMBRO -->
+      <g class="anime-boy-bag">
+        <path d="M96 205 C90 175 116 160 134 165 C138 185 135 245 120 262 C102 258 96 230 96 205 Z" fill="#0284c7" stroke="#0369a1" stroke-width="2"/>
+        <!-- Bolsillo frontal y cremallera amarilla -->
+        <path d="M94 212 C92 195 108 185 122 188 C124 205 122 242 114 250 C102 248 94 230 94 212 Z" fill="#38bdf8"/>
+        <path d="M102 190 L114 240" stroke="#facc15" stroke-width="2.2" stroke-linecap="round"/>
+        <!-- Asa / Tirante en el hombro -->
+        <path d="M122 170 Q138 200 138 240" stroke="#075985" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+        <!-- Pin / Distintivo dorado en la mochila -->
+        <circle cx="110" cy="216" r="3.5" fill="#fbbf24"/>
+      </g>
+
+      <!-- TORSO: CHAMARRA DEPORTIVA OFICIAL CEA -->
+      <path d="M125 190 L162 190 L166 270 L120 270 Z" fill="url(#animeGreenJacket)"/>
+      <!-- Sombra cel-shading en el costado -->
+      <path d="M125 190 L135 190 L130 270 L120 270 Z" fill="url(#animeGreenJacketShadow)"/>
+      <!-- Franja Diagonal Blanca en el Pecho (Diseño Deportivo) -->
+      <polygon points="126,204 162,234 164,244 124,214" fill="#ffffff"/>
+      <!-- Cuello alzado estilo anime con cierre central -->
+      <path d="M136 190 L144 176 L154 190 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+      <line x1="145" y1="184" x2="145" y2="270" stroke="#f8fafc" stroke-width="2.2"/>
+      <!-- Tirador de cremallera metálico -->
+      <rect x="143" y="198" width="4" height="6" rx="1" fill="#e2e8f0"/>
+
+      <!-- CUELLO ANIME -->
+      <polygon points="138,168 144,184 154,184 152,168" fill="url(#animeSkinBoy)"/>
+      <polygon points="138,168 143,184 148,184" fill="#f59e0b" opacity="0.3"/> <!-- Sombra cuello anime -->
+
+      <!-- CABEZA Y ROSTRO ANIME (VISTA TRES CUARTOS ELEGANTE) -->
+      <!-- Contorno de la mandíbula anime definida -->
+      <path d="M136 130 Q160 128 168 148 Q168 166 154 172 L140 170 Q132 152 136 130 Z" fill="url(#animeSkinBoy)" stroke="#d97706" stroke-width="0.8"/>
+
+      <!-- OJO ANIME VARÓN (DETALLADO CON BRILLOS) -->
+      <!-- Pestaña superior firme -->
+      <path d="M152 142 Q160 139 164 144" stroke="#0f172a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <!-- Iris Hazel / Ámbar -->
+      <ellipse cx="158" cy="147" rx="4" ry="5.5" fill="url(#irisBoy)"/>
+      <!-- Pupila -->
+      <ellipse cx="158.5" cy="147.5" rx="2" ry="2.8" fill="#0f172a"/>
+      <!-- Brillos Anime (Especulares) -->
+      <circle cx="156.5" cy="144" r="1.8" fill="#ffffff" filter="url(#animeGlow)"/>
+      <circle cx="160" cy="149" r="0.9" fill="#ffffff"/>
+      <!-- Ceja anime expresiva y decidida -->
+      <path d="M148 135 Q158 131 165 137" stroke="#1e293b" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+      <!-- Nariz y Boca Anime -->
+      <path d="M167 149 L170 153 L166 155" stroke="#b45309" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <path d="M158 162 Q166 165 163 158" stroke="#9a3412" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <!-- Rubor anime sutil -->
+      <ellipse cx="160" cy="155" rx="4" ry="1.8" fill="#f43f5e" opacity="0.25"/>
+
+      <!-- CABELLO ANIME VARÓN (MECHONES DINÁMICOS CON BRILLOS) -->
+      <g class="anime-boy-hair">
+        <!-- Masa de cabello principal con puntas afiladas -->
+        <path d="M130 138 C124 116 142 104 165 110 C174 114 174 124 170 128 C164 122 156 122 150 125 C146 128 144 135 140 148 C135 144 132 146 130 138 Z" fill="url(#animeHairBoy)"/>
+        <!-- Mechones frontales / flequillo anime -->
+        <path d="M142 118 L148 136 L152 124 L160 138 L162 126 L168 134 L170 122 L175 132 L172 118 Z" fill="#1e293b"/>
+        <!-- Reflejo anime superior (Hair Highlight / Tenshi no wa) -->
+        <path d="M144 115 Q156 110 166 116" stroke="#64748b" stroke-width="2" fill="none" opacity="0.6" stroke-linecap="round"/>
+      </g>
+    </g>
+
+    <!-- BRAZO DELANTERO (DERECHO - CON BOLÍGRAFO GESTICULANDO) -->
+    <g class="anime-boy-arm-R">
+      <path d="M158 196 L182 232 L206 226 L202 216 L185 220 L166 194 Z" fill="url(#animeGreenJacket)"/>
+      <path d="M158 197 L182 230 L204 224" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <!-- Puño con dedos anime bien dibujados -->
+      <path d="M204 218 Q214 216 215 224 Q212 230 204 228 Z" fill="url(#animeSkinBoy)"/>
+      <!-- Bolígrafo escolar azul con punta -->
+      <line x1="202" y1="229" x2="220" y2="216" stroke="#2563eb" stroke-width="2.4" stroke-linecap="round"/>
+      <circle cx="221" cy="215" r="1.2" fill="#93c5fd" filter="url(#animeGlow)"/>
+    </g>
+
+    <!-- PIERNA DELANTERA (DERECHA - PASO ADELANTE) -->
+    <g class="anime-boy-leg-R">
+      <path d="M148 330 L168 392 L180 434 L158 435 L148 394 L138 330 Z" fill="#0f172a"/>
+      <path d="M156 365 L168 392 L152 390" stroke="#1e293b" stroke-width="2" fill="none"/>
+      <!-- Pantorrilla y Dobladillo -->
+      <path d="M180 434 L178 450 L154 450 L158 435 Z" fill="#1e293b"/>
+      <!-- Zapatilla Deportiva Anime -->
+      <path d="M152 448 L188 448 Q192 458 182 458 L148 458 Q146 453 152 448 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+      <path d="M154 454 L184 454" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M148 456 L186 456" stroke="#0f172a" stroke-width="1.2"/>
+    </g>
+  </g>
+
+  <!-- ==============================================================
+       2. ESTUDIANTE MUJER (ANIME SHOJO - DERECHA)
+       ============================================================== -->
+  <g id="anime-estudiante-mujer">
+    <!-- PIERNA TRASERA (IZQUIERDA) -->
+    <g class="anime-girl-leg-L">
+      <path d="M336 335 L320 398 L310 436 L330 437 L344 397 L350 335 Z" fill="#0f172a"/>
+      <path d="M326 368 L320 398 L334 392" stroke="#1e293b" stroke-width="2" fill="none"/>
+      <!-- Pantorrilla y Dobladillo -->
+      <path d="M310 436 L304 451 L326 451 L330 437 Z" fill="#1e293b"/>
+      <!-- Zapatilla Deportiva Femenina Anime (Blanco + Verde Esmeralda) -->
+      <path d="M298 449 L328 449 Q332 459 324 459 L292 459 Q290 454 298 449 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+      <path d="M300 455 L326 455" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M292 457 L326 457" stroke="#0f172a" stroke-width="1.2"/>
+    </g>
+
+    <!-- BRAZO TRASERO (IZQUIERDO - BRAZADA NATURAL) -->
+    <g class="anime-girl-arm-L">
+      <path d="M332 210 L318 258 L306 292 L316 296 L330 262 L342 212 Z" fill="url(#animeGreenJacketShadow)"/>
+      <path d="M333 211 L320 258 L307 293" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <!-- Mano Anime Femenina estilizada -->
+      <path d="M305 292 Q302 302 308 304 Q314 302 312 294 Z" fill="url(#animeSkinGirl)"/>
+    </g>
+
+    <!-- TORSO, CABEZA, COLA DE CABALLO Y MOCHILA (BOBBING) -->
+    <g class="anime-girl-root">
+      <!-- MOCHILA ANIME FEMENINA -->
+      <g class="anime-girl-bag">
+        <path d="M300 208 C294 178 318 165 334 168 C338 188 335 248 322 264 C306 260 300 234 300 208 Z" fill="#8b5cf6" stroke="#7c3aed" stroke-width="2"/>
+        <path d="M298 214 C296 198 312 188 324 192 C326 208 324 246 316 254 C306 250 298 234 298 214 Z" fill="#a78bfa"/>
+        <!-- Llavero anime colgante (estrella/corazón) -->
+        <circle cx="304" cy="225" r="4.5" fill="#f43f5e"/>
+        <path d="M324 174 Q338 202 338 242" stroke="#6d28d9" stroke-width="5" fill="none" stroke-linecap="round"/>
+      </g>
+
+      <!-- TORSO: CHAMARRA DEPORTIVA FEMENINA CEA ENTALLADA -->
+      <path d="M328 194 L362 194 L365 272 L324 272 Z" fill="url(#animeGreenJacket)"/>
+      <path d="M328 194 L336 194 L332 272 L324 272 Z" fill="url(#animeGreenJacketShadow)"/>
+      <!-- Franjas Blancas Atléticas -->
+      <polygon points="328,208 362,236 364,245 327,217" fill="#ffffff"/>
+      <!-- Cuello alzado femenino -->
+      <path d="M338 194 L345 180 L354 194 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+      <line x1="346" y1="186" x2="346" y2="272" stroke="#f8fafc" stroke-width="2.2"/>
+      <rect x="344" y="200" width="4" height="6" rx="1" fill="#e2e8f0"/>
+
+      <!-- CUELLO ESBELTO ANIME -->
+      <polygon points="340,172 345,188 353,188 350,172" fill="url(#animeSkinGirl)"/>
+      <polygon points="340,172 344,188 348,188" fill="#fdba74" opacity="0.4"/>
+
+      <!-- CABEZA Y ROSTRO ANIME FEMENINO (HERMOSO TRAZO SHOJO) -->
+      <path d="M338 135 Q360 132 368 150 Q368 168 354 174 L342 172 Q334 156 338 135 Z" fill="url(#animeSkinGirl)" stroke="#ea580c" stroke-width="0.7"/>
+
+      <!-- OJO ANIME MUJER (BRILLANTE, ESMERALDA CON PROFUNDIDAD) -->
+      <!-- Pestaña superior larga y curvada anime -->
+      <path d="M352 144 Q361 140 367 146" stroke="#0f172a" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      <path d="M367 145 L371 142" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/> <!-- Punta de pestaña anime -->
+      <!-- Iris Esmeralda Radiante -->
+      <ellipse cx="359" cy="149" rx="4.5" ry="6" fill="url(#irisGirl)"/>
+      <ellipse cx="359.5" cy="149.5" rx="2.2" ry="3" fill="#064e3b"/>
+      <!-- Múltiples brillos anime de emoción -->
+      <circle cx="357" cy="146" r="2.2" fill="#ffffff" filter="url(#animeGlow)"/>
+      <circle cx="361.5" cy="151.5" r="1.1" fill="#ffffff"/>
+      <circle cx="358" cy="152.5" r="0.7" fill="#ffffff"/>
+      <!-- Ceja arqueada dulce y alegre -->
+      <path d="M349 137 Q358 133 366 139" stroke="#1e1b4b" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+
+      <!-- Nariz suave y Sonrisa Radiante Anime -->
+      <path d="M368 152 L371 155 L368 157" stroke="#ea580c" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+      <path d="M358 164 Q366 168 365 161" stroke="#be123c" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <!-- Rubor anime adorable en las mejillas -->
+      <ellipse cx="362" cy="158" rx="4.5" ry="2" fill="#fb7185" opacity="0.4" filter="url(#animeGlow)"/>
+
+      <!-- CABELLO ANIME MUJER: FLEQUILLO Y MECHONES LATERALES -->
+      <!-- Mechones laterales enmarcando el rostro -->
+      <path d="M336 138 C332 120 348 110 368 114 C376 118 376 128 372 134 C366 126 358 126 352 130 C346 134 344 144 340 156 Z" fill="url(#animeHairGirl)"/>
+      <path d="M345 120 L350 140 L354 126 L362 142 L365 128 L372 136 L374 120 Z" fill="#1e1b4b"/>
+      <!-- Mechón largo lateral que cae al pecho -->
+      <path d="M340 148 Q336 175 342 195 Q344 175 344 152 Z" fill="#0f172a"/>
+      <!-- Halo de luz anime en el cabello -->
+      <path d="M346 118 Q358 112 368 120" stroke="#818cf8" stroke-width="2.2" fill="none" opacity="0.6" stroke-linecap="round"/>
+
+      <!-- COLA DE CABALLO ANIME CON FÍSICA Y MOVIMIENTO (PONYTAIL) -->
+      <g class="anime-girl-ponytail">
+        <!-- Coletero / Scrunchie verde CEA -->
+        <circle cx="316" cy="144" r="5.5" fill="#22c55e" stroke="#15803d" stroke-width="1.5"/>
+        <!-- Cola de caballo voluptuosa con puntas estilizadas anime -->
+        <path d="M314 146 C290 156 276 195 288 225 C298 200 310 180 322 165 C326 154 322 146 314 146 Z" fill="url(#animeHairGirl)" stroke="#020617" stroke-width="1"/>
+        <path d="M292 210 Q286 226 288 225 Q294 220 300 205" fill="#312e81"/>
+        <!-- Brillo en la coleta -->
+        <path d="M304 165 Q294 185 298 205" stroke="#818cf8" stroke-width="2" fill="none" opacity="0.5" stroke-linecap="round"/>
+      </g>
+    </g>
+
+    <!-- BRAZO DELANTERO (DERECHO - SOSTENIENDO CARPETA CEA CON FIRMEZA) -->
+    <g class="anime-girl-arm-R">
+      <path d="M360 200 L382 236 L404 230 L400 220 L386 224 L368 198 Z" fill="url(#animeGreenJacket)"/>
+      <path d="M360 201 L382 234 L402 228" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round"/>
+      
+      <!-- Carpeta Institucional Dorada del CEA -->
+      <g transform="rotate(-10 395 220)">
+        <rect x="378" y="196" width="34" height="42" rx="3.5" fill="#eab308" stroke="#ca8a04" stroke-width="1.8"/>
+        <!-- Banda blanca y sello CEA -->
+        <rect x="378" y="210" width="34" height="8" fill="#ffffff" opacity="0.9"/>
+        <circle cx="395" cy="214" r="4.5" fill="#15803d"/>
+        <circle cx="395" cy="214" r="2.8" fill="#facc15"/>
+      </g>
+      <!-- Mano Anime Femenina sosteniendo la carpeta con gracia -->
+      <path d="M400 222 Q410 220 411 228 Q408 234 400 232 Z" fill="url(#animeSkinGirl)"/>
+    </g>
+
+    <!-- PIERNA DELANTERA (DERECHA - PASO ENÉRGICO) -->
+    <g class="anime-girl-leg-R">
+      <path d="M348 335 L366 398 L378 436 L358 437 L348 398 L338 335 Z" fill="#0f172a"/>
+      <path d="M356 368 L366 398 L352 392" stroke="#1e293b" stroke-width="2" fill="none"/>
+      <!-- Pantorrilla y Dobladillo -->
+      <path d="M378 436 L374 451 L352 451 L356 437 Z" fill="#1e293b"/>
+      <!-- Zapatilla Deportiva Femenina Anime -->
+      <path d="M350 449 L384 449 Q388 459 378 459 L344 459 Q342 454 350 449 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+      <path d="M352 455 L380 455" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M344 457 L382 457" stroke="#0f172a" stroke-width="1.2"/>
+    </g>
+  </g>
+</svg>

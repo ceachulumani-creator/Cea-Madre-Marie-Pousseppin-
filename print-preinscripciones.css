@@ -1,0 +1,172 @@
+/* ==========================================================================
+   MÓDULO EXCLUSIVO Y AISLADO DE IMPRESIÓN DE PRE-INSCRIPCIONES
+   CEA "MADRE MARIE POUSSEPIN" - GESTIÓN 2026
+   Bordes: 2 cm (20 mm) exactos a la izquierda y derecha
+   ========================================================================== */
+
+#reporte-inscritos-print-area {
+  display: none !important;
+}
+
+@media print {
+  @page {
+    size: letter portrait !important;
+    margin: 15mm 20mm 10mm 20mm !important; /* Borde superior de 1.5 cm (15mm) en hoja 2 en adelante; laterales 2 cm (20mm); inferior 1 cm (10mm) */
+  }
+
+  @page :first {
+    margin-top: 6mm !important; /* Primera hoja con margen superior normal (6mm) */
+    margin-bottom: 10mm !important; /* Borde inferior de 1 cm (10mm) */
+  }
+
+  /* AISLAMIENTO TOTAL: Ocultar cualquier otro elemento de la web */
+  body.printing-reporte > *:not(#reporte-inscritos-print-area),
+  body.printing-reporte header,
+  body.printing-reporte nav,
+  body.printing-reporte section,
+  body.printing-reporte footer,
+  body.printing-reporte main,
+  body.printing-reporte .header,
+  body.printing-reporte .hero,
+  body.printing-reporte .page-section,
+  body.printing-reporte .modal,
+  body.printing-reporte .no-print,
+  body.printing-preinscripciones > *:not(#reporte-inscritos-print-area) {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+  }
+
+  body.printing-reporte,
+  body.printing-preinscripciones {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.printing-reporte #reporte-inscritos-print-area,
+  body.printing-reporte #reporte-inscritos-print-area *,
+  body.printing-preinscripciones #reporte-inscritos-print-area,
+  body.printing-preinscripciones #reporte-inscritos-print-area * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  body.printing-reporte #reporte-inscritos-print-area,
+  body.printing-preinscripciones #reporte-inscritos-print-area {
+    display: block !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 175.9mm !important; /* Ancho exacto descontando 2 cm a cada lado */
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-sizing: border-box !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, Helvetica, sans-serif !important;
+  }
+
+  #reporte-inscritos-print-area table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 12px !important;
+  }
+
+  #reporte-inscritos-print-area th,
+  #reporte-inscritos-print-area td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 3.5px 6px !important;
+    font-size: 7.8pt !important;
+    line-height: 1.2 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #reporte-inscritos-print-area th {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    text-align: left !important;
+  }
+
+  #reporte-inscritos-print-area .report-subtotal-row {
+    background: #f8fafc !important;
+    font-weight: 700 !important;
+    font-size: 7.8pt !important;
+    color: #065f46 !important;
+  }
+
+  #reporte-inscritos-print-area .report-section-header {
+    background: #0f4a1e !important;
+    color: #ffffff !important;
+    padding: 4px 8px !important;
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    margin-top: 14px !important;
+    margin-bottom: 8px !important;
+    border-radius: 4px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #reporte-inscritos-print-area .report-carrera-badge {
+    font-size: 8pt !important;
+    font-weight: 800 !important;
+    color: #0f4a1e !important;
+    background: #e8f5e9 !important;
+    border-left: 4px solid #16a34a !important;
+    padding: 3px 8px !important;
+    margin: 8px 0 4px 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #reporte-inscritos-print-area .report-firma-unica {
+    margin-top: 36px !important;
+    page-break-inside: avoid !important;
+  }
+
+  #reporte-inscritos-print-area .report-firma-box {
+    border-top: 1.8px solid #0f4a1e !important;
+    padding-top: 6px !important;
+  }
+
+  /* MODO EXCLUSIVO: SOLO ESTADÍSTICAS EN EXACTAMENTE 1 SOLA HOJA */
+  body.printing-solo-estadisticas #reporte-inscritos-print-area {
+    max-height: 254mm !important;
+    overflow: hidden !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.printing-solo-estadisticas #reporte-inscritos-print-area * {
+    page-break-inside: avoid !important;
+  }
+
+  body.printing-solo-estadisticas #reporte-inscritos-print-area table {
+    margin-bottom: 6px !important;
+  }
+
+  body.printing-solo-estadisticas #reporte-inscritos-print-area th,
+  body.printing-solo-estadisticas #reporte-inscritos-print-area td {
+    padding: 2.5px 5px !important;
+    font-size: 7.2pt !important;
+    line-height: 1.15 !important;
+  }
+
+  body.printing-solo-estadisticas #reporte-inscritos-print-area .report-firma-unica {
+    margin-top: 18px !important;
+  }
+}
+

@@ -1,0 +1,348 @@
+/* ==========================================================================
+   MÓDULO EXCLUSIVO Y AISLADO DE IMPRESIÓN Y PDF DE KARDEX DOCENTE
+   CEA "MADRE MARIE POUSSEPIN" - GESTIÓN 2026
+   ========================================================================== */
+
+#kardex-print-area {
+  display: none !important;
+}
+
+@media print {
+  /* AISLAMIENTO ABSOLUTO: Ocultar todo el sitio web cuando se imprime Kardex */
+  body.printing-kardex > *:not(#kardex-print-area),
+  body.printing-kardex header,
+  body.printing-kardex nav,
+  body.printing-kardex section,
+  body.printing-kardex footer,
+  body.printing-kardex main,
+  body.printing-kardex .header,
+  body.printing-kardex .hero,
+  body.printing-kardex .page-section,
+  body.printing-kardex .modal,
+  body.printing-kardex .no-print {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+  }
+
+  body.printing-kardex {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.printing-kardex #kardex-print-area,
+  body.printing-kardex #kardex-print-area * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  body.printing-kardex #kardex-print-area {
+    display: block !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .kardex-print-page {
+    width: 100% !important;
+    max-width: 198mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .kardex-page-1 {
+    page-break-before: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    max-height: 250mm !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .kardex-page-2 {
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    max-height: 250mm !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .kardex-page-break {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .kardex-master-grid {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+
+  .kardex-master-grid tr {
+    height: 22px !important;
+  }
+
+  .kardex-master-grid th {
+    border: 1px solid #000000 !important;
+    padding: 1.5px 3px !important;
+    font-size: 7.1pt !important;
+    font-weight: 800 !important;
+    background: #f6c445 !important;
+    color: #000000 !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    height: 19px !important;
+  }
+
+  .kardex-master-grid td {
+    border: 1px solid #000000 !important;
+    padding: 3.5px 3.5px !important;
+    font-size: 7.2pt !important;
+    line-height: 1.15 !important;
+    color: #000000 !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    height: 26px !important;
+    min-height: 26px !important;
+    font-weight: 600 !important;
+    background: #ffffff !important;
+  }
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .kardex-master-grid td {
+    font-weight: 600 !important;
+    background: #ffffff !important;
+  }
+
+  .kardex-master-grid .k-banner {
+    background: #f6c445 !important;
+    border: 1.5px solid #000000 !important;
+    font-weight: 900 !important;
+    font-size: 7.6pt !important;
+    text-align: center !important;
+    padding: 2px 4px !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .kardex-master-grid .k-banner-sub {
+    background: #f6c445 !important;
+    border: 1.5px solid #000000 !important;
+    font-weight: 800 !important;
+    font-size: 7.2pt !important;
+    text-align: center !important;
+    padding: 2px 4px !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .kardex-master-grid .k-spacer {
+    background: #ffffff !important;
+    border: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    padding: 0 !important;
+    width: 1.5% !important;
+  }
+
+  .k-print-header-wrap {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    margin-bottom: 5px !important;
+    box-sizing: border-box !important;
+  }
+
+  .k-print-cod-box {
+    border: 1.5px solid #000000 !important;
+    font-size: 7.2pt !important;
+    font-weight: 900 !important;
+    padding: 1px 7px !important;
+    margin-top: 1px !important;
+    text-align: center !important;
+    display: inline-block !important;
+    background: #ffffff !important;
+  }
+
+  .k-print-escudo {
+    height: 48px !important;
+    object-fit: contain !important;
+  }
+
+  .k-print-tit-dep {
+    font-size: 11.0pt !important;
+    font-weight: 900 !important;
+    color: #475569 !important;
+    -webkit-text-stroke: none !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.3px !important;
+    text-align: center !important;
+    margin-top: 14px !important;
+  }
+
+  .k-print-tit-dis {
+    font-size: 9.0pt !important;
+    font-weight: 900 !important;
+    color: #1e293b !important;
+    -webkit-text-stroke: none !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.3px !important;
+    text-align: center !important;
+    margin-top: 4px !important;
+  }
+
+  .k-print-tit-main {
+    font-size: 13.0pt !important;
+    font-weight: 900 !important;
+    -webkit-text-stroke: 0.5px #000000 !important;
+    line-height: 1.25 !important;
+    margin-top: 45px !important;
+    text-decoration: none !important;
+    text-align: center !important;
+    letter-spacing: 0.4px !important;
+    color: #000000 !important;
+  }
+
+  .k-print-foto-frame {
+    width: 40mm !important;
+    height: 40mm !important;
+    min-width: 40mm !important;
+    min-height: 40mm !important;
+    max-width: 40mm !important;
+    max-height: 40mm !important;
+    margin-top: 24px !important;
+    border: 1.8px solid #000000 !important;
+    background: #cbd5e1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    font-size: 6.8pt !important;
+    font-weight: 900 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .k-aclaraciones-row {
+    display: flex !important;
+    border: 1.5px solid #000000 !important;
+    margin-top: 2px !important;
+    height: 38px !important;
+  }
+
+  .k-aclaraciones-tab {
+    background: #fde047 !important;
+    border-right: 1.5px solid #000000 !important;
+    width: 22% !important;
+    font-weight: 900 !important;
+    font-size: 6.8pt !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 2px 4px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .k-aclaraciones-box {
+    width: 78% !important;
+    padding: 3px 6px !important;
+    font-size: 6.8pt !important;
+    color: #000000 !important;
+  }
+
+  .k-print-dotted-lines {
+    margin: 4px 0 8px 0 !important;
+  }
+
+  .k-dotted-line {
+    border-bottom: 1.5px dotted #000000 !important;
+    height: 13px !important;
+    width: 100% !important;
+  }
+
+  .k-print-disclaimer {
+    text-align: center !important;
+    font-style: italic !important;
+    font-weight: 800 !important;
+    font-size: 7.2pt !important;
+    margin: 6px 0 8px 0 !important;
+  }
+
+  .k-print-firmas-container {
+    display: flex !important;
+    border: 1.5px solid #000000 !important;
+    margin-top: 6px !important;
+    margin-bottom: 6px !important;
+    height: 80px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .k-print-firma-column {
+    flex: 1 !important;
+    border-right: 1.5px solid #000000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    padding: 4px !important;
+    box-sizing: border-box !important;
+  }
+
+  .k-print-firma-column:last-child {
+    border-right: none !important;
+  }
+
+  .k-print-firma-header {
+    text-align: center !important;
+    font-weight: 800 !important;
+    font-size: 7.2pt !important;
+    padding-top: 2px !important;
+    border-top: 1px solid #000000 !important;
+    text-transform: uppercase !important;
+  }
+
+  .k-print-firma-space {
+    flex: 1 !important;
+  }
+
+  .k-print-date-row {
+    text-align: right !important;
+    font-size: 7.5pt !important;
+    font-weight: 800 !important;
+    margin-top: 8px !important;
+    padding-right: 12px !important;
+  }
+}
