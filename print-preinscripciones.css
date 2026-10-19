@@ -9,15 +9,7 @@
 }
 
 @media print {
-  @page {
-    size: letter portrait !important;
-    margin: 15mm 20mm 10mm 20mm !important; /* Borde superior de 1.5 cm (15mm) en hoja 2 en adelante; laterales 2 cm (20mm); inferior 1 cm (10mm) */
-  }
-
-  @page :first {
-    margin-top: 6mm !important; /* Primera hoja con margen superior normal (6mm) */
-    margin-bottom: 10mm !important; /* Borde inferior de 1 cm (10mm) */
-  }
+  /* Los márgenes y orientación se gestionan de forma aislada por cada generador de documentos */
 
   /* AISLAMIENTO TOTAL: Ocultar cualquier otro elemento de la web */
   body.printing-reporte > *:not(#reporte-inscritos-print-area),

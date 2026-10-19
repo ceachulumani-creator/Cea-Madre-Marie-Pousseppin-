@@ -213,46 +213,52 @@ function doGet(e) {
 
     // 5. Horarios Matriz (Construido prioritariamente desde la hoja Horarios_Matriz para respetar ediciones manuales en Google Sheets)
     let horariosMatrizObj = null;
+    const horariosMatrizPorSede = {};
     const sheetHorariosMat = ss.getSheetByName("Horarios_Matriz");
+
+    function crearEstructuraHorarioVacia() {
+      const base = {
+        hum: {
+          periodos: [
+            { num: 1, inicio: '08:00', fin: '08:40', receso: false },
+            { num: 2, inicio: '08:40', fin: '09:20', receso: false },
+            { num: 3, inicio: '09:20', fin: '10:00', receso: false },
+            { num: 0, inicio: '10:00', fin: '10:20', receso: true, titulo: 'RECREO (20 MIN)' },
+            { num: 4, inicio: '10:20', fin: '11:00', receso: false },
+            { num: 5, inicio: '11:00', fin: '11:40', receso: false },
+            { num: 6, inicio: '11:40', fin: '12:20', receso: false }
+          ],
+          matriz: {}
+        },
+        tec: {
+          periodos: [
+            { num: 1, inicio: '14:00', fin: '14:40', horaSabado: '08:00 – 08:40', horaNoche: '19:00 – 19:40', receso: false },
+            { num: 2, inicio: '14:40', fin: '15:20', horaSabado: '08:40 – 09:20', horaNoche: '19:40 – 20:20', receso: false },
+            { num: 3, inicio: '15:20', fin: '16:00', horaSabado: '09:20 – 10:00', horaNoche: '20:20 – 21:00', receso: false },
+            { num: 0, inicio: '16:00', fin: '16:20', horaSabado: '10:00 – 10:20', horaNoche: '21:00 – 21:15', receso: true, titulo: 'RECESO' },
+            { num: 4, inicio: '16:20', fin: '17:00', horaSabado: '10:20 – 11:00', horaNoche: '21:15 – 21:55', receso: false },
+            { num: 5, inicio: '17:00', fin: '17:40', horaSabado: '11:00 – 11:40', horaNoche: '21:55 – 22:35', receso: false },
+            { num: 6, inicio: '17:40', fin: '18:20', horaSabado: '11:40 – 12:20', horaNoche: '22:35 – 23:15', receso: false },
+            { num: 7, inicio: '18:20', fin: '19:00', horaSabado: '—',            horaNoche: '23:15 – 23:55', receso: false }
+          ],
+          matriz: {}
+        }
+      };
+      if (textosObj.horarios_matriz_json) {
+        try {
+          const pb = JSON.parse(textosObj.horarios_matriz_json);
+          if (pb && pb.hum && Array.isArray(pb.hum.periodos) && pb.hum.periodos.length > 0) base.hum.periodos = pb.hum.periodos;
+          if (pb && pb.tec && Array.isArray(pb.tec.periodos) && pb.tec.periodos.length > 0) base.tec.periodos = pb.tec.periodos;
+        } catch(e) {}
+      }
+      return base;
+    }
+
+    horariosMatrizPorSede["central"] = crearEstructuraHorarioVacia();
+
     if (sheetHorariosMat && sheetHorariosMat.getLastRow() > 1) {
       const dataHMat = sheetHorariosMat.getDataRange().getValues();
       if (dataHMat.length > 1) {
-        horariosMatrizObj = {
-          hum: {
-            periodos: [
-              { num: 1, inicio: '08:00', fin: '08:40', receso: false },
-              { num: 2, inicio: '08:40', fin: '09:20', receso: false },
-              { num: 3, inicio: '09:20', fin: '10:00', receso: false },
-              { num: 0, inicio: '10:00', fin: '10:20', receso: true, titulo: 'RECREO (20 MIN)' },
-              { num: 4, inicio: '10:20', fin: '11:00', receso: false },
-              { num: 5, inicio: '11:00', fin: '11:40', receso: false },
-              { num: 6, inicio: '11:40', fin: '12:20', receso: false }
-            ],
-            matriz: {}
-          },
-          tec: {
-            periodos: [
-              { num: 1, inicio: '14:00', fin: '14:40', horaSabado: '08:00 – 08:40', horaNoche: '19:00 – 19:40', receso: false },
-              { num: 2, inicio: '14:40', fin: '15:20', horaSabado: '08:40 – 09:20', horaNoche: '19:40 – 20:20', receso: false },
-              { num: 3, inicio: '15:20', fin: '16:00', horaSabado: '09:20 – 10:00', horaNoche: '20:20 – 21:00', receso: false },
-              { num: 0, inicio: '16:00', fin: '16:20', horaSabado: '10:00 – 10:20', horaNoche: '21:00 – 21:15', receso: true, titulo: 'RECESO' },
-              { num: 4, inicio: '16:20', fin: '17:00', horaSabado: '10:20 – 11:00', horaNoche: '21:15 – 21:55', receso: false },
-              { num: 5, inicio: '17:00', fin: '17:40', horaSabado: '11:00 – 11:40', horaNoche: '21:55 – 22:35', receso: false },
-              { num: 6, inicio: '17:40', fin: '18:20', horaSabado: '11:40 – 12:20', horaNoche: '22:35 – 23:15', receso: false },
-              { num: 7, inicio: '18:20', fin: '19:00', horaSabado: '—',            horaNoche: '23:15 – 23:55', receso: false }
-            ],
-            matriz: {}
-          }
-        };
-
-        if (textosObj.horarios_matriz_json) {
-          try {
-            const pb = JSON.parse(textosObj.horarios_matriz_json);
-            if (pb && pb.hum && Array.isArray(pb.hum.periodos) && pb.hum.periodos.length > 0) horariosMatrizObj.hum.periodos = pb.hum.periodos;
-            if (pb && pb.tec && Array.isArray(pb.tec.periodos) && pb.tec.periodos.length > 0) horariosMatrizObj.tec.periodos = pb.tec.periodos;
-          } catch(e) {}
-        }
-
         for (let i = 1; i < dataHMat.length; i++) {
           const t = String(dataHMat[i][0] || '').trim().toLowerCase();
           const dia = String(dataHMat[i][1] || '').trim();
@@ -260,12 +266,17 @@ function doGet(e) {
           const doc = String(dataHMat[i][5] || '').trim();
           const mat = String(dataHMat[i][6] || '').trim();
           const cur = String(dataHMat[i][7] || '').trim();
+          const sede = String(dataHMat[i][8] || 'central').trim();
+
           if (t && dia && pNum !== '' && (t === 'hum' || t === 'tec')) {
-            if (!horariosMatrizObj[t].matriz[dia]) horariosMatrizObj[t].matriz[dia] = {};
-            if (!Array.isArray(horariosMatrizObj[t].matriz[dia][pNum])) {
-              horariosMatrizObj[t].matriz[dia][pNum] = [];
+            if (!horariosMatrizPorSede[sede]) {
+              horariosMatrizPorSede[sede] = crearEstructuraHorarioVacia();
             }
-            horariosMatrizObj[t].matriz[dia][pNum].push({
+            if (!horariosMatrizPorSede[sede][t].matriz[dia]) horariosMatrizPorSede[sede][t].matriz[dia] = {};
+            if (!Array.isArray(horariosMatrizPorSede[sede][t].matriz[dia][pNum])) {
+              horariosMatrizPorSede[sede][t].matriz[dia][pNum] = [];
+            }
+            horariosMatrizPorSede[sede][t].matriz[dia][pNum].push({
               docente: doc || "—",
               materia: mat || "Libre",
               curso: cur || "—"
@@ -273,9 +284,11 @@ function doGet(e) {
           }
         }
       }
+      horariosMatrizObj = horariosMatrizPorSede["central"];
     } else if (textosObj.horarios_matriz_json) {
       try {
         horariosMatrizObj = JSON.parse(textosObj.horarios_matriz_json);
+        horariosMatrizPorSede["central"] = horariosMatrizObj;
       } catch(e) {}
     }
 
@@ -532,6 +545,7 @@ function doGet(e) {
         materiasHumanistica: materiasHumList,
         horarios: horariosObj,
         horariosMatriz: horariosMatrizObj,
+        horariosMatrizPorSede: horariosMatrizPorSede,
         documentos: documentosList,
         mallas: mallasObj,
         usuariosDocentes: usuariosDocentesObj,
@@ -824,11 +838,13 @@ function doPost(e) {
 
     else if (action === "guardar-horarios-matriz") {
       let sheetHorariosMat = ss.getSheetByName("Horarios_Matriz") || ss.insertSheet("Horarios_Matriz");
+      const sedeVal = String(postData.sede || "central").trim();
+
       if (postData.horariosMatriz) {
-        // 1. Guardar copia JSON de respaldo en Director_y_Textos
+        // 1. Guardar copia JSON de respaldo en Director_y_Textos específica para la sede
         let sheetTextos = ss.getSheetByName("Director_y_Textos") || ss.insertSheet("Director_y_Textos");
         const dataTxt = sheetTextos.getDataRange().getValues();
-        const claveH = "horarios_matriz_json";
+        const claveH = (sedeVal === "central") ? "horarios_matriz_json" : ("horarios_matriz_json_" + sedeVal);
         const valH = JSON.stringify(postData.horariosMatriz);
         let encH = false;
         for (let i = 1; i < dataTxt.length; i++) {
@@ -840,13 +856,18 @@ function doPost(e) {
         }
         if (!encH) sheetTextos.appendRow([claveH, valH]);
 
-        // 2. Guardar filas legibles en Horarios_Matriz de forma ULTRA RÁPIDA (BATCH SETVALUES)
-        sheetHorariosMat.clearContents();
-        sheetHorariosMat.appendRow(["Turno", "Dia", "PeriodoNum", "HoraInicio", "HoraFin", "Docente", "Materia", "Curso", "Sede"]);
-        aplicarEstiloEncabezado(sheetHorariosMat, 9);
+        // 2. Preservar filas de OTRAS sedes y reemplazar únicamente las filas de sedeVal
+        const existingData = (sheetHorariosMat.getLastRow() > 1) ? sheetHorariosMat.getDataRange().getValues() : [];
+        const otherSedesRows = [];
+        for (let r = 1; r < existingData.length; r++) {
+          const rowSede = String(existingData[r][8] || "central").trim();
+          if (rowSede !== sedeVal) {
+            otherSedesRows.push(existingData[r]);
+          }
+        }
+
         const hm = postData.horariosMatriz;
-        const sedeVal = postData.sede || "central";
-        const allRows = [];
+        const newRows = [];
 
         ["hum", "tec"].forEach(t => {
           if (hm[t] && hm[t].matriz) {
@@ -860,13 +881,13 @@ function doPost(e) {
                 const hFin = pInfo.fin || "";
                 if (Array.isArray(slot)) {
                   slot.forEach((item, idx) => {
-                    allRows.push([
+                    newRows.push([
                       t, dia, Number(pNum) || pNum, hIni, hFin,
                       (item && item.docente) || "", (item && item.materia) || "", (item && (item.curso || item.sub)) || ("Curso " + (idx + 1)), sedeVal
                     ]);
                   });
                 } else if (slot && typeof slot === 'object') {
-                  allRows.push([
+                  newRows.push([
                     t, dia, Number(pNum) || pNum, hIni, hFin,
                     slot.docente || "", slot.materia || "", slot.curso || "", sedeVal
                   ]);
@@ -876,6 +897,10 @@ function doPost(e) {
           }
         });
 
+        const allRows = otherSedesRows.concat(newRows);
+        sheetHorariosMat.clearContents();
+        sheetHorariosMat.appendRow(["Turno", "Dia", "PeriodoNum", "HoraInicio", "HoraFin", "Docente", "Materia", "Curso", "Sede"]);
+        aplicarEstiloEncabezado(sheetHorariosMat, 9);
         if (allRows.length > 0) {
           sheetHorariosMat.getRange(2, 1, allRows.length, 9).setValues(allRows);
         }
@@ -883,7 +908,7 @@ function doPost(e) {
       if (postData.horariosMerges) {
         let sheetTextos = ss.getSheetByName("Director_y_Textos") || ss.insertSheet("Director_y_Textos");
         const data = sheetTextos.getDataRange().getValues();
-        const clave = "horarios_merges_json";
+        const clave = (sedeVal === "central") ? "horarios_merges_json" : ("horarios_merges_json_" + sedeVal);
         const val = JSON.stringify(postData.horariosMerges);
         let enc = false;
         for (let i = 1; i < data.length; i++) {
@@ -895,7 +920,48 @@ function doPost(e) {
         }
         if (!enc) sheetTextos.appendRow([clave, val]);
       }
-      return responseJSON({ status: "success", message: "Horarios matriz y combinaciones guardados exitosamente en Google Sheets." });
+      return responseJSON({ status: "success", message: `Horarios matriz para sede "${sedeVal}" guardados exitosamente en Google Sheets.` });
+    }
+
+    else if (action === "eliminar-subcentro") {
+      const sedeKey = String(postData.sede || "").trim();
+      if (sedeKey && sedeKey !== "central") {
+        let sheetHorariosMat = ss.getSheetByName("Horarios_Matriz");
+        if (sheetHorariosMat && sheetHorariosMat.getLastRow() > 1) {
+          const dataH = sheetHorariosMat.getDataRange().getValues();
+          const keptRows = [];
+          for (let i = 1; i < dataH.length; i++) {
+            if (String(dataH[i][8] || "central").trim() !== sedeKey) {
+              keptRows.push(dataH[i]);
+            }
+          }
+          sheetHorariosMat.clearContents();
+          sheetHorariosMat.appendRow(["Turno", "Dia", "PeriodoNum", "HoraInicio", "HoraFin", "Docente", "Materia", "Curso", "Sede"]);
+          aplicarEstiloEncabezado(sheetHorariosMat, 9);
+          if (keptRows.length > 0) {
+            sheetHorariosMat.getRange(2, 1, keptRows.length, 9).setValues(keptRows);
+          }
+        }
+      }
+      return responseJSON({ status: "success", message: `Subcentro "${sedeKey}" y sus horarios eliminados correctamente.` });
+    }
+
+    else if (action === "guardar-sedes-lista") {
+      let sheetTextos = ss.getSheetByName("Director_y_Textos") || ss.insertSheet("Director_y_Textos");
+      const area = String(postData.area || "hum").trim().toLowerCase();
+      const clave = "sedes_lista_" + area + "_json";
+      const val = JSON.stringify(postData.sedes || []);
+      const dataTxt = sheetTextos.getDataRange().getValues();
+      let enc = false;
+      for (let i = 1; i < dataTxt.length; i++) {
+        if (String(dataTxt[i][0]).trim() === clave) {
+          sheetTextos.getRange(i + 1, 2).setValue(val);
+          enc = true;
+          break;
+        }
+      }
+      if (!enc) sheetTextos.appendRow([clave, val]);
+      return responseJSON({ status: "success", message: "Lista de sedes actualizada en Google Sheets." });
     }
 
     else if (action === "guardar-drive") {
