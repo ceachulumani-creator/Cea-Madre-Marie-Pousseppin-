@@ -106,7 +106,7 @@
     }
 
     return `
-      <div class="comprobante-ficha-letter" style="font-family:Arial, Helvetica, sans-serif; width:750px; max-width:750px; height:993px; max-height:993px; min-height:993px; margin:0 auto; padding:12px 14px; border:2px solid #166534; border-radius:6px; color:#0f172a; background:#ffffff; box-sizing:border-box; overflow:hidden; page-break-inside:avoid; display:flex; flex-direction:column; justify-content:space-between;">
+      <div class="comprobante-ficha-letter" style="font-family:Arial, Helvetica, sans-serif; width:760px; max-width:760px; height:935px; max-height:935px; min-height:935px; margin:0 auto; padding:10px 14px; border:2px solid #166534; border-radius:6px; color:#0f172a; background:#ffffff; box-sizing:border-box; overflow:hidden; page-break-inside:avoid; display:flex; flex-direction:column; justify-content:space-between;">
         
         <!-- ENCABEZADO INSTITUCIONAL OFICIAL -->
         <div style="border-bottom:2px solid #166534; padding-bottom:5px; margin-bottom:5px; flex:0 0 auto;">
@@ -244,8 +244,8 @@
         </div>
 
         <!-- SECCIÓN 6: CONFORMIDAD Y FIRMA EXCLUSIVA DEL PARTICIPANTE -->
-        <div style="display:flex; justify-content:center; align-items:center; padding-top:30px; margin-top:10px; flex:0 0 auto;">
-          <div style="width:280px; text-align:center; border-top:1.8px solid #334155; padding-top:5px;">
+        <div style="display:flex; justify-content:center; align-items:center; padding-top:8px; margin-top:4px; flex:0 0 auto;">
+          <div style="width:280px; text-align:center; border-top:1.8px solid #334155; padding-top:4px;">
             <strong style="font-size:8.2pt; display:block; color:#0f172a; text-transform:uppercase; letter-spacing:0.4px;">Firma del Participante</strong>
             <span style="font-size:7.2pt; color:#475569; display:block; font-weight:600; margin-top:2px;">C.I.: ${data.ci || '_____________________'}</span>
           </div>
@@ -330,7 +330,7 @@
 
   let _html2pdfLoadPromise = null;
   function asegurarHtml2PdfCargado() {
-    if (typeof window.html2canvas !== 'undefined' && ((window.jspdf && window.jspdf.jsPDF) || window.jsPDF)) {
+    if (typeof window.html2pdf !== 'undefined') {
       return Promise.resolve();
     }
     if (_html2pdfLoadPromise) return _html2pdfLoadPromise;
@@ -371,9 +371,15 @@
       const src = img.getAttribute('src') || img.src;
       if (!src || src.startsWith('data:')) return;
 
-      // 1. Intentar vía fetch + FileReader (ideal para QR con CORS y assets locales en servidor)
+      const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      const timeoutId = setTimeout(() => { if (controller) controller.abort(); }, 3500);
+
+      // 1. Intentar vía fetch + FileReader
       try {
-        const res = await fetch(src, { mode: 'cors', cache: 'force-cache' });
+        const fetchOpts = { mode: 'cors', cache: 'force-cache' };
+        if (controller) fetchOpts.signal = controller.signal;
+        const res = await fetch(src, fetchOpts);
+        clearTimeout(timeoutId);
         if (res.ok) {
           const blob = await res.blob();
           const dataUrl = await new Promise((resolve) => {
@@ -383,22 +389,28 @@
             reader.readAsDataURL(blob);
           });
           if (dataUrl) {
-            await new Promise((resolve) => {
-              img.onload = resolve;
-              img.onerror = resolve;
-              img.src = dataUrl;
-              if (img.complete) resolve();
-            });
+            img.src = dataUrl;
             return;
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        clearTimeout(timeoutId);
+      }
 
-      // 2. Respaldo vía Canvas Image
+      // 2. Respaldo vía Canvas Image con timeout
       await new Promise((resolve) => {
         const tempImg = new Image();
         tempImg.crossOrigin = 'anonymous';
+        let done = false;
+        const finish = () => {
+          if (!done) {
+            done = true;
+            resolve();
+          }
+        };
+        const timer = setTimeout(finish, 2000);
         tempImg.onload = () => {
+          clearTimeout(timer);
           try {
             const cvs = document.createElement('canvas');
             cvs.width = tempImg.naturalWidth || tempImg.width || 160;
@@ -407,9 +419,12 @@
             ctx.drawImage(tempImg, 0, 0);
             img.src = cvs.toDataURL('image/png');
           } catch (e) {}
-          resolve();
+          finish();
         };
-        tempImg.onerror = () => resolve();
+        tempImg.onerror = () => {
+          clearTimeout(timer);
+          finish();
+        };
         tempImg.src = src;
       });
     }));
@@ -454,6 +469,7 @@
   }
 
   function descargarBlobArchivoPDF(blob, filename) {
+    if (!blob) return;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
@@ -463,7 +479,7 @@
     a.click();
     setTimeout(() => {
       try {
-        document.body.removeChild(a);
+        if (a && a.parentNode) a.parentNode.removeChild(a);
       } catch (e) {}
     }, 4000);
   }
@@ -472,7 +488,18 @@
 
   function abrirPdfGeneradoComprobante() {
     if (_ultimoPdfBlobUrl) {
-      window.open(_ultimoPdfBlobUrl, '_blank');
+      const win = window.open(_ultimoPdfBlobUrl, '_blank');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        const a = document.createElement('a');
+        a.href = _ultimoPdfBlobUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          try { if (a && a.parentNode) a.parentNode.removeChild(a); } catch(e) {}
+        }, 1200);
+      }
     } else if (window._ultimoRegistroInscripcion && window._ultimoRegistroInscripcion._pdfBlob) {
       _ultimoPdfBlobUrl = URL.createObjectURL(window._ultimoRegistroInscripcion._pdfBlob);
       window.open(_ultimoPdfBlobUrl, '_blank');
@@ -510,14 +537,14 @@
     const badgeBorder = esMovil ? '#86efac' : '#93c5fd';
 
     const mensajeDispositivo = esMovil
-      ? `Tu ficha de pre-inscripción en <strong>tamaño Carta</strong> se descargó correctamente en tu <strong>celular</strong>. Puedes abrirla inmediatamente con el botón de abajo o buscarla en tu carpeta de <strong>"Descargas"</strong> / barra de notificaciones.`
-      : `Tu ficha de pre-inscripción oficial en <strong>tamaño Carta</strong> se descargó exitosamente en tu <strong>computadora</strong>. El archivo PDF fue guardado en tu carpeta de <strong>"Descargas"</strong>.`;
+      ? `Tu ficha oficial en formato PDF ya fue descargada en tu <strong>celular</strong>. Puedes revisarla con el botón <strong>"Abrir"</strong> o en tu carpeta de <strong>Descargas</strong> / barra de notificaciones.`
+      : `Tu ficha oficial en formato PDF ya fue descargada en tu <strong>computadora</strong>. El archivo se encuentra guardado en tu carpeta de <strong>Descargas</strong>.`;
 
     const escNom = typeof escapeHTML === 'function' ? escapeHTML(nombreArchivo || '') : String(nombreArchivo || '');
 
     modal.innerHTML = `
       <div class="modal-aviso-pdf-backdrop" onclick="cerrarModalAvisoDescargaPdf()" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(4,26,11,0.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;">
-        <div class="modal-aviso-pdf-card" onclick="event.stopPropagation()" style="background:#ffffff;border:2px solid #16a34a;border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.35);padding:24px 22px;text-align:center;box-sizing:border-box;animation:zoomInAvisoPdf 0.22s ease-out;">
+        <div class="modal-aviso-pdf-card" onclick="event.stopPropagation()" style="background:#ffffff;border:2px solid #16a34a;border-radius:16px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.35);padding:24px 22px;text-align:center;box-sizing:border-box;animation:zoomInAvisoPdf 0.22s ease-out;">
           
           <div style="display:inline-flex;align-items:center;gap:6px;background:${badgeBg};color:${badgeColor};border:1.5px solid ${badgeBorder};border-radius:50px;padding:4px 12px;font-size:0.75rem;font-weight:800;letter-spacing:0.5px;margin-bottom:12px;text-transform:uppercase;">
             <span>${badgeTexto}</span>
@@ -542,11 +569,11 @@
           <div style="display:flex;flex-direction:column;gap:10px;">
             <button type="button" onclick="abrirPdfGeneradoComprobante()" style="background:linear-gradient(135deg, #16a34a 0%, #15803d 100%);color:#ffffff;border:none;border-radius:50px;padding:12px 24px;font-size:0.96rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 6px 20px rgba(22,163,74,0.40);transition:all 0.2s ease;">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              <span>Abrir Ficha Oficial en PDF</span>
+              <span>Abrir</span>
             </button>
 
             <button type="button" onclick="cerrarModalAvisoDescargaPdf()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:50px;padding:9px 18px;font-size:0.86rem;font-weight:700;cursor:pointer;transition:all 0.2s ease;">
-              Entendido / Cerrar
+              Cerrar
             </button>
           </div>
 
@@ -557,9 +584,12 @@
     modal.style.display = 'block';
   }
 
-  async function construirBlobComprobantePDF(data) {
+  async function construirBlobComprobantePDF(data, autoDownload = false) {
     if (!data) return null;
     if (data._pdfBlob && data._pdfFilename) {
+      if (autoDownload) {
+        descargarBlobArchivoPDF(data._pdfBlob, data._pdfFilename);
+      }
       return { blob: data._pdfBlob, filename: data._pdfFilename };
     }
     if (data._pdfGeneratingPromise) {
@@ -572,12 +602,11 @@
       const { codigoReg, fechaHoy, directorNom, nombreArchivo } = obtenerMetadatosFicha(data);
       const fichaHtml = generarHtmlFichaOficial(data, codigoReg, fechaHoy, directorNom);
 
-      // Crear contenedor invisible con proporciones exactas de hoja Carta (750px × 993px = proporción 195.9mm × 259.4mm)
-      // para que tanto en celular como en PC el PDF se genere 100% completo, sin recortes y en tamaño Carta exacto
+      // Contenedor temporal de proporción Letter (760px x 935px) centrado y sin cortes
       const outerWrap = document.createElement('div');
-      outerWrap.style.cssText = 'position:fixed;left:0;top:0;width:750px;height:993px;z-index:-99999;opacity:0.01;pointer-events:none;overflow:hidden;background:#ffffff;';
+      outerWrap.style.cssText = 'position:fixed;left:0;top:0;width:760px;height:935px;z-index:-99999;opacity:0.01;pointer-events:none;overflow:hidden;background:#ffffff;';
       const targetEl = document.createElement('div');
-      targetEl.style.cssText = 'width:750px;height:993px;background:#ffffff;margin:0;padding:0;box-sizing:border-box;';
+      targetEl.style.cssText = 'width:760px;height:935px;background:#ffffff;margin:0;padding:0;box-sizing:border-box;';
       targetEl.innerHTML = fichaHtml;
       outerWrap.appendChild(targetEl);
       document.body.appendChild(outerWrap);
@@ -586,54 +615,51 @@
         await convertirImagenesComprobanteABase64(targetEl);
         await new Promise(r => setTimeout(r, 60));
 
-        // Captura directa de alta resolución con html2canvas
-        const canvas = await window.html2canvas(targetEl, {
-          scale: 2.2, // Resolución nítida y veloz (~1650px × 2185px)
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-          scrollX: 0,
-          scrollY: 0,
-          logging: false
-        });
+        const opt = {
+          margin: [6, 6, 6, 6],
+          filename: nombreArchivo,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: 0,
+            logging: false
+          },
+          jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all'] }
+        };
 
-        // Obtener constructor oficial de jsPDF
-        const jsPdfClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-        if (!jsPdfClass) {
-          throw new Error('Constructor de jsPDF no disponible');
+        const worker = window.html2pdf().set(opt).from(targetEl);
+
+        let blob = null;
+        try {
+          const pdf = await worker.toPdf().get('pdf');
+          if (pdf && typeof pdf.output === 'function') {
+            blob = pdf.output('blob');
+          }
+        } catch (errBlob) {
+          console.warn('Extrayendo blob de html2pdf:', errBlob);
         }
 
-        // Crear documento PDF en formato estándar Carta (Letter: 215.9 mm × 279.4 mm)
-        const pdf = new jsPdfClass({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: 'letter'
-        });
-
-        const pageW = 215.9;
-        const pageH = 279.4;
-        const margin = 10; // Margen de 10mm alrededor para una hoja completa y limpia
-        const maxW = pageW - (margin * 2); // 195.9 mm
-        const maxH = pageH - (margin * 2); // 259.4 mm
-
-        let imgW = maxW;
-        let imgH = (canvas.height * imgW) / canvas.width;
-
-        if (imgH > maxH) {
-          imgH = maxH;
-          imgW = (canvas.width * imgH) / canvas.height;
+        if (autoDownload) {
+          try {
+            await worker.save();
+          } catch (saveErr) {
+            console.warn('worker.save falló, ejecutando descarga vía Blob:', saveErr);
+            if (blob) {
+              descargarBlobArchivoPDF(blob, nombreArchivo);
+            }
+          }
         }
 
-        // Centrado exacto tanto horizontal como verticalmente en la hoja Carta
-        const posX = (pageW - imgW) / 2;
-        const posY = (pageH - imgH) / 2;
+        if (blob) {
+          data._pdfBlob = blob;
+          data._pdfFilename = nombreArchivo;
+        }
 
-        const imgData = canvas.toDataURL('image/jpeg', 0.98);
-        pdf.addImage(imgData, 'JPEG', posX, posY, imgW, imgH, undefined, 'FAST');
-
-        const blob = pdf.output('blob');
-        data._pdfBlob = blob;
-        data._pdfFilename = nombreArchivo;
         return { blob, filename: nombreArchivo };
       } finally {
         if (outerWrap && outerWrap.parentNode) {
@@ -649,7 +675,7 @@
   function pregenerarComprobantePDF(dataOverride) {
     const data = dataOverride || window._ultimoRegistroInscripcion;
     if (!data) return;
-    construirBlobComprobantePDF(data).catch((err) => {
+    construirBlobComprobantePDF(data, false).catch((err) => {
       console.warn('Pre-generación de PDF en segundo plano:', err);
     });
   }
@@ -675,7 +701,7 @@
           <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
           <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
         </svg>
-        <span>Generando PDF...</span>
+        <span>Descargando PDF...</span>
       `;
       b.style.pointerEvents = 'none';
       b.style.opacity = '0.85';
@@ -692,7 +718,7 @@
       });
     };
 
-    // Si ya fue pre-generado al enviar la inscripción, descargarlo de inmediato (0ms de espera)
+    // Si ya fue pre-generado, descargarlo de inmediato (0ms de espera)
     if (data._pdfBlob && data._pdfFilename) {
       descargarBlobArchivoPDF(data._pdfBlob, data._pdfFilename);
       restaurarBotones();
@@ -701,23 +727,20 @@
     }
 
     try {
-      const result = await construirBlobComprobantePDF(data);
-      if (result && result.blob) {
-        descargarBlobArchivoPDF(result.blob, result.filename);
-        restaurarBotones();
+      const result = await construirBlobComprobantePDF(data, true);
+      restaurarBotones();
+      if (result) {
         mostrarModalAvisoDescargaPdf(result.filename, result.blob);
-        return;
       }
     } catch (err) {
-      console.error('Error generando PDF directo, usando respaldo:', err);
-    } finally {
+      console.error('Error generando y descargando PDF directo:', err);
       restaurarBotones();
+      if (typeof mostrarAlertaModal === 'function') {
+        mostrarAlertaModal('Hubo un inconveniente al generar el archivo PDF. Por favor, intenta nuevamente.', 'Descarga de Ficha', 'error');
+      } else if (typeof mostrarToastLive === 'function') {
+        mostrarToastLive('Error al generar la ficha en PDF.');
+      }
     }
-
-    // Respaldo de emergencia solo si fallara la generación
-    const { codigoReg, fechaHoy, directorNom, nombreArchivo } = obtenerMetadatosFicha(data);
-    const fichaHtml = generarHtmlFichaOficial(data, codigoReg, fechaHoy, directorNom);
-    imprimirDocumentoComprobanteAislado(fichaHtml, nombreArchivo);
   }
 
   // Exportar al ámbito global
