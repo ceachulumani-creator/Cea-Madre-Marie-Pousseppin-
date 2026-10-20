@@ -7235,6 +7235,13 @@ function renderConfigUIGestor() {
   }
 }
 
+window.addEventListener('resize', () => {
+  const container = document.getElementById('contenedor-casos-excepcionales');
+  if (container && !edicionDirectaCasosActiva && container.style.display === 'grid') {
+    container.style.gridTemplateColumns = (window.innerWidth <= 768) ? '1fr' : 'repeat(2, 1fr)';
+  }
+}, { passive: true });
+
 function agregarMateriaGestor() {
   const inp = document.getElementById('new-gestor-materia-nom');
   const bgInp = document.getElementById('new-gestor-materia-bg');
@@ -10505,6 +10512,13 @@ function renderTablaEpjaNiveles() {
   }
 }
 
+window.addEventListener('resize', () => {
+  const container = document.getElementById('contenedor-casos-excepcionales');
+  if (container && !edicionDirectaCasosActiva && container.style.display === 'grid') {
+    container.style.gridTemplateColumns = (window.innerWidth <= 768) ? '1fr' : 'repeat(2, 1fr)';
+  }
+}, { passive: true });
+
 function obtenerValoresEpjaEnEdicion() {
   const tbody = document.getElementById('tbody-epja-niveles');
   if (!tbody) return lsGet('cea_epja_niveles', NIVELES_EPJA_DEFAULT);
@@ -10856,6 +10870,13 @@ function renderSeccionHumanistica() {
     `).join('');
   }
 }
+
+window.addEventListener('resize', () => {
+  const container = document.getElementById('contenedor-casos-excepcionales');
+  if (container && !edicionDirectaCasosActiva && container.style.display === 'grid') {
+    container.style.gridTemplateColumns = (window.innerWidth <= 768) ? '1fr' : 'repeat(2, 1fr)';
+  }
+}, { passive: true });
 
 function agregarFilaHumanistica(tipo = 'epa') {
   const tbody = document.getElementById(tipo === 'epa' ? 'tbody-hum-epa' : 'tbody-hum-esa');
@@ -12061,6 +12082,13 @@ function cargarAreasTecSilencioso() {
   }
 }
 
+window.addEventListener('resize', () => {
+  const container = document.getElementById('contenedor-casos-excepcionales');
+  if (container && !edicionDirectaCasosActiva && container.style.display === 'grid') {
+    container.style.gridTemplateColumns = (window.innerWidth <= 768) ? '1fr' : 'repeat(2, 1fr)';
+  }
+}, { passive: true });
+
 function toggleEdicionCarreraTecInline(key) {
   const panel = document.getElementById(`panel-edit-carrera-tec-${key}`);
   if (panel) {
@@ -12845,7 +12873,11 @@ function renderCasosExcepcionales() {
 
   if (!edicionDirectaCasosActiva) {
     container.style.display = 'grid';
-    container.style.gridTemplateColumns = '1fr 1fr';
+    if (window.innerWidth <= 768) {
+      container.style.gridTemplateColumns = '1fr';
+    } else {
+      container.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    }
     container.style.gap = '8px';
     container.innerHTML = casos.map((c, i) => `
       <div class="excep-pill-card ${i === casos.length - 1 && casos.length % 2 !== 0 ? 'excep-pill-full' : ''}">
@@ -12885,6 +12917,13 @@ function renderCasosExcepcionales() {
     `).join('');
   }
 }
+
+window.addEventListener('resize', () => {
+  const container = document.getElementById('contenedor-casos-excepcionales');
+  if (container && !edicionDirectaCasosActiva && container.style.display === 'grid') {
+    container.style.gridTemplateColumns = (window.innerWidth <= 768) ? '1fr' : 'repeat(2, 1fr)';
+  }
+}, { passive: true });
 
 function obtenerValoresCasosEnEdicion() {
   const container = document.getElementById('contenedor-casos-excepcionales');

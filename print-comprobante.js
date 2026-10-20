@@ -106,146 +106,149 @@
     }
 
     return `
-      <div class="comprobante-ficha-letter" style="font-family:Arial, Helvetica, sans-serif; width:702px; max-width:702px; margin:0 auto; padding:8px 12px; border:2px solid #166534; border-radius:6px; color:#0f172a; background:#ffffff; box-sizing:border-box; overflow:hidden; page-break-inside:avoid; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:geometricPrecision;">
+      <div class="comprobante-ficha-letter" style="font-family:Arial, Helvetica, sans-serif; width:702px; max-width:702px; height:970px; min-height:970px; max-height:970px; margin:0 auto; padding:8px 12px 14px 12px; border:2px solid #166534; border-radius:6px; color:#0f172a; background:#ffffff; box-sizing:border-box; overflow:hidden; page-break-inside:avoid; display:flex; flex-direction:column; justify-content:space-between; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:geometricPrecision;">
         
-        <!-- ENCABEZADO INSTITUCIONAL OFICIAL -->
-        <div style="border-bottom:2px solid #166534; padding-bottom:4px; margin-bottom:5px; flex:0 0 auto;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <img src="logo cea madre marie poussepin.png" alt="Logo CEA" crossorigin="anonymous" style="width:52px; height:auto; max-height:52px;" />
-            <div style="flex:1; padding:0 8px; line-height:1.15; text-align:center;">
-              <div style="font-size:7.2pt; font-weight:800; letter-spacing:0.5px; color:#1e293b; text-transform:uppercase; margin:0;">Estado Plurinacional de Bolivia • Ministerio de Educación</div>
-              <div style="font-size:6.8pt; font-weight:700; color:#475569; margin:1px 0 0 0;">Viceministerio de Educación Alternativa y Especial • DDE La Paz • DDE Chulumani</div>
-              <h2 style="margin:2px 0 1px; font-size:1.15rem; font-weight:900; color:#166534; letter-spacing:0.5px;">CEA MADRE MARIE POUSSEPÍN</h2>
-              <div style="font-size:6.8pt; color:#64748b; margin:0; font-weight:600;">R.A. 176/2013 • Código SIE: 80630044 • Chulumani, Sud Yungas, La Paz - Bolivia</div>
+        <!-- BLOQUE SUPERIOR: ENCABEZADO Y SECCIONES 1 A 5 AGRUPADAS JUNTITAS -->
+        <div style="flex:0 0 auto; display:flex; flex-direction:column;">
+          <!-- ENCABEZADO INSTITUCIONAL OFICIAL -->
+          <div style="border-bottom:2px solid #166534; padding-bottom:4px; margin-bottom:5px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <img src="logo cea madre marie poussepin.png" alt="Logo CEA" crossorigin="anonymous" style="width:52px; height:auto; max-height:52px;" />
+              <div style="flex:1; padding:0 8px; line-height:1.15; text-align:center;">
+                <div style="font-size:7.2pt; font-weight:800; letter-spacing:0.5px; color:#1e293b; text-transform:uppercase; margin:0;">Estado Plurinacional de Bolivia • Ministerio de Educación</div>
+                <div style="font-size:6.8pt; font-weight:700; color:#475569; margin:1px 0 0 0;">Viceministerio de Educación Alternativa y Especial • DDE La Paz • DDE Chulumani</div>
+                <h2 style="margin:2px 0 1px; font-size:1.15rem; font-weight:900; color:#166534; letter-spacing:0.5px;">CEA MADRE MARIE POUSSEPÍN</h2>
+                <div style="font-size:6.8pt; color:#64748b; margin:0; font-weight:600;">R.A. 176/2013 • Código SIE: 80630044 • Chulumani, Sud Yungas, La Paz - Bolivia</div>
+              </div>
+              <div style="text-align:right;">
+                <span style="display:inline-block; padding:3px 8px; background:#dcfce7; border:1.4px solid #16a34a; border-radius:5px; font-weight:900; font-size:7.8pt; color:#166534;">GESTIÓN ${data.gestion || '2026'}</span>
+                <div style="margin-top:2px; font-size:7pt; color:#64748b; font-weight:700;">FOLIO REGISTRO:</div>
+                <div style="font-size:8.2pt; font-weight:900; color:#0f172a; letter-spacing:0.5px;">${codigoReg}</div>
+              </div>
             </div>
-            <div style="text-align:right;">
-              <span style="display:inline-block; padding:3px 8px; background:#dcfce7; border:1.4px solid #16a34a; border-radius:5px; font-weight:900; font-size:7.8pt; color:#166534;">GESTIÓN ${data.gestion || '2026'}</span>
-              <div style="margin-top:2px; font-size:7pt; color:#64748b; font-weight:700;">FOLIO REGISTRO:</div>
-              <div style="font-size:8.2pt; font-weight:900; color:#0f172a; letter-spacing:0.5px;">${codigoReg}</div>
-            </div>
-          </div>
-          <div style="text-align:center; margin-top:3px; background:#f0fdf4; padding:3px 6px; border-radius:4px; border:1px solid #bbf7d0;">
-            <h3 style="margin:0; font-size:0.90rem; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; color:#166534;">FORMULARIO OFICIAL DE PRE-INSCRIPCIÓN Y REGISTRO ÚNICO DE MATRÍCULA</h3>
-            <span style="font-size:6.6pt; color:#475569; font-weight:600;">Documento válido para ratificación presencial de matrícula en Secretaría Académica • Emisión: ${fechaHoy}</span>
-          </div>
-        </div>
-
-        <!-- CUERPO PRINCIPAL DEL FORMULARIO (Secciones compactas y continuas una debajo de otra) -->
-        <div style="display:flex; flex-direction:column; gap:5px; margin:0; padding:0;">
-          
-          <!-- TABLA 1: DATOS PERSONALES DEL PARTICIPANTE (+1 punto de tamaño de texto) -->
-          <table style="width:100%; border-collapse:collapse; font-size:8.8pt; border:1px solid #cbd5e1; margin:0;">
-            <thead>
-              <tr style="background:#f1f5f9;">
-                <th colspan="4" style="padding:4px 8px; text-align:left; font-size:8.4pt; color:#0f172a; text-transform:uppercase; border-bottom:1px solid #cbd5e1; font-weight:900;">
-                  1. DATOS DE IDENTIFICACIÓN PERSONAL DEL PARTICIPANTE
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:4px 8px; font-weight:700; width:22%; background:#f8fafc;">Apellidos y Nombres:</td>
-                <td style="padding:4px 8px; font-weight:900; color:#0f172a;" colspan="3">${data.nombre || '—'}</td>
-              </tr>
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Cédula de Identidad (CI):</td>
-                <td style="padding:4px 8px; font-weight:800; color:#0f172a; width:28%;">${data.ci || '—'}</td>
-                <td style="padding:4px 8px; font-weight:700; width:20%; background:#f8fafc;">Fecha Nac. / Edad:</td>
-                <td style="padding:4px 8px; width:30%; font-weight:700;">${fechaNacTexto}</td>
-              </tr>
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Teléfono / WhatsApp:</td>
-                <td style="padding:4px 8px; font-weight:800; color:#166534;">${data.telefono || '—'}</td>
-                <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Comunidad / Procedencia:</td>
-                <td style="padding:4px 8px; font-weight:800; color:#0f172a;">${data.comunidad || data.direccion || data.domicilio || 'Chulumani / Sud Yungas'}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- TABLA 2: ASIGNACIÓN ACADÉMICA Y CARRERA (+1 punto de tamaño de texto) -->
-          <table style="width:100%; border-collapse:collapse; font-size:8.8pt; border:1px solid #cbd5e1; margin:0;">
-            <thead>
-              <tr style="background:#f1f5f9;">
-                <th colspan="4" style="padding:4px 8px; text-align:left; font-size:8.4pt; color:#0f172a; text-transform:uppercase; border-bottom:1px solid #cbd5e1; font-weight:900;">
-                  2. ASIGNACIÓN ACADÉMICA Y CARRERA
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:4px 8px; font-weight:700; width:22%; background:#f8fafc;">Área de Formación:</td>
-                <td style="padding:4px 8px; font-weight:900; color:#166534;" colspan="3">
-                  ${data.area === 'tecnica' ? 'EDUCACIÓN TÉCNICA TECNOLÓGICA PRODUCTIVA (ETTP / ETA)' : 'EDUCACIÓN DE PERSONAS JÓVENES Y ADULTAS (EPJA - Humanística)'}
-                </td>
-              </tr>
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Especialidad / Carrera:</td>
-                <td style="padding:4px 8px; font-weight:900; color:#0f172a; width:36%;">${data.carrera || '—'}</td>
-                <td style="padding:4px 8px; font-weight:700; width:18%; background:#f8fafc;">Nivel / Semestre:</td>
-                <td style="padding:4px 8px; font-weight:800; color:#166534; width:24%;">${data.semestre || '1er Semestre'} — Gestión ${data.gestion || '2026'}</td>
-              </tr>
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Sede o Subcentro:</td>
-                <td style="padding:4px 8px; font-weight:800; color:#0f172a;" colspan="3">${data.sede || data.subcentro || 'Sede Central (Centro de Chulumani)'}</td>
-              </tr>
-              ${esCasoExcepcional ? `
-              <tr style="border-bottom:1px solid #e2e8f0;background:#fffbeb;">
-                <td style="padding:4px 8px; font-weight:700; color:#92400e; background:#fef3c7;">Modalidad Matrícula:</td>
-                <td style="padding:4px 8px; font-weight:800; color:#b45309; line-height:1.2;" colspan="3">
-                  PRE-INSCRIPCIÓN CONDICIONAL POR CASO EXCEPCIONAL (LEY 070)<br>
-                  <span style="font-size:8pt; font-weight:600; color:#92400e;">Causal declarada: ${data.casoExcepcional || 'Caso Excepcional'}${data.detalleExcepcion ? ` (${data.detalleExcepcion})` : ''}</span>
-                </td>
-              </tr>` : `
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Modalidad Matrícula:</td>
-                <td style="padding:4px 8px; font-weight:700; color:#166534;" colspan="3">Inscripción Regular Oficial (Cumple con los requisitos establecidos)</td>
-              </tr>`}
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Observaciones:</td>
-                <td style="padding:4px 8px; font-size:8.4pt; color:#475569;" colspan="3">${data.observaciones || 'Sin observaciones adicionales registradas.'}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- SECCIÓN 3: REQUISITOS Y DOCUMENTACIÓN DE RESPALDO (+1 punto de tamaño de texto) -->
-          <div style="border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#f8fafc; font-size:8.3pt; line-height:1.3; margin:0;">
-            <strong style="color:#0f172a; display:block; margin-bottom:3px; text-transform:uppercase; font-size:8.3pt; border-bottom:1px solid #cbd5e1; padding-bottom:2px;">
-              ${tituloCotejo}
-            </strong>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; color:#334155;">
-              ${docItems.map((doc, idx) => `<div>[ &nbsp; ] ${idx + 1}. ${doc}</div>`).join('')}
+            <div style="text-align:center; margin-top:3px; background:#f0fdf4; padding:3px 6px; border-radius:4px; border:1px solid #bbf7d0;">
+              <h3 style="margin:0; font-size:0.90rem; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; color:#166534;">FORMULARIO OFICIAL DE PRE-INSCRIPCIÓN Y REGISTRO ÚNICO DE MATRÍCULA</h3>
+              <span style="font-size:6.6pt; color:#475569; font-weight:600;">Documento válido para ratificación presencial de matrícula en Secretaría Académica • Emisión: ${fechaHoy}</span>
             </div>
           </div>
 
-          <!-- SECCIÓN 4: DECLARACIÓN JURADA Y COMPROMISO DEL PARTICIPANTE (+1 punto de tamaño de texto) -->
-          <div style="border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#ffffff; font-size:7.9pt; line-height:1.3; color:#334155; margin:0;">
-            <strong style="color:#0f172a; text-transform:uppercase; font-size:8.1pt; display:block; margin-bottom:2px;">
-              4. DECLARACIÓN JURADA Y COMPROMISO INSTITUCIONAL:
-            </strong>
-            Yo, en mi calidad de participante, declaro bajo juramento que los datos e información consignados en este formulario son fidedignos y verídicos. Me comprometo a presentar toda la documentación original ante Secretaría Académica para el cotejo correspondiente, así como a respetar y cumplir fielmente el Estatuto Orgánico, el Reglamento Interno del Centro de Educación Alternativa "Madre Marie Poussepin", las disposiciones de la Dirección Distrital y la Ley de Educación N° 070 "Avelino Siñani - Elizardo Pérez".
-          </div>
+          <!-- CUERPO PRINCIPAL DEL FORMULARIO (Secciones compactas y continuas una debajo de otra) -->
+          <div style="display:flex; flex-direction:column; gap:5px; margin:0; padding:0;">
+            
+            <!-- TABLA 1: DATOS PERSONALES DEL PARTICIPANTE (+1 punto de tamaño de texto) -->
+            <table style="width:100%; border-collapse:collapse; font-size:8.8pt; border:1px solid #cbd5e1; margin:0;">
+              <thead>
+                <tr style="background:#f1f5f9;">
+                  <th colspan="4" style="padding:4px 8px; text-align:left; font-size:8.4pt; color:#0f172a; text-transform:uppercase; border-bottom:1px solid #cbd5e1; font-weight:900;">
+                    1. DATOS DE IDENTIFICACIÓN PERSONAL DEL PARTICIPANTE
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                  <td style="padding:4px 8px; font-weight:700; width:22%; background:#f8fafc;">Apellidos y Nombres:</td>
+                  <td style="padding:4px 8px; font-weight:900; color:#0f172a;" colspan="3">${data.nombre || '—'}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                  <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Cédula de Identidad (CI):</td>
+                  <td style="padding:4px 8px; font-weight:800; color:#0f172a; width:28%;">${data.ci || '—'}</td>
+                  <td style="padding:4px 8px; font-weight:700; width:20%; background:#f8fafc;">Fecha Nac. / Edad:</td>
+                  <td style="padding:4px 8px; width:30%; font-weight:700;">${fechaNacTexto}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                  <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Teléfono / WhatsApp:</td>
+                  <td style="padding:4px 8px; font-weight:800; color:#166534;">${data.telefono || '—'}</td>
+                  <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Comunidad / Procedencia:</td>
+                  <td style="padding:4px 8px; font-weight:800; color:#0f172a;">${data.comunidad || data.direccion || data.domicilio || 'Chulumani / Sud Yungas'}</td>
+                </tr>
+              </tbody>
+            </table>
 
-          <!-- SECCIÓN 5: CONTROL DE RECEPCIÓN Y QR DE VALIDACIÓN DIGITAL (+1 punto de tamaño de texto) -->
-          <div style="display:grid; grid-template-columns:1fr 85px; gap:8px; align-items:center; border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#f8fafc; margin:0;">
-            <div style="font-size:8.0pt; line-height:1.35; color:#334155;">
-              <strong style="color:#0f172a; text-transform:uppercase; display:block; margin-bottom:2px; font-size:8.2pt;">
-                5. CONTROL DE RECEPCIÓN Y OBSERVACIONES DE KARDEX:
+            <!-- TABLA 2: ASIGNACIÓN ACADÉMICA Y CARRERA (+1 punto de tamaño de texto) -->
+            <table style="width:100%; border-collapse:collapse; font-size:8.8pt; border:1px solid #cbd5e1; margin:0;">
+              <thead>
+                <tr style="background:#f1f5f9;">
+                  <th colspan="4" style="padding:4px 8px; text-align:left; font-size:8.4pt; color:#0f172a; text-transform:uppercase; border-bottom:1px solid #cbd5e1; font-weight:900;">
+                    2. ASIGNACIÓN ACADÉMICA Y CARRERA
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                  <td style="padding:4px 8px; font-weight:700; width:22%; background:#f8fafc;">Área de Formación:</td>
+                  <td style="padding:4px 8px; font-weight:900; color:#166534;" colspan="3">
+                    ${data.area === 'tecnica' ? 'EDUCACIÓN TÉCNICA TECNOLÓGICA PRODUCTIVA (ETTP / ETA)' : 'EDUCACIÓN DE PERSONAS JÓVENES Y ADULTAS (EPJA - Humanística)'}
+                  </td>
+                </tr>
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                  <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Especialidad / Carrera:</td>
+                  <td style="padding:4px 8px; font-weight:900; color:#0f172a; width:36%;">${data.carrera || '—'}</td>
+                  <td style="padding:4px 8px; font-weight:700; width:18%; background:#f8fafc;">Nivel / Semestre:</td>
+                  <td style="padding:4px 8px; font-weight:800; color:#166534; width:24%;">${data.semestre || '1er Semestre'} — Gestión ${data.gestion || '2026'}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                  <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Sede o Subcentro:</td>
+                  <td style="padding:4px 8px; font-weight:800; color:#0f172a;" colspan="3">${data.sede || data.subcentro || 'Sede Central (Centro de Chulumani)'}</td>
+                </tr>
+                ${esCasoExcepcional ? `
+                <tr style="border-bottom:1px solid #e2e8f0;background:#fffbeb;">
+                  <td style="padding:4px 8px; font-weight:700; color:#92400e; background:#fef3c7;">Modalidad Matrícula:</td>
+                  <td style="padding:4px 8px; font-weight:800; color:#b45309; line-height:1.2;" colspan="3">
+                    PRE-INSCRIPCIÓN CONDICIONAL POR CASO EXCEPCIONAL (LEY 070)<br>
+                    <span style="font-size:8pt; font-weight:600; color:#92400e;">Causal declarada: ${data.casoExcepcional || 'Caso Excepcional'}${data.detalleExcepcion ? ` (${data.detalleExcepcion})` : ''}</span>
+                  </td>
+                </tr>` : `
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                  <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Modalidad Matrícula:</td>
+                  <td style="padding:4px 8px; font-weight:700; color:#166534;" colspan="3">Inscripción Regular Oficial (Cumple con los requisitos establecidos)</td>
+                </tr>`}
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                  <td style="padding:4px 8px; font-weight:700; background:#f8fafc;">Observaciones:</td>
+                  <td style="padding:4px 8px; font-size:8.4pt; color:#475569;" colspan="3">${data.observaciones || 'Sin observaciones adicionales registradas.'}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- SECCIÓN 3: REQUISITOS Y DOCUMENTACIÓN DE RESPALDO (+1 punto de tamaño de texto) -->
+            <div style="border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#f8fafc; font-size:8.3pt; line-height:1.3; margin:0;">
+              <strong style="color:#0f172a; display:block; margin-bottom:3px; text-transform:uppercase; font-size:8.3pt; border-bottom:1px solid #cbd5e1; padding-bottom:2px;">
+                ${tituloCotejo}
               </strong>
-              <div>• Fecha límite de ratificación y entrega de carpetas: <strong>Hasta 5 días hábiles posteriores a la preinscripción</strong>.</div>
-              <div>• Observaciones de Kardex: ____________________________________________________________________________</div>
-              <div style="margin-top:2px;">• Código Único de Registro Electrónico: <strong style="font-family:monospace; font-size:8.5pt; color:#166534;">CEA-${codigoReg}-${new Date().getFullYear()}</strong></div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; color:#334155;">
+                ${docItems.map((doc, idx) => `<div>[ &nbsp; ] ${idx + 1}. ${doc}</div>`).join('')}
+              </div>
             </div>
-            <div style="text-align:center;">
-              <img src="${qrUrl}" alt="QR Verificación" crossorigin="anonymous" style="width:68px; height:68px; border:1px solid #cbd5e1; padding:2px; border-radius:4px; display:inline-block; background:#ffffff;" />
-              <span style="display:block; font-size:6.8pt; color:#64748b; margin-top:1px; font-weight:800; text-transform:uppercase;">Validación Digital</span>
-            </div>
-          </div>
 
+            <!-- SECCIÓN 4: DECLARACIÓN JURADA Y COMPROMISO DEL PARTICIPANTE (+1 punto de tamaño de texto) -->
+            <div style="border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#ffffff; font-size:7.9pt; line-height:1.3; color:#334155; margin:0;">
+              <strong style="color:#0f172a; text-transform:uppercase; font-size:8.1pt; display:block; margin-bottom:2px;">
+                4. DECLARACIÓN JURADA Y COMPROMISO INSTITUCIONAL:
+              </strong>
+              Yo, en mi calidad de participante, declaro bajo juramento que los datos e información consignados en este formulario son fidedignos y verídicos. Me comprometo a presentar toda la documentación original ante Secretaría Académica para el cotejo correspondiente, así como a respetar y cumplir fielmente el Estatuto Orgánico, el Reglamento Interno del Centro de Educación Alternativa "Madre Marie Poussepin", las disposiciones de la Dirección Distrital y la Ley de Educación N° 070 "Avelino Siñani - Elizardo Pérez".
+            </div>
+
+            <!-- SECCIÓN 5: CONTROL DE RECEPCIÓN Y QR DE VALIDACIÓN DIGITAL (+1 punto de tamaño de texto) -->
+            <div style="display:grid; grid-template-columns:1fr 85px; gap:8px; align-items:center; border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#f8fafc; margin:0;">
+              <div style="font-size:8.0pt; line-height:1.35; color:#334155;">
+                <strong style="color:#0f172a; text-transform:uppercase; display:block; margin-bottom:2px; font-size:8.2pt;">
+                  5. CONTROL DE RECEPCIÓN Y OBSERVACIONES DE KARDEX:
+                </strong>
+                <div>• Fecha límite de ratificación y entrega de carpetas: <strong>Hasta 5 días hábiles posteriores a la preinscripción</strong>.</div>
+                <div>• Observaciones de Kardex: ____________________________________________________________________________</div>
+                <div style="margin-top:2px;">• Código Único de Registro Electrónico: <strong style="font-family:monospace; font-size:8.5pt; color:#166534;">CEA-${codigoReg}-${new Date().getFullYear()}</strong></div>
+              </div>
+              <div style="text-align:center;">
+                <img src="${qrUrl}" alt="QR Verificación" crossorigin="anonymous" style="width:68px; height:68px; border:1px solid #cbd5e1; padding:2px; border-radius:4px; display:inline-block; background:#ffffff;" />
+                <span style="display:block; font-size:6.8pt; color:#64748b; margin-top:1px; font-weight:800; text-transform:uppercase;">Validación Digital</span>
+              </div>
+            </div>
+
+          </div>
         </div>
 
-        <!-- SECCIÓN 6: CONFORMIDAD Y FIRMA EXCLUSIVA DEL PARTICIPANTE (+1 punto de tamaño de texto) -->
-        <div style="display:flex; justify-content:center; align-items:center; padding-top:12px; margin-top:6px; flex:0 0 auto;">
-          <div style="width:260px; text-align:center; border-top:1.8px solid #334155; padding-top:4px;">
+        <!-- SECCIÓN 6: BLOQUE INFERIOR CON ESPACIO AMPLIO PARA FIRMA DEL PARTICIPANTE -->
+        <div style="flex:1 1 auto; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; padding-top:24px; padding-bottom:6px; min-height:85px;">
+          <div style="width:280px; text-align:center; border-top:1.8px solid #334155; padding-top:4px;">
             <strong style="font-size:9.2pt; display:block; color:#0f172a; text-transform:uppercase; letter-spacing:0.4px;">Firma del Participante</strong>
             <span style="font-size:8.2pt; color:#475569; display:block; font-weight:600; margin-top:2px;">C.I.: ${data.ci || '_____________________'}</span>
           </div>
@@ -608,11 +611,11 @@
       const { codigoReg, fechaHoy, directorNom, nombreArchivo } = obtenerMetadatosFicha(data);
       const fichaHtml = generarHtmlFichaOficial(data, codigoReg, fechaHoy, directorNom);
 
-      // Contenedor temporal exacto para formato Carta (702px ancho) con márgenes 1cm sup/der/inf y 2cm izq
+      // Contenedor temporal exacto para formato Carta (702px x 970px) con borde verde hasta abajo
       const outerWrap = document.createElement('div');
-      outerWrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:702px;z-index:-99999;background:#ffffff;overflow:hidden;';
+      outerWrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:702px;height:970px;z-index:-99999;background:#ffffff;overflow:hidden;';
       const targetEl = document.createElement('div');
-      targetEl.style.cssText = 'width:702px;background:#ffffff;margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:geometricPrecision;';
+      targetEl.style.cssText = 'width:702px;height:970px;background:#ffffff;margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:geometricPrecision;';
       targetEl.innerHTML = fichaHtml;
       outerWrap.appendChild(targetEl);
       document.body.appendChild(outerWrap);

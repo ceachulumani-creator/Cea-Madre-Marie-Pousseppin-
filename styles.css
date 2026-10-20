@@ -17303,10 +17303,12 @@ html.dark .btn-copiar-cred:hover {
     justify-content: center !important;
     white-space: nowrap !important;
     word-break: keep-all !important;
-    padding: 4px 12px !important;
+    padding: 3px 8px !important;
     border-radius: 50px !important;
     line-height: 1.2 !important;
-    min-width: max-content !important;
+    min-width: auto !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
   .header-inner {
     flex-wrap: nowrap !important;
