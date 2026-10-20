@@ -43,7 +43,11 @@
     const edadNum = data.edad || (data.fechaNacimiento && typeof calcularEdad === 'function' ? calcularEdad(data.fechaNacimiento) : null);
     const edadStr = (edadNum !== null && !isNaN(edadNum) && edadNum > 0) ? `(<strong>${edadNum} años cumplidos</strong>)` : '';
     const fechaNacTexto = `${formatearSoloFechaNacimiento(data.fechaNacimiento)} ${edadStr}`.trim();
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=85x85&data=${encodeURIComponent('https://ceamadremariepoussepin.github.io/?ci=' + (data.ci || '') + '&reg=' + codigoReg)}`;
+    let baseOriginUrl = 'https://ceachulumani-creator.github.io/Cea-Madre-Marie-Pousseppin-/';
+    if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+      baseOriginUrl = window.location.origin + window.location.pathname;
+    }
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=85x85&data=${encodeURIComponent(baseOriginUrl + '?ci=' + (data.ci || '') + '&reg=' + codigoReg)}`;
 
     // Detección precisa de Área y Nivel Académico
     const areaStr = String(data.area || '').toLowerCase();

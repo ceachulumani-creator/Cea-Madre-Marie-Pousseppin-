@@ -4402,6 +4402,10 @@ html.dark .btn-doc-del:hover {
   100% { transform: rotate(360deg); }
 }
 
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
 /* ─── GALERÍA DE TALLERES Y PRÁCTICAS PRODUCTIVAS ─── */
 .galeria-filtros {
   display: flex;

@@ -1325,6 +1325,7 @@ function aplicarDatosGoogleSheets(data) {
       lsSet('cea_inscripciones', data.inscripciones);
       cargarInscripciones();
       if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
+      if (typeof revalidarQRPendiente === 'function') revalidarQRPendiente();
     }
     if (data.galeriaFotos && Array.isArray(data.galeriaFotos)) {
       lsSet('cea_galeria_fotos', data.galeriaFotos);
@@ -10944,6 +10945,19 @@ function toggleEdicionCiclosHumanistica() {
         backupCiclosHum[id] = el.innerHTML;
         el.contentEditable = 'true';
         el.classList.add('editable-in-place-active');
+        el.oninput = () => {
+          autoGuardarEnVivoDebounced(id, id.replace(/-/g, '_'), 'Ciclo Bachillerato Humanístico');
+        };
+        el.onblur = () => {
+          clearTimeout(_timerAutoSaveGoogleSheetLive);
+          const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(id, id.replace(/-/g, '_'), 'Ciclo Bachillerato Humanístico');
+          enviarGoogleSheet({
+            action: 'guardar-contenido-vivo',
+            key: id.replace(/-/g, '_'),
+            valor: finalSavedVal,
+            htmlValor: finalSavedVal
+          });
+        };
       }
     });
     const firstEl = document.getElementById('malla-epa-titulo-principal');
@@ -10966,6 +10980,8 @@ function cancelarEdicionCiclosHumanistica() {
       if (backupCiclosHum[id] !== undefined) el.innerHTML = backupCiclosHum[id];
       el.contentEditable = 'false';
       el.classList.remove('editable-in-place-active');
+      el.oninput = null;
+      el.onblur = null;
     }
   });
 }
@@ -10983,6 +10999,8 @@ async function guardarCiclosHumanisticaDirecto() {
       payloadSync[key] = val;
       el.contentEditable = 'false';
       el.classList.remove('editable-in-place-active');
+      el.oninput = null;
+      el.onblur = null;
     }
   });
 
@@ -10994,7 +11012,7 @@ async function guardarCiclosHumanisticaDirecto() {
   if (toolbar) toolbar.style.display = 'none';
   if (txtBtn) txtBtn.textContent = 'Editar Ciclos Humanísticos (EPA y ESA)';
 
-  mostrarToastLive('Ciclos humanísticos de EPA y ESA guardados con éxito.');
+  mostrarToastLive('Ciclos humanísticos guardados y sincronizados.');
 
   await enviarGoogleSheet({
     action: 'guardar-contenido-vivo-multiple',
@@ -11122,6 +11140,19 @@ function toggleEdicionCertProgresiva() {
         backupCertProgresiva[id] = el.innerHTML;
         el.contentEditable = 'true';
         el.classList.add('editable-in-place-active');
+        el.oninput = () => {
+          autoGuardarEnVivoDebounced(id, id.replace(/-/g, '_'), 'Certificación Progresiva ETTP');
+        };
+        el.onblur = () => {
+          clearTimeout(_timerAutoSaveGoogleSheetLive);
+          const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(id, id.replace(/-/g, '_'), 'Certificación Progresiva ETTP');
+          enviarGoogleSheet({
+            action: 'guardar-contenido-vivo',
+            key: id.replace(/-/g, '_'),
+            valor: finalSavedVal,
+            htmlValor: finalSavedVal
+          });
+        };
       }
     });
     const firstEl = document.getElementById('cert-paso-1-tit');
@@ -11144,6 +11175,8 @@ function cancelarEdicionCertProgresiva() {
       if (backupCertProgresiva[id] !== undefined) el.innerHTML = backupCertProgresiva[id];
       el.contentEditable = 'false';
       el.classList.remove('editable-in-place-active');
+      el.oninput = null;
+      el.onblur = null;
     }
   });
 }
@@ -11161,6 +11194,8 @@ async function guardarCertProgresivaDirecto() {
       payloadSync[key] = val;
       el.contentEditable = 'false';
       el.classList.remove('editable-in-place-active');
+      el.oninput = null;
+      el.onblur = null;
     }
   });
 
@@ -11172,7 +11207,7 @@ async function guardarCertProgresivaDirecto() {
   if (toolbar) toolbar.style.display = 'none';
   if (txtBtn) txtBtn.textContent = 'Editar Certificación Progresiva';
 
-  mostrarToastLive('Certificación Progresiva guardada con éxito.');
+  mostrarToastLive('Certificación Progresiva guardada y sincronizada.');
 
   await enviarGoogleSheet({
     action: 'guardar-contenido-vivo-multiple',
@@ -11226,6 +11261,19 @@ function toggleEdicionReqMaster(tipo = 'epja') {
         backupReqMaster[tipo][id] = el.innerHTML;
         el.contentEditable = 'true';
         el.classList.add('editable-in-place-active');
+        el.oninput = () => {
+          autoGuardarEnVivoDebounced(id, id.replace(/-/g, '_'), `Requisito/Certificación ${tipo.toUpperCase()}`);
+        };
+        el.onblur = () => {
+          clearTimeout(_timerAutoSaveGoogleSheetLive);
+          const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(id, id.replace(/-/g, '_'), `Requisito/Certificación ${tipo.toUpperCase()}`);
+          enviarGoogleSheet({
+            action: 'guardar-contenido-vivo',
+            key: id.replace(/-/g, '_'),
+            valor: finalSavedVal,
+            htmlValor: finalSavedVal
+          });
+        };
       }
     });
     const firstEl = document.getElementById(`req-${tipo}-item-1`);
@@ -11249,6 +11297,8 @@ function cancelarEdicionReqMaster(tipo = 'epja') {
       if (backupReqMaster[tipo][id] !== undefined) el.innerHTML = backupReqMaster[tipo][id];
       el.contentEditable = 'false';
       el.classList.remove('editable-in-place-active');
+      el.oninput = null;
+      el.onblur = null;
     }
   });
 }
@@ -11267,6 +11317,8 @@ async function guardarReqMasterDirecto(tipo = 'epja') {
       payloadSync[key] = val;
       el.contentEditable = 'false';
       el.classList.remove('editable-in-place-active');
+      el.oninput = null;
+      el.onblur = null;
     }
   });
 
@@ -11278,7 +11330,7 @@ async function guardarReqMasterDirecto(tipo = 'epja') {
   if (toolbar) toolbar.style.display = 'none';
   if (txtBtn) txtBtn.textContent = 'Editar Requisitos y Certificación';
 
-  mostrarToastLive(`Requisitos y certificación de ${tipo.toUpperCase()} guardados con éxito.`);
+  mostrarToastLive(`Requisitos y certificación de ${tipo.toUpperCase()} guardados y sincronizados.`);
 
   await enviarGoogleSheet({
     action: 'guardar-contenido-vivo-multiple',
@@ -12712,6 +12764,11 @@ function restaurarTextosVivos() {
       }
     }
   });
+  if (textosVivos['header_cea_nombre']) {
+    const footEl = document.getElementById('footer-cea-nombre');
+    if (footEl) footEl.textContent = textosVivos['header_cea_nombre'];
+    document.title = (textosVivos['header_cea_nombre'] || 'CEA Madre Marie Poussepin') + ' | Educación de Adultos en Chulumani';
+  }
 }
 
 function triggerSubirFotoOferta(area) {
@@ -12960,6 +13017,8 @@ function cargarContenido() {
   const inpBienT = document.getElementById('adm-txt-bienvenida-titulo');
   if (inpBienT) inpBienT.value = c.bienvenida_titulo || 'Bienvenidos al CEA Madre Marie Poussepin';
 
+  vincularAutoGuardadoDashboardAdmin();
+
   setTimeout(renderLapicesDirectosDirector, 100);
 }
 
@@ -13068,7 +13127,42 @@ async function guardarDatosDirectorDesdePanel() {
   }
 }
 
-async function guardarContenido() {
+let _timerAutoSaveDashboard = null;
+
+function vincularAutoGuardadoDashboardAdmin() {
+  const ids = [
+    'adm-txt-hero-titulo',
+    'adm-txt-hero-subtitulo',
+    'adm-txt-bienvenida-titulo',
+    'adm-txt-bienvenida',
+    'adm-txt-humanistica',
+    'adm-txt-tecnica',
+    'adm-txt-director-nom',
+    'adm-txt-director-tel',
+    'adm-txt-director-correo',
+    'adm-director-nombre',
+    'adm-director-tel',
+    'adm-director-correo'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el._autosaveBound) {
+      el._autosaveBound = true;
+      el.addEventListener('input', () => {
+        clearTimeout(_timerAutoSaveDashboard);
+        _timerAutoSaveDashboard = setTimeout(() => {
+          guardarContenido(true);
+        }, 700);
+      });
+      el.addEventListener('blur', () => {
+        clearTimeout(_timerAutoSaveDashboard);
+        guardarContenido(true);
+      });
+    }
+  });
+}
+
+async function guardarContenido(silencioso = false) {
   const c = lsGet('cea_contenido', CONTENIDO_DEFAULT);
   const tDir = lsGet('cea_textos_director', {});
 
@@ -13079,18 +13173,16 @@ async function guardarContenido() {
   const inpH = document.getElementById('adm-txt-humanistica');
   const inpT = document.getElementById('adm-txt-tecnica');
 
-  const inpDirNom = document.getElementById('adm-txt-director-nom');
-  const inpDirTel = document.getElementById('adm-txt-director-tel');
-  const inpDirMail = document.getElementById('adm-txt-director-correo');
+  const inpDirNom = document.getElementById('adm-txt-director-nom') || document.getElementById('adm-director-nombre');
+  const inpDirTel = document.getElementById('adm-txt-director-tel') || document.getElementById('adm-director-tel');
+  const inpDirMail = document.getElementById('adm-txt-director-correo') || document.getElementById('adm-director-correo');
 
-  if (inpHeroT && inpHeroT.value.trim()) {
-    c.hero_titulo = inpHeroT.value.trim().replace(/\n/g, '<br>');
-  }
-  if (inpHeroSub && inpHeroSub.value.trim()) c.hero_subtitulo = inpHeroSub.value.trim();
-  if (inpBienT && inpBienT.value.trim()) c.bienvenida_titulo = inpBienT.value.trim();
-  if (inpB && inpB.value.trim()) c.bienvenida = inpB.value.trim();
-  if (inpH && inpH.value.trim()) c.humanistica = inpH.value.trim();
-  if (inpT && inpT.value.trim()) c.tecnica = inpT.value.trim();
+  if (inpHeroT) c.hero_titulo = inpHeroT.value.trim().replace(/\n/g, '<br>');
+  if (inpHeroSub) c.hero_subtitulo = inpHeroSub.value.trim();
+  if (inpBienT) c.bienvenida_titulo = inpBienT.value.trim();
+  if (inpB) c.bienvenida = inpB.value.trim();
+  if (inpH) c.humanistica = inpH.value.trim();
+  if (inpT) c.tecnica = inpT.value.trim();
 
   if (inpDirNom && inpDirNom.value.trim()) tDir.director_nombre = inpDirNom.value.trim();
   if (inpDirTel && inpDirTel.value.trim()) tDir.director_telefono = inpDirTel.value.trim();
@@ -13099,12 +13191,48 @@ async function guardarContenido() {
   lsSet('cea_contenido', c);
   lsSet('cea_textos_director', tDir);
 
-  cargarContenido();
-  actualizarContactosYQRDirector();
-  renderLapicesDirectosDirector();
+  // Sincronizar también en cea_textos_vivos
+  const vivos = lsGet('cea_textos_vivos', {});
+  if (c.hero_titulo) vivos.hero_titulo = c.hero_titulo;
+  if (c.hero_subtitulo) vivos.hero_subtitulo = c.hero_subtitulo;
+  if (c.bienvenida_titulo) vivos.bienvenida_titulo = c.bienvenida_titulo;
+  if (c.bienvenida) vivos.bienvenida_texto = c.bienvenida;
+  if (c.humanistica) vivos.humanistica_texto = c.humanistica;
+  if (c.tecnica) vivos.tecnica_texto = c.tecnica;
+  if (tDir.director_nombre) vivos.director_nombre = tDir.director_nombre;
+  if (tDir.director_telefono) vivos.director_telefono = tDir.director_telefono;
+  if (tDir.director_correo) vivos.director_correo = tDir.director_correo;
+  lsSet('cea_textos_vivos', vivos);
 
-  mostrarMsg('msg-contenido', '¡Textos institucionales actualizados y sincronizados con la página web!', 'success');
-  mostrarToastLive('Textos actualizados y sincronizados correctamente.');
+  // Sincronizar elementos visibles en el DOM de la página directamente sin resetear inputs
+  const elHeroT = document.getElementById('hero-titulo-text');
+  if (elHeroT && c.hero_titulo) elHeroT.innerHTML = c.hero_titulo;
+  const elHeroSub = document.getElementById('hero-subtitulo-text');
+  if (elHeroSub && c.hero_subtitulo) elHeroSub.textContent = c.hero_subtitulo;
+  const elBienT = document.getElementById('bienvenida-titulo-text');
+  if (elBienT && c.bienvenida_titulo) elBienT.textContent = c.bienvenida_titulo;
+  const elBienP = document.getElementById('bienvenida-parrafo-text') || document.querySelector('.bienvenida p');
+  if (elBienP && c.bienvenida) elBienP.textContent = c.bienvenida;
+  const elHumP = document.getElementById('humanistica-desc-text') || document.querySelector('#humanistica .section-desc');
+  if (elHumP && c.humanistica) elHumP.textContent = c.humanistica;
+  const elTecP = document.getElementById('tecnica-desc-text') || document.querySelector('#tecnica .section-desc');
+  if (elTecP && c.tecnica) elTecP.textContent = c.tecnica;
+
+  actualizarContactosYQRDirector();
+
+  if (!silencioso) {
+    cargarContenido();
+    renderLapicesDirectosDirector();
+    mostrarMsg('msg-contenido', '¡Textos institucionales actualizados y sincronizados con la página web!', 'success');
+    mostrarToastLive('Textos actualizados y sincronizados correctamente.');
+  } else {
+    const msg = document.getElementById('msg-contenido');
+    if (msg) {
+      msg.textContent = '✓ Guardado automático en tiempo real sincronizado.';
+      msg.className = 'msg-box success';
+      msg.style.display = 'block';
+    }
+  }
 
   await enviarGoogleSheet({
     action: 'guardar-contenido',
@@ -14799,7 +14927,11 @@ function descargarComprobanteInscripcionPDF(dataOverride) {
   }
 
   const edadStr = data.edad ? `(<strong>${data.edad} años cumplidos</strong>)` : (data.fechaNacimiento && typeof calcularEdad === 'function' && calcularEdad(data.fechaNacimiento) !== null ? `(<strong>${calcularEdad(data.fechaNacimiento)} años cumplidos</strong>)` : '');
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=70x70&data=${encodeURIComponent('https://ceamadremariepoussepin.github.io/?ci=' + (data.ci || '') + '&reg=' + codigoReg)}`;
+  let baseOriginUrl = 'https://ceachulumani-creator.github.io/Cea-Madre-Marie-Pousseppin-/';
+  if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+    baseOriginUrl = window.location.origin + window.location.pathname;
+  }
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=70x70&data=${encodeURIComponent(baseOriginUrl + '?ci=' + (data.ci || '') + '&reg=' + codigoReg)}`;
 
   printArea.innerHTML = `
     <div class="comprobante-ficha-letter" style="font-family:Arial, Helvetica, sans-serif; width:100%; max-width:100%; max-height:254mm; margin:0 auto; padding:8px 12px; border:1.5px solid #1a6b2e; border-radius:6px; color:#0f172a; background:#ffffff; box-sizing:border-box; overflow:hidden; page-break-inside:avoid;">
@@ -14921,6 +15053,280 @@ function confirmarInscripcionWhatsApp(dataOverride) {
   const msg = `*PRE-INSCRIPCIÓN CEA MADRE MARIE POUSSEPÍN (GESTIÓN ${anio})*\n\nEstimado Director Lic. José Luis Alanoca Mamani, he realizado mi pre-inscripción en la página web oficial con los siguientes datos:\n\n*Nombre:* ${data.nombre}\n*CI:* ${data.ci}\n*Área:* ${data.area === 'tecnica' ? 'Técnica (ETA)' : 'Humanística (EPA/ESA)'}\n*Carrera/Nivel:* ${data.carrera}${modoTexto}\n*Teléfono:* ${data.telefono}\n\nSolicito cordialmente la confirmación y orientación para la entrega de requisitos. ¡Muchas gracias!`;
 
   window.open(`https://wa.me/${telDir}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+/* ─── SISTEMA OFICIAL DE VERIFICACIÓN DE PRE-INSCRIPCIÓN (QR CODE) ─── */
+let _qrVerificacionPendiente = null;
+
+function cerrarModalVerificacionQR(e) {
+  if (e && e.target && e.target !== e.currentTarget && !e.target.closest('.malla-modal-close')) return;
+  const modal = document.getElementById('modal-verificacion-qr');
+  if (modal) modal.classList.remove('activo');
+  _qrVerificacionPendiente = null;
+}
+
+function verificarParametrosConsultaQR() {
+  if (typeof window === 'undefined' || !window.location) return;
+  const params = new URLSearchParams(window.location.search);
+  const ci = (params.get('ci') || params.get('CI') || params.get('verificar') || params.get('consulta') || '').trim();
+  const reg = (params.get('reg') || params.get('folio') || params.get('codigo') || '').trim();
+  if (ci || reg) {
+    ejecutarVerificacionQR(ci, reg);
+  }
+}
+
+function revalidarQRPendiente() {
+  if (_qrVerificacionPendiente && (_qrVerificacionPendiente.ci || _qrVerificacionPendiente.reg)) {
+    ejecutarVerificacionQR(_qrVerificacionPendiente.ci, _qrVerificacionPendiente.reg);
+  }
+}
+
+async function ejecutarVerificacionQR(ci, reg) {
+  const modal = document.getElementById('modal-verificacion-qr');
+  const body = document.getElementById('modal-verificacion-qr-body');
+  if (!modal || !body) return;
+
+  _qrVerificacionPendiente = { ci, reg };
+
+  // Auto-completar el input de consulta en la página si existe
+  const inpCons = document.getElementById('ci-consulta-inp');
+  if (inpCons && ci) inpCons.value = ci;
+
+  modal.classList.add('activo');
+  body.innerHTML = `
+    <div style="text-align:center;padding:34px 20px;">
+      <div style="display:inline-block;width:42px;height:42px;border:4px solid #e2e8f0;border-top-color:#16a34a;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:14px;"></div>
+      <h4 style="margin:0 0 6px 0;color:#0f172a;font-size:1.05rem;font-weight:800;">Validando Código QR Oficial...</h4>
+      <p style="margin:0;font-size:0.86rem;color:#64748b;">Consultando registros de matrícula del CEA para: <strong style="color:#166534">${escapeHTML(ci || reg)}</strong></p>
+    </div>
+  `;
+
+  const ciNormal = String(ci || '').trim().toLowerCase();
+  const ciDigits = ciNormal.replace(/[^\d]/g, '');
+  const regNormal = String(reg || '').trim().toLowerCase();
+
+  // 1. Buscar en registros locales de localStorage
+  const inscripciones = lsGet('cea_inscripciones', []);
+  let encontrada = inscripciones.find(ins => {
+    const cReg = String(ins.ci || '').trim().toLowerCase();
+    const cDigits = cReg.replace(/[^\d]/g, '');
+    const rReg = String(ins.codigoReg || ins.folio || '').trim().toLowerCase();
+    if (ciNormal && cReg === ciNormal) return true;
+    if (ciDigits && cDigits && ciDigits.length >= 4 && ciDigits === cDigits) return true;
+    if (regNormal && (rReg === regNormal || rReg.includes(regNormal))) return true;
+    return false;
+  });
+
+  // 2. Si no se encontró en local (ej. usuario escanea desde otro teléfono celular), consultar Google Sheets
+  if (!encontrada && typeof GOOGLE_SCRIPT_URL === 'string' && GOOGLE_SCRIPT_URL.includes('script.google.com')) {
+    try {
+      const resp = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'consultar-inscripcion-ci',
+          ci: ci,
+          reg: reg
+        })
+      });
+      const resData = await resp.json();
+      if (resData && resData.status === 'success' && resData.inscripcion) {
+        encontrada = resData.inscripcion;
+        // Guardar en local para futuras consultas instantáneas
+        const insLocal = lsGet('cea_inscripciones', []);
+        insLocal.unshift(encontrada);
+        lsSet('cea_inscripciones', insLocal);
+      }
+    } catch(err) {
+      console.warn('Error al verificar QR con Google Sheets:', err);
+    }
+  }
+
+  // 3. Renderizar resultado
+  if (encontrada) {
+    _qrVerificacionPendiente = null;
+    window._ultimoRegistroInscripcion = encontrada;
+    renderizarFichaVerificacionExitosa(encontrada, reg);
+    // Sincronizar también la caja de consulta en la sección de inscripciones si está en pantalla
+    if (typeof consultarInscripcionPorCI === 'function') {
+      try { consultarInscripcionPorCI(); } catch(e) {}
+    }
+  } else {
+    renderizarFichaVerificacionNoEncontrada(ci, reg);
+  }
+}
+
+function renderizarFichaVerificacionExitosa(data, codigoReg) {
+  const body = document.getElementById('modal-verificacion-qr-body');
+  if (!body) return;
+
+  const fnacFormateada = formatearFechaSoloNumerosDMY(data.fechaNacimiento);
+  const edadCalc = data.edad || (data.fechaNacimiento ? calcularEdad(data.fechaNacimiento) : null);
+  const fnacTexto = fnacFormateada !== '—' 
+    ? `${fnacFormateada} ${edadCalc ? `(${edadCalc} años cumplidos)` : ''}`
+    : (edadCalc ? `${edadCalc} años cumplidos` : '—');
+  const fechaRegFormateada = formatearFechaRegistroConHora(data.fechaRegistro || data.fecha);
+
+  const esTec = String(data.area || '').toLowerCase().includes('tec');
+  const esCasoExcep = Boolean(data.esCasoExcepcional || (data.casoExcepcional && !['No','no','false','0','—','Ninguno','Regular'].includes(String(data.casoExcepcional).trim())));
+  const folioFinal = codigoReg || data.codigoReg || ('CEA-2026-' + (data.ci ? String(data.ci).slice(-4) : 'VALID'));
+
+  body.innerHTML = `
+    <div>
+      <!-- Sello de Autenticidad Oficial -->
+      <div style="background:linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);border:1.8px solid #16a34a;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:42px;height:42px;background:#16a34a;color:#ffffff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(22,163,74,0.3);flex-shrink:0;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.8"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div style="font-size:0.95rem;font-weight:900;color:#166534;letter-spacing:0.3px;">DOCUMENTO OFICIAL VERIFICADO</div>
+            <div style="font-size:0.78rem;color:#15803d;font-weight:700;">Pre-Inscripción Activa y Registrada en el CEA Madre Marie Poussepín</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <span style="display:inline-block;padding:4px 10px;background:#16a34a;color:#ffffff;border-radius:20px;font-size:0.75rem;font-weight:900;letter-spacing:0.4px;">GESTIÓN ${data.gestion || '2026'}</span>
+          <div style="font-size:0.72rem;color:#475569;margin-top:2px;font-family:monospace;font-weight:700;">FOLIO: ${folioFinal}</div>
+        </div>
+      </div>
+
+      <!-- Datos Personales y Académicos en Rejilla Elegante -->
+      <div style="background:var(--bg-card);border:1px solid var(--border-col);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <h5 style="margin:0 0 12px 0;font-size:0.80rem;text-transform:uppercase;letter-spacing:0.8px;color:#15803d;font-weight:900;border-bottom:1px solid var(--border-col);padding-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Información del Participante Registrado
+        </h5>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;font-size:0.88rem;">
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Postulante:</span>
+            <strong style="color:var(--text-main);font-size:1rem;">${escapeHTML(String(data.nombre || '—'))}</strong>
+          </div>
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Cédula de Identidad (CI):</span>
+            <strong style="color:#0f172a;font-size:0.95rem;font-family:monospace;">${escapeHTML(String(data.ci || '—'))}</strong>
+          </div>
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Fecha de Nacimiento / Edad:</span>
+            <strong style="color:#166534;">${fnacTexto}</strong>
+          </div>
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Teléfono / WhatsApp:</span>
+            <strong style="color:var(--text-main);">${escapeHTML(String(data.telefono || '—'))}</strong>
+          </div>
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Procedencia / Comunidad:</span>
+            <strong style="color:var(--text-main);">${escapeHTML(String(data.comunidad || data.direccion || 'Chulumani / Sud Yungas'))}</strong>
+          </div>
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Sede o Subcentro:</span>
+            <strong style="color:#166534;">${escapeHTML(String(data.sede || 'Sede Central (Centro de Chulumani)'))}</strong>
+          </div>
+        </div>
+
+        <h5 style="margin:16px 0 12px 0;font-size:0.80rem;text-transform:uppercase;letter-spacing:0.8px;color:#15803d;font-weight:900;border-bottom:1px solid var(--border-col);padding-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Asignación y Carrera
+        </h5>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;font-size:0.88rem;">
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Área de Formación:</span>
+            <strong style="color:var(--text-main);">${esTec ? 'Educación Técnica Tecnológica (ETTP/ETA)' : 'Educación Humanística (EPJA)'}</strong>
+          </div>
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Especialidad / Carrera:</span>
+            <strong style="color:#166534;font-size:0.95rem;">${escapeHTML(String(data.carrera || '—'))}</strong>
+          </div>
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Semestre Asignado:</span>
+            <span style="display:inline-block;padding:3px 10px;background:#dbeafe;color:#1e40af;border-radius:12px;font-weight:800;font-size:0.80rem;">
+              ${escapeHTML(String(data.semestre || '1er Semestre'))} (${escapeHTML(String(data.gestion || '2026'))})
+            </span>
+          </div>
+          <div>
+            <span style="font-size:0.75rem;color:var(--text-sec);font-weight:700;display:block;">Fecha de Registro:</span>
+            <span style="color:var(--text-sec);font-size:0.82rem;">${escapeHTML(fechaRegFormateada)}</span>
+          </div>
+        </div>
+
+        ${esCasoExcep ? `
+          <div style="margin-top:14px;background:#fffbeb;border:1.5px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:0.83rem;color:#92400e;line-height:1.4;">
+            <strong style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#b45309;">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Modalidad: Pre-Inscripción por Caso Excepcional (Ley 070)
+            </strong>
+            <div style="margin-top:4px;">Causal Registrada: <strong>${escapeHTML(String(data.casoExcepcional || 'Caso Excepcional'))}</strong>${data.detalleExcepcion ? ` — <em>${escapeHTML(String(data.detalleExcepcion))}</em>` : ''}</div>
+          </div>
+        ` : `
+          <div style="margin-top:14px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;font-size:0.82rem;color:#475569;display:flex;align-items:center;gap:6px;">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span><strong>Modalidad de Matrícula:</strong> Inscripción Regular Oficial (Cumple con los requisitos establecidos).</span>
+          </div>
+        `}
+      </div>
+
+      <!-- Botones de Acción Funcionales -->
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding-top:4px;">
+        <button type="button" class="btn-voucher-pdf" onclick="descargarComprobanteInscripcionPDF(window._ultimoRegistroInscripcion)" style="padding:10px 20px;font-size:0.88rem;display:inline-flex;align-items:center;gap:7px;border-radius:10px;font-weight:800;background:#15803d;color:#ffffff;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(21,128,61,0.25);">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Descargar Ficha Oficial en PDF
+        </button>
+
+        <button type="button" class="btn-voucher-whatsapp" onclick="confirmarInscripcionWhatsApp(window._ultimoRegistroInscripcion)" style="padding:10px 18px;font-size:0.88rem;display:inline-flex;align-items:center;gap:7px;border-radius:10px;font-weight:800;background:#25d366;color:#ffffff;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(37,211,102,0.25);">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+          Confirmar por WhatsApp con Dirección
+        </button>
+
+        <button type="button" onclick="cerrarModalVerificacionQR()" style="padding:10px 18px;background:var(--bg-card);color:var(--text-sec);border:1.5px solid var(--border-col);border-radius:10px;font-weight:700;font-size:0.86rem;cursor:pointer;">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderizarFichaVerificacionNoEncontrada(ci, reg) {
+  const body = document.getElementById('modal-verificacion-qr-body');
+  if (!body) return;
+
+  body.innerHTML = `
+    <div style="text-align:center;padding:26px 16px;">
+      <div style="width:58px;height:58px;background:#fef2f2;color:#dc2626;border:2px solid #fecaca;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;box-shadow:0 4px 12px rgba(220,38,38,0.15);">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+
+      <h4 style="margin:0 0 8px;color:#991b1b;font-size:1.15rem;font-weight:900;">Registro No Encontrado</h4>
+      <p style="margin:0 0 16px;font-size:0.88rem;color:#64748b;line-height:1.5;max-width:520px;margin-left:auto;margin-right:auto;">
+        No se encontró ningún registro de pre-inscripción asociado al C.I. o Código: <strong style="color:#0f172a">${escapeHTML(ci || reg || 'Sin identificar')}</strong> en el sistema institucional.
+      </p>
+
+      <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px 16px;max-width:520px;margin:0 auto 20px auto;font-size:0.82rem;color:#475569;text-align:left;line-height:1.45;">
+        <strong>¿Qué puedes hacer?</strong>
+        <ul style="margin:6px 0 0 18px;padding:0;">
+          <li>Si eres postulante nuevo, puedes completar el formulario de pre-inscripción en línea de forma gratuita.</li>
+          <li>Si ya te inscribiste, verifica que tu C.I. haya sido ingresado sin letras ni errores tipográficos.</li>
+          <li>Puedes comunicarte directamente con la Dirección del CEA por WhatsApp para verificar tus carpetas físicas.</li>
+        </ul>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <a href="#inscripciones" onclick="cerrarModalVerificacionQR()" style="padding:10px 18px;background:#15803d;color:#ffffff;border-radius:10px;font-weight:800;font-size:0.86rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(21,128,61,0.25);">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Completar Pre-Inscripción Ahora
+        </a>
+
+        <button type="button" onclick="confirmarInscripcionWhatsApp({ nombre: 'Postulante por verificar', ci: '${escapeHTML(ci || '')}', carrera: 'Consulta de Registro QR', telefono: '' })" style="padding:10px 18px;background:#25d366;color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.86rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+          Consultar por WhatsApp
+        </button>
+
+        <button type="button" onclick="cerrarModalVerificacionQR()" style="padding:10px 18px;background:var(--bg-card);color:var(--text-sec);border:1px solid var(--border-col);border-radius:10px;font-weight:700;font-size:0.86rem;cursor:pointer;">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 async function manejarFormContacto(e) {
@@ -18158,21 +18564,68 @@ function iniciarEdicionEnVivo(targetId, key, title, type) {
   el.contentEditable = 'true';
   el.classList.add('editable-in-place-active');
 
-  // Crear la barra de acciones flotante
+  // Auto-guardado en tiempo real al escribir, añadir o borrar texto
+  const onInputHandler = () => {
+    autoGuardarEnVivoDebounced(targetId, key, title);
+  };
+  const onBlurHandler = () => {
+    clearTimeout(_timerAutoSaveGoogleSheetLive);
+    const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(targetId, key, title);
+    enviarGoogleSheet({
+      action: 'guardar-contenido-vivo',
+      key: key,
+      valor: finalSavedVal,
+      htmlValor: finalSavedVal
+    });
+  };
+
+  el.addEventListener('input', onInputHandler);
+  el.addEventListener('blur', onBlurHandler);
+
+  _cleanupParentInteractive = () => {
+    el.removeEventListener('click', stopClickBubble);
+    el.removeEventListener('keydown', handleKeydownInPlace);
+    el.removeEventListener('input', onInputHandler);
+    el.removeEventListener('blur', onBlurHandler);
+    if (parentInteractive) {
+      parentInteractive.removeEventListener('click', stopParentAction, true);
+      if (savedHref !== null) {
+        parentInteractive.setAttribute('href', savedHref);
+      }
+      if (savedOnclick !== null) {
+        parentInteractive.onclick = savedOnclick;
+      }
+    }
+  };
+
+  // Crear la barra de acciones flotante con indicador de guardado automático
   const toolbar = document.createElement('div');
   toolbar.className = 'inline-edit-floating-toolbar';
   toolbar.id = 'inline-floating-toolbar';
   toolbar.contentEditable = 'false';
   toolbar.innerHTML = `
-    <span class="inline-toolbar-hint"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Editando "${title}" directamente: escribe o borra como en Word</span>
-    <button type="button" class="btn-inline-action btn-inline-save" id="btn-save-inline-live">
-      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      Guardar
-    </button>
-    <button type="button" class="btn-inline-action btn-inline-cancel" id="btn-cancel-inline-live">
-      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      Cancelar
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="inline-toolbar-hint" style="display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editando: <strong>${title}</strong>
+      </span>
+      <span id="inline-toolbar-autosave-badge" style="font-size:0.75rem;padding:3px 10px;border-radius:12px;background:#dcfce7;border:1.5px solid #86efac;font-weight:700">
+        <span style="display:inline-flex;align-items:center;gap:4px;color:#15803d">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          ✓ Guardado automático activo
+        </span>
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button type="button" class="btn-inline-action btn-inline-save" id="btn-save-inline-live" title="Finalizar edición y cerrar recuadro">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Listo
+      </button>
+      <button type="button" class="btn-inline-action btn-inline-cancel" id="btn-cancel-inline-live" title="Deshacer cambios y restaurar original">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Deshacer
+      </button>
+    </div>
   `;
 
   // Insertar toolbar fuera de cualquier <button> o <a> padre para evitar conflictos de clic
@@ -18194,19 +18647,13 @@ function iniciarEdicionEnVivo(targetId, key, title, type) {
   el.focus();
 }
 
-async function guardarEdicionEnVivo(targetId, key, title) {
+let _timerAutoSaveGoogleSheetLive = null;
+
+function aplicarPersistenciaTextoEnVivo(targetId, key, title) {
   const el = document.getElementById(targetId);
-  if (!el) return;
+  if (!el) return { finalSavedVal: '', htmlVal: '', textVal: '' };
 
-  restaurarElementoPadreInteractivo();
-
-  const toolbar = document.getElementById('inline-floating-toolbar');
-  if (toolbar) toolbar.remove();
-
-  el.contentEditable = 'false';
-  el.classList.remove('editable-in-place-active');
-
-  // Limpiar cualquier botón remanente antes de guardar
+  // Limpiar cualquier botón remanente si existiera
   const strayPencils = el.querySelectorAll('.inline-edit-pencil-btn, .live-pencil-btn');
   strayPencils.forEach(p => p.remove());
 
@@ -18229,23 +18676,33 @@ async function guardarEdicionEnVivo(targetId, key, title) {
     if (key === 'director_nombre') {
       tData.director_nombre = textVal;
       const dLink = document.getElementById('display-director-nombre');
-      if (dLink) dLink.textContent = textVal;
+      if (dLink && dLink !== el) dLink.textContent = textVal;
     }
     if (key === 'director_telefono') {
       tData.director_telefono = textVal;
       const dTel = document.getElementById('display-director-tel');
       const dTelLink = document.getElementById('display-director-tel-link');
-      if (dTel) dTel.textContent = textVal;
+      if (dTel && dTel !== el) dTel.textContent = textVal;
       if (dTelLink) dTelLink.href = 'tel:' + textVal.replace(/[^\d+]/g, '');
     }
     if (key === 'director_correo') {
       tData.director_correo = textVal;
       const dMail = document.getElementById('display-director-correo');
       const dMailLink = document.getElementById('display-director-mail-link');
-      if (dMail) dMail.textContent = textVal;
+      if (dMail && dMail !== el) dMail.textContent = textVal;
       if (dMailLink) dMailLink.href = 'mailto:' + textVal;
     }
     lsSet('cea_textos_director', tData);
+  }
+
+  // Si se cambia el nombre del CEA en el encabezado
+  if (key === 'header_cea_nombre') {
+    const footEl = document.getElementById('footer-cea-nombre');
+    if (footEl && footEl !== el) footEl.textContent = textVal;
+    document.title = (textVal || 'CEA Madre Marie Poussepin') + ' | Educación de Adultos en Chulumani';
+  } else if (key === 'footer_cea_nombre') {
+    const headEl = document.getElementById('header-cea-nombre');
+    if (headEl && headEl !== el) headEl.textContent = textVal;
   }
 
   // Sincronizar también con cea_titulos_horarios cuando se editan los títulos del encabezado de horarios
@@ -18261,7 +18718,11 @@ async function guardarEdicionEnVivo(targetId, key, title) {
   }
 
   const textosVivos = lsGet('cea_textos_vivos', {});
-  const targetConfig = TARGETS_EDICION_DIRECTOR.find(t => t.key === key);
+  const targetsAll = [
+    ...(typeof TARGETS_EDICION_DIRECTOR !== 'undefined' ? TARGETS_EDICION_DIRECTOR : []),
+    ...(typeof TARGETS_SECCIONES_DIRECTAS !== 'undefined' ? TARGETS_SECCIONES_DIRECTAS : [])
+  ];
+  const targetConfig = targetsAll.find(t => t.key === key);
   const finalSavedVal = (targetConfig && targetConfig.type === 'html') ? htmlVal : textVal;
   textosVivos[key] = finalSavedVal;
   lsSet('cea_textos_vivos', textosVivos);
@@ -18304,11 +18765,62 @@ async function guardarEdicionEnVivo(targetId, key, title) {
   const inpDirMail = document.getElementById('adm-txt-director-correo');
   if (inpDirMail && (key === 'director_correo')) inpDirMail.value = textVal;
 
+  return { finalSavedVal, htmlVal, textVal };
+}
+
+function autoGuardarEnVivoDebounced(targetId, key, title) {
+  const statusEl = document.getElementById('inline-toolbar-autosave-badge');
+  if (statusEl) {
+    statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;color:#d97706"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Guardando en Google Sheets...</span>`;
+    statusEl.style.background = '#fef3c7';
+    statusEl.style.borderColor = '#fde68a';
+  }
+
+  // 1. Guardado inmediato en local
+  const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(targetId, key, title);
+
+  // 2. Guardado en Google Sheets con debounce de 700ms
+  clearTimeout(_timerAutoSaveGoogleSheetLive);
+  _timerAutoSaveGoogleSheetLive = setTimeout(async () => {
+    try {
+      await enviarGoogleSheet({
+        action: 'guardar-contenido-vivo',
+        key: key,
+        valor: finalSavedVal,
+        htmlValor: finalSavedVal
+      });
+      const st = document.getElementById('inline-toolbar-autosave-badge');
+      if (st) {
+        st.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;color:#15803d"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> ✓ Guardado en Google Sheets</span>`;
+        st.style.background = '#dcfce7';
+        st.style.borderColor = '#86efac';
+      }
+    } catch (err) {
+      console.warn('Auto-guardado en segundo plano:', err);
+    }
+  }, 700);
+}
+
+async function guardarEdicionEnVivo(targetId, key, title) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+
+  clearTimeout(_timerAutoSaveGoogleSheetLive);
+  restaurarElementoPadreInteractivo();
+
+  const toolbar = document.getElementById('inline-floating-toolbar');
+  if (toolbar) toolbar.remove();
+
+  el.contentEditable = 'false';
+  el.classList.remove('editable-in-place-active');
+
+  const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(targetId, key, title);
+
   elementoEditandoActivo = null;
   renderLapicesDirectosDirector();
-  mostrarToastLive(`Guardado: ${title}`);
+  mostrarToastLive(`✓ Guardado automático: ${title}`);
 
-  // 2. Sincronización directa en segundo plano con Google Sheets
+  // Sincronización directa con Google Sheets
   await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: key,
@@ -18321,6 +18833,7 @@ function cancelarEdicionEnVivo(targetId) {
   const el = document.getElementById(targetId);
   if (!el) return;
 
+  clearTimeout(_timerAutoSaveGoogleSheetLive);
   restaurarElementoPadreInteractivo();
 
   const toolbar = document.getElementById('inline-floating-toolbar');
@@ -18332,8 +18845,25 @@ function cancelarEdicionEnVivo(targetId) {
   el.contentEditable = 'false';
   el.classList.remove('editable-in-place-active');
 
+  // Revertir también en almacenamiento y Google Sheets al valor original respaldado
+  const targetsAll = [
+    ...(typeof TARGETS_EDICION_DIRECTOR !== 'undefined' ? TARGETS_EDICION_DIRECTOR : []),
+    ...(typeof TARGETS_SECCIONES_DIRECTAS !== 'undefined' ? TARGETS_SECCIONES_DIRECTAS : [])
+  ];
+  const tCfg = targetsAll.find(t => t.id === targetId);
+  if (tCfg) {
+    aplicarPersistenciaTextoEnVivo(targetId, tCfg.key, tCfg.title || 'Texto');
+    enviarGoogleSheet({
+      action: 'guardar-contenido-vivo',
+      key: tCfg.key,
+      valor: backupTextoOriginal,
+      htmlValor: backupTextoOriginal
+    });
+  }
+
   elementoEditandoActivo = null;
   renderLapicesDirectosDirector();
+  mostrarToastLive('Cambios deshechos.');
 }
 
 /* ─── LOGIN Y SESIONES ─── */
@@ -23089,7 +23619,12 @@ document.addEventListener('DOMContentLoaded', () => {
   vincularEventosPrevisualizacion('adm');
 
   restaurarSesion();
+  setTimeout(verificarParametrosConsultaQR, 150);
 });
+
+if (typeof document !== 'undefined' && (document.readyState === 'complete' || document.readyState === 'interactive')) {
+  setTimeout(verificarParametrosConsultaQR, 200);
+}
 
 async function refrescarCredencialesDocentesDesdeServidor(tokenOverride) {
   const session = lsGet('cea_session', null);

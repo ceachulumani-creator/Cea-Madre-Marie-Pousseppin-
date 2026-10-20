@@ -807,6 +807,50 @@ function doPost(e) {
       ]);
       return responseJSON({ status: "success", message: "Pre-inscripción registrada con éxito." });
     } 
+
+    // 1.1 Consulta y Verificación Oficial de Inscripción por CI (Validación Código QR)
+    else if (action === "consultar-inscripcion-ci" || action === "verificar-qr-inscripcion") {
+      const ciBuscado = String(postData.ci || "").trim().toLowerCase();
+      const ciDigits = ciBuscado.replace(/[^\d]/g, "");
+      let sheetIns = ss.getSheetByName("Inscripciones");
+      if (!sheetIns) {
+        return responseJSON({ status: "not_found", message: "No hay registros de inscripciones." });
+      }
+      const dataIns = sheetIns.getDataRange().getValues();
+      let encontrada = null;
+      for (let i = dataIns.length - 1; i >= 1; i--) {
+        const fila = dataIns[i];
+        const ciFila = String(fila[4] || "").trim().toLowerCase();
+        const ciFilaDigits = ciFila.replace(/[^\d]/g, "");
+        const nombreFila = String(fila[3] || "").trim();
+        if (ciBuscado && (ciFila === ciBuscado || (ciDigits && ciFilaDigits && ciDigits === ciFilaDigits)) && nombreFila) {
+          encontrada = {
+            gestion: String(fila[0] || ""),
+            mes: String(fila[1] || ""),
+            fecha: String(fila[2] || ""),
+            nombre: nombreFila,
+            ci: String(fila[4] || ""),
+            fechaNacimiento: String(fila[5] || ""),
+            telefono: String(fila[6] || ""),
+            area: String(fila[7] || ""),
+            carrera: String(fila[8] || ""),
+            observaciones: String(fila[9] || ""),
+            semestre: String(fila[10] || ""),
+            casoExcepcional: String(fila[11] || ""),
+            detalleExcepcion: String(fila[12] || ""),
+            esCasoExcepcional: Boolean(fila[11] && fila[11] !== "No" && fila[11] !== ""),
+            sede: String(fila[13] || "Sede Central (Centro de Chulumani)"),
+            comunidad: String(fila[14] || "")
+          };
+          break;
+        }
+      }
+      if (encontrada) {
+        return responseJSON({ status: "success", inscripcion: encontrada });
+      } else {
+        return responseJSON({ status: "not_found", message: "No se encontró registro con el CI especificado." });
+      }
+    } 
     
     else if (action === "contacto") {
       let sheetContact = ss.getSheetByName("Contacto") || ss.insertSheet("Contacto");
