@@ -52,8 +52,8 @@
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
-    max-width: 175.9mm !important; /* Ancho exacto descontando 2 cm a cada lado */
-    margin: 0 auto !important;
+    max-width: 185.9mm !important; /* Ancho exacto descontando 2 cm izquierdo y 1 cm derecho */
+    margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
@@ -130,8 +130,8 @@
   #reporte-inscritos-print-area .report-firma-box {
     width: 340px !important;
     text-align: center !important;
-    border-top: 1.8px solid #0f4a1e !important;
-    padding-top: 6px !important;
+    border-top: none !important;
+    padding-top: 0 !important;
   }
 
   /* MODO EXCLUSIVO: SOLO ESTADÍSTICAS EN EXACTAMENTE 1 SOLA HOJA */
@@ -148,13 +148,6 @@
 
   body.printing-solo-estadisticas #reporte-inscritos-print-area table {
     margin-bottom: 6px !important;
-  }
-
-  body.printing-solo-estadisticas #reporte-inscritos-print-area th,
-  body.printing-solo-estadisticas #reporte-inscritos-print-area td {
-    padding: 2.5px 5px !important;
-    font-size: 7.2pt !important;
-    line-height: 1.15 !important;
   }
 
   body.printing-solo-estadisticas #reporte-inscritos-print-area .report-firma-unica {

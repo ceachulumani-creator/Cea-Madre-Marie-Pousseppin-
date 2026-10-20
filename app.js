@@ -64,6 +64,19 @@ const DOCENTES_DEFAULT = {
   'tec-agr': 'Lic. Macario Ticonipa'
 };
 
+const USUARIOS_DOCENTES_DEFAULT = {
+  'tec-sis': { user: 'profe.sistemas', pass: 'docente123', comision: false },
+  'tec-sec': { user: 'profe.secretariado', pass: 'docente123', comision: false },
+  'tec-bel': { user: 'profe.belleza', pass: 'docente123', comision: false },
+  'tec-tex': { user: 'profe.textil', pass: 'docente123', comision: false },
+  'tec-gas': { user: 'profe.gastronomia', pass: 'docente123', comision: false },
+  'tec-agr': { user: 'profe.agropecuaria', pass: 'docente123', comision: false },
+  'hum-cn':  { user: 'profe.naturales', pass: 'docente123', comision: true },
+  'hum-mat': { user: 'profe.matematica', pass: 'docente123', comision: false },
+  'hum-cs':  { user: 'profe.sociales', pass: 'docente123', comision: false },
+  'hum-len': { user: 'profe.lenguaje', pass: 'docente123', comision: false }
+};
+
 const HORARIOS_DEFAULT_V2 = {
   hum: [
     { dia: 'Miércoles', hora: '08:00 – 13:00' },
@@ -756,6 +769,7 @@ async function sincronizarInscripcionesProtegidas() {
       lsSet('cea_inscripciones', res.inscripciones);
       _aplicandoDatosRemotos = prev;
       cargarInscripciones();
+      if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
     }
   } catch (err) {
     console.warn('Sincronización de inscripciones protegidas:', err);
@@ -1060,6 +1074,7 @@ function aplicarDatosGoogleSheets(data) {
       lsSet('cea_docentes', data.docentes);
       cargarDocentes();
       if (typeof cargarDocentesUnificados === 'function') cargarDocentesUnificados();
+    if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') refrescarCredencialesDocentesDesdeServidor();
     }
 
     // 3. Carreras Técnicas
@@ -1238,10 +1253,25 @@ function aplicarDatosGoogleSheets(data) {
       cargarHorariosMatriz(typeof turnoHorarioActual !== 'undefined' ? turnoHorarioActual : 'hum');
     }
 
-    // 7. Usuarios Docentes
+    // 7. Usuarios Docentes (Mezcla segura para preservar contraseñas y comisiones en el dispositivo)
     if (data.usuariosDocentes && Object.keys(data.usuariosDocentes).length > 0) {
-      lsSet('cea_usuarios_docentes', data.usuariosDocentes);
+      const haEditadoRecientemente = _ultimaEdicionLocalTimestamp && (Date.now() - _ultimaEdicionLocalTimestamp < 60000);
+      const actual = lsGet('cea_usuarios_docentes', typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' ? USUARIOS_DOCENTES_DEFAULT : {});
+      const merged = { ...actual };
+      Object.keys(data.usuariosDocentes).forEach(k => {
+        const remoteUser = data.usuariosDocentes[k].user;
+        const remoteComision = data.usuariosDocentes[k].comision;
+        const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[k]?.pass) || 'docente123';
+        merged[k] = {
+          ...(merged[k] || {}),
+          user: (!haEditadoRecientemente && remoteUser !== undefined) ? remoteUser : (merged[k]?.user || remoteUser || ''),
+          pass: merged[k]?.pass || defPass,
+          comision: (!haEditadoRecientemente && remoteComision !== undefined) ? remoteComision : (merged[k]?.comision || remoteComision || false)
+        };
+      });
+      lsSet('cea_usuarios_docentes', merged);
       if (typeof cargarUsuariosPanel === 'function') cargarUsuariosPanel();
+  if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') refrescarCredencialesDocentesDesdeServidor();
     }
 
     // 8. Enlaces Drive y configuración institucional
@@ -1284,6 +1314,7 @@ function aplicarDatosGoogleSheets(data) {
       Object.keys(data.docNiveles).forEach(carrKey => {
         lsSet('cea_doc_niveles_' + carrKey, data.docNiveles[carrKey]);
       });
+      if (typeof renderSeccionHumanistica === 'function') renderSeccionHumanistica();
     }
     if (data.actividades && Array.isArray(data.actividades)) {
       lsSet('cea_actividades', data.actividades);
@@ -1293,6 +1324,7 @@ function aplicarDatosGoogleSheets(data) {
     if (data.inscripciones && Array.isArray(data.inscripciones)) {
       lsSet('cea_inscripciones', data.inscripciones);
       cargarInscripciones();
+      if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
     }
     if (data.galeriaFotos && Array.isArray(data.galeriaFotos)) {
       lsSet('cea_galeria_fotos', data.galeriaFotos);
@@ -1332,6 +1364,9 @@ function aplicarDatosGoogleSheets(data) {
 
     if (typeof renderLapicesDirectosDirector === 'function') {
       renderLapicesDirectosDirector();
+    }
+    if (typeof renderSeccionHumanistica === 'function') {
+      renderSeccionHumanistica();
     }
   } finally {
     _aplicandoDatosRemotos = prevRemoteFlag;
@@ -1383,8 +1418,10 @@ function abrirAdmin() {
   }
 
   const session = lsGet('cea_session', null);
-  if (session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.loggedIn === true)) {
+  if (session && (session.role === 'director' || session.role === 'admin')) {
     mostrarPanelAdmin();
+  } else if (session && session.role === 'docente') {
+    mostrarPanelDocente(session.areaKey);
   } else {
     const loginBox = document.getElementById('admin-login');
     if (loginBox) loginBox.style.display = 'block';
@@ -1426,31 +1463,33 @@ function abrirModalCarrera(key) {
 
   const docentes = lsGet('cea_docentes', DOCENTES_DEFAULT);
   const docNombre = docentes[area.key] || docentes[area.docente] || area.docente || '—';
-  const docNiveles = lsGet('cea_doc_niveles_' + area.key, { basico: '#', auxiliar: '#', medio1: '#', medio2: '#' });
+  const rawDocs = lsGet('cea_doc_niveles_' + area.key, null);
+  const docsList = typeof normalizarDocumentosDocente === 'function' 
+    ? normalizarDocumentosDocente(rawDocs) 
+    : (Array.isArray(rawDocs) ? rawDocs : []);
 
   const iconDoc = `<svg class="svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
-  const iconBook = `<svg class="svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
-  const iconGrad = `<svg class="svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`;
   const iconDownload = `<svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
   const iconUser = `<svg class="svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 
-  const pdfItems = [
-    { nivel: 'Técnico Básico', link: docNiveles.basico, icon: iconDoc },
-    { nivel: 'Técnico Auxiliar', link: docNiveles.auxiliar, icon: iconBook },
-    { nivel: 'Técnico Medio I', link: docNiveles.medio1, icon: iconGrad },
-    { nivel: 'Técnico Medio II', link: docNiveles.medio2, icon: iconGrad }
-  ];
-
-  const pdfHTML = pdfItems.map(item => `
-    <div class="doc-card" style="text-align:center;padding:12px;background:var(--verde-light);border-radius:10px;border:1px solid var(--border-col)">
-      <div style="margin-bottom:6px">${item.icon}</div>
-      <h4 style="margin:0 0 4px 0;font-size:0.9rem;color:var(--verde-dark)">${item.nivel}</h4>
-      ${item.link && item.link !== '#'
-        ? `<a href="${item.link}" target="_blank" rel="noopener" class="btn-download" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:var(--verde);color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:0.8rem">${iconDownload} Descargar PDF</a>`
-        : `<span style="font-size:0.78rem;color:var(--text-sec);font-style:italic">No disponible aún</span>`
-      }
+  const pdfHTML = docsList.length > 0 ? docsList.map(item => `
+    <div class="doc-card" style="text-align:center;padding:12px;background:var(--verde-light);border-radius:10px;border:1px solid var(--border-col);display:flex;flex-direction:column;justify-content:space-between;gap:8px">
+      <div>
+        <div style="margin-bottom:4px;color:var(--verde-dark)">${iconDoc}</div>
+        <span style="display:inline-block;font-size:0.72rem;font-weight:700;background:var(--verde);color:#fff;padding:2px 8px;border-radius:12px;margin-bottom:4px">${escapeHTML(item.nivel || 'Especialidad')}</span>
+        <h4 style="margin:2px 0 0 0;font-size:0.88rem;color:var(--text-main);line-height:1.3">${escapeHTML(item.titulo || item.nivel || 'Documento Oficial')}</h4>
+      </div>
+      <div>
+        ${item.enlace && item.enlace !== '#'
+          ? `<a href="${escapeHTML(item.enlace)}" target="_blank" rel="noopener" class="btn-download" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 12px;background:var(--verde);color:#fff;border-radius:6px;text-decoration:none;font-weight:700;font-size:0.8rem;width:100%;box-sizing:border-box">${iconDownload} Ver / Descargar PDF</a>`
+          : `<span style="font-size:0.78rem;color:var(--text-sec);font-style:italic">Enlace en proceso</span>`
+        }
+      </div>
     </div>
-  `).join('');
+  `).join('') : `
+    <div style="grid-column:1/-1;text-align:center;padding:16px;background:var(--verde-light);border-radius:10px;border:1px dashed var(--verde)">
+      <p style="margin:0;font-size:0.88rem;color:var(--verde-dark);font-weight:600">Documentos y módulos oficiales en proceso de actualización por el docente del área.</p>
+    </div>`;
 
   if (modalBody) {
     modalBody.innerHTML = `
@@ -2271,41 +2310,179 @@ function fallbackCopiarCredencial(texto, callback) {
   document.body.removeChild(ta);
 }
 
+function toggleMostrarContrasenasDocentes(forzarEstado) {
+  if (typeof forzarEstado === 'boolean') {
+    contrasenasDocentesVisibles = forzarEstado;
+  } else {
+    contrasenasDocentesVisibles = !contrasenasDocentesVisibles;
+  }
+
+  // 1. Inputs de contraseñas de docentes
+  const inps = document.querySelectorAll('.doc-pass-inp');
+  inps.forEach(i => {
+    i.type = contrasenasDocentesVisibles ? 'text' : 'password';
+  });
+
+  // 2. Sincronizar checkbox switch si existe
+  const switchEl = document.getElementById('switch-mostrar-pass-docentes');
+  if (switchEl) {
+    switchEl.checked = contrasenasDocentesVisibles;
+  }
+
+  // 3. Icono del ojo global
+  const ico = document.getElementById('icono-ojo-pass') || document.getElementById('svg-ojo-pass-global');
+  if (ico) {
+    ico.innerHTML = contrasenasDocentesVisibles 
+      ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>' 
+      : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  }
+
+  // 4. Texto global
+  const txt = document.getElementById('texto-ojo-pass');
+  if (txt) {
+    txt.textContent = contrasenasDocentesVisibles ? 'Ocultar Contraseñas' : 'Mostrar Contraseñas';
+  }
+
+  // 5. Botones individuales en cada tarjeta
+  document.querySelectorAll('.btn-toggle-pass-individual').forEach(btn => {
+    const txtSpan = btn.querySelector('.txt-ojo-single');
+    const icoSingle = btn.querySelector('.icono-ojo-single');
+    if (txtSpan) txtSpan.textContent = contrasenasDocentesVisibles ? 'Ocultar' : 'Ver';
+    if (icoSingle) {
+      icoSingle.innerHTML = contrasenasDocentesVisibles
+        ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+        : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+  });
+
+  if (typeof mostrarToastLive === 'function') {
+    mostrarToastLive(contrasenasDocentesVisibles ? 'Contraseñas de docentes visibles' : 'Contraseñas ocultas');
+  }
+}
+
+function toggleMostrarContrasenasDocentesSwitch(chk) {
+  toggleMostrarContrasenasDocentes(chk ? chk.checked : !contrasenasDocentesVisibles);
+}
+
+function toggleVerPasswordDocenteIndividual(btn) {
+  const card = btn.closest('.docente-admin-card') || btn.closest('.fila-docente-unificado') || btn.closest('tr');
+  if (!card) return;
+  const passInp = card.querySelector('.doc-pass-inp');
+  if (!passInp) return;
+  const txtSpan = btn.querySelector('.txt-ojo-single');
+  const icoSingle = btn.querySelector('.icono-ojo-single');
+  const pasarATexto = (passInp.type === 'password');
+  passInp.type = pasarATexto ? 'text' : 'password';
+  if (txtSpan) {
+    txtSpan.textContent = pasarATexto ? 'Ocultar' : 'Ver';
+  }
+  if (icoSingle) {
+    icoSingle.innerHTML = pasarATexto
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
+
+
+let _timerAutoGuardarDocente = null;
+
+function autoGuardarCredencialDocente(inp) {
+  const card = inp.closest('.docente-admin-card') || inp.closest('.fila-docente-unificado') || inp.closest('tr');
+  if (!card) return;
+
+  const asigSel = card.querySelector('.doc-select-carrera');
+  const asigKey = (asigSel ? asigSel.value : '') || card.dataset.key;
+  if (!asigKey) return;
+
+  const nomInp = card.querySelector('.doc-input-nombre');
+  const userInp = card.querySelector('.doc-user-inp');
+  const passInp = card.querySelector('.doc-pass-inp');
+  const chkCom = card.querySelector('.doc-chk-comision');
+
+  const nombre = nomInp ? nomInp.value.trim() : '';
+  const userVal = userInp ? userInp.value.trim() : '';
+  const passVal = passInp ? passInp.value.trim() : '';
+  const esComision = chkCom ? chkCom.checked : false;
+
+  // 1. Guardar de inmediato en LocalStorage
+  const usuarios = lsGet('cea_usuarios_docentes', typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' ? USUARIOS_DOCENTES_DEFAULT : {});
+  const defU = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[asigKey]) ? USUARIOS_DOCENTES_DEFAULT[asigKey] : {};
+
+  usuarios[asigKey] = {
+    user: userVal || defU.user || '',
+    pass: passVal || defU.pass || 'docente123',
+    comision: esComision
+  };
+  lsSet('cea_usuarios_docentes', usuarios);
+
+  if (nombre) {
+    const dMap = lsGet('cea_docentes', DOCENTES_DEFAULT);
+    dMap[asigKey] = nombre;
+    lsSet('cea_docentes', dMap);
+  }
+
+  _ultimaEdicionLocalTimestamp = Date.now();
+
+  // 2. Destello visual verde en el campo indicando auto-guardado
+  inp.style.borderColor = '#16a34a';
+  inp.style.boxShadow = '0 0 0 2px rgba(22, 163, 74, 0.25)';
+  setTimeout(() => {
+    inp.style.borderColor = '';
+    inp.style.boxShadow = '';
+  }, 1000);
+
+  // 3. Sincronización automática con Google Sheets (Debounced)
+  clearTimeout(_timerAutoGuardarDocente);
+  _timerAutoGuardarDocente = setTimeout(async () => {
+    try {
+      const msgEl = document.getElementById('msg-docentes-unificados');
+      if (msgEl) {
+        msgEl.innerHTML = `<span style="color:#16a34a;font-size:0.82rem;font-weight:700">💾 Guardado automático: ${escapeHTML(nombre || asigKey)} actualizado</span>`;
+      }
+      await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios });
+    } catch (e) {
+      console.warn('Error en auto-guardado remoto:', e);
+    }
+  }, 700);
+}
+
 function renderDocenteCardAdmin(doc, idx, areaTipo) {
   return `
-    <div class="docente-admin-card docente-card-compact" data-idx="${idx}" data-area="${doc.area}" data-key="${escapeHTML(doc.asigKey)}" style="background:var(--bg-card);border:1.5px solid var(--border-col);border-left:4px solid var(--verde);border-radius:8px;padding:8px 10px;box-shadow:0 1px 3px rgba(0,0,0,0.03);position:relative;display:flex;flex-direction:column;gap:6px">
-      <!-- Fila 1: Nombre con borde verde notorio, Asignación/Materia, Comisión y Eliminar -->
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%">
-        <input type="text" class="doc-input-nombre" value="${escapeHTML(doc.nombre)}" placeholder="Nombre del docente..." style="flex:1.4;min-width:140px;box-sizing:border-box;padding:5px 8px;font-size:0.88rem;font-weight:800;border:2px solid var(--verde);border-radius:6px;background:var(--bg-body);color:var(--text-main);font-family:inherit;outline:none" title="Nombre completo del docente" />
+    <div class="docente-admin-card docente-card-compact" data-idx="${idx}" data-area="${doc.area}" data-key="${escapeHTML(doc.asigKey)}" style="background:var(--bg-card);border:1.5px solid var(--border-col);border-left:4px solid var(--verde);border-radius:10px;padding:12px;box-shadow:0 2px 6px rgba(0,0,0,0.04);position:relative;display:flex;flex-direction:column;gap:10px">
+      <!-- Fila 1: Nombre docente + Asignación (Carrera/Materia) + Comisión + Eliminar -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%">
+        <input type="text" class="doc-input-nombre" value="${escapeHTML(doc.nombre)}" placeholder="Nombre del docente..." style="flex:1.4;min-width:140px;box-sizing:border-box;padding:6px 9px;font-size:0.88rem;font-weight:800;border:2px solid var(--verde);border-radius:6px;background:var(--bg-body);color:var(--text-main);font-family:inherit;outline:none" title="Nombre completo del docente" oninput="autoGuardarCredencialDocente(this)" onchange="autoGuardarCredencialDocente(this)" />
         
-        <select class="doc-select-carrera" style="flex:1.2;min-width:120px;box-sizing:border-box;padding:5px 6px;font-size:0.78rem;font-weight:700;border:1.5px solid var(--border-col);border-radius:6px;background:var(--bg-body);color:var(--text-main);font-family:inherit" title="Materia o Carrera asignada">
+        <select class="doc-select-carrera" style="flex:1.2;min-width:120px;box-sizing:border-box;padding:6px 8px;font-size:0.80rem;font-weight:700;border:1.5px solid var(--border-col);border-radius:6px;background:var(--bg-body);color:var(--text-main);font-family:inherit" title="Materia o Carrera asignada" onchange="autoGuardarCredencialDocente(this)">
           ${generarOpcionesAsignacion(doc.area, doc.asigKey)}
         </select>
 
-        <label for="chk-com-${idx}-${areaTipo}" style="display:inline-flex;align-items:center;gap:4px;font-size:0.73rem;font-weight:700;color:var(--verde-dark);cursor:pointer;user-select:none;background:var(--verde-light);padding:3px 6px;border-radius:5px;border:1px dashed var(--verde);white-space:nowrap" title="Marcar si es miembro de la comisión pedagógica">
-          <input type="checkbox" class="doc-chk-comision" id="chk-com-${idx}-${areaTipo}" ${doc.comision ? 'checked' : ''} style="width:13px;height:13px;cursor:pointer;accent-color:var(--verde);margin:0" />
+        <label for="chk-com-${idx}-${areaTipo}" style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;font-weight:700;color:var(--verde-dark);cursor:pointer;user-select:none;background:var(--verde-light);padding:4px 8px;border-radius:6px;border:1px dashed var(--verde);white-space:nowrap" title="Marcar si es miembro de la comisión pedagógica">
+          <input type="checkbox" class="doc-chk-comision" id="chk-com-${idx}-${areaTipo}" ${doc.comision ? 'checked' : ''} style="width:14px;height:14px;cursor:pointer;accent-color:var(--verde);margin:0" onchange="autoGuardarCredencialDocente(this)" />
           <span>Comisión</span>
         </label>
 
-        <button type="button" class="btn-doc-del" onclick="eliminarDocenteCardOElemento(this)" title="Eliminar docente" style="padding:2px;width:24px;height:24px;border-radius:5px;background:rgba(220,38,38,0.1);color:#dc2626;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <button type="button" class="btn-doc-del" onclick="eliminarDocenteCardOElemento(this)" title="Eliminar docente" style="padding:4px;width:28px;height:28px;border-radius:6px;background:rgba(220,38,38,0.1);color:#dc2626;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
       </div>
 
-      <!-- Fila 2: Credenciales integradas súper compactas (Usuario y Contraseña) con Botón Copiar -->
-      <div class="doc-cred-box-compact" style="display:flex;align-items:center;gap:6px;background:var(--bg-body);border:1px solid #86efac;border-radius:5px;padding:3px 8px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:110px">
-          <span style="font-size:0.71rem;font-weight:800;color:var(--verde-dark);white-space:nowrap">Usuario:</span>
-          <input type="text" class="doc-input-cred doc-user-inp" placeholder="Usuario" value="${escapeHTML(doc.user)}" style="flex:1;min-width:55px;box-sizing:border-box;padding:3px 6px;font-size:0.76rem;font-family:monospace;font-weight:700;border:1px solid var(--border-col);border-radius:4px;background:var(--bg-card);color:var(--text-main)" title="Usuario" />
-        </div>
-        <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:110px">
-          <span style="font-size:0.71rem;font-weight:800;color:var(--verde-dark);white-space:nowrap">Contraseña:</span>
-          <input type="${contrasenasDocentesVisibles ? 'text' : 'password'}" class="doc-input-cred doc-pass-inp" placeholder="Contraseña" value="${escapeHTML(doc.pass)}" style="flex:1;min-width:55px;box-sizing:border-box;padding:3px 6px;font-size:0.76rem;font-family:monospace;font-weight:700;border:1px solid var(--border-col);border-radius:4px;background:var(--bg-card);color:var(--text-main)" title="Contraseña" />
-        </div>
-        <button type="button" class="btn-copiar-cred" onclick="copiarClaveDocente(this)" style="padding:3px 8px;background:var(--verde);color:#fff;border:none;border-radius:4px;font-size:0.72rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;transition:all 0.2s ease" title="Copiar Usuario y Contraseña">
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          <span>Copiar</span>
-        </button>
+      <!-- Fila 2: Dedicada EXCLUSIVAMENTE a USUARIO -->
+      <div class="doc-fila-usuario" style="display:flex;align-items:center;gap:8px;background:var(--bg-body);border:1px solid #93c5fd;border-left:3.5px solid #2563eb;border-radius:6px;padding:6px 10px;box-sizing:border-box;width:100%">
+        <span style="font-size:0.78rem;font-weight:800;color:#1e40af;white-space:nowrap;min-width:85px;display:inline-flex;align-items:center;gap:5px">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Usuario:
+        </span>
+        <input type="text" class="doc-input-cred doc-user-inp" placeholder="Nombre de usuario" value="${escapeHTML(doc.user)}" style="flex:1;box-sizing:border-box;padding:6px 10px;font-size:0.84rem;font-family:monospace;font-weight:700;border:1.5px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);outline:none" title="Usuario del docente (guarda automáticamente al escribir)" oninput="autoGuardarCredencialDocente(this)" onchange="autoGuardarCredencialDocente(this)" />
+      </div>
+
+      <!-- Fila 3: Dedicada EXCLUSIVAMENTE a CONTRASEÑA -->
+      <div class="doc-fila-password" style="display:flex;align-items:center;gap:8px;background:var(--bg-body);border:1px solid #86efac;border-left:3.5px solid var(--verde);border-radius:6px;padding:6px 10px;box-sizing:border-box;width:100%">
+        <span style="font-size:0.78rem;font-weight:800;color:var(--verde-dark);white-space:nowrap;min-width:85px;display:inline-flex;align-items:center;gap:5px">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Contraseña:
+        </span>
+        <input type="${contrasenasDocentesVisibles ? 'text' : 'password'}" class="doc-input-cred doc-pass-inp" placeholder="Contraseña de acceso" value="${escapeHTML(doc.pass)}" style="flex:1;box-sizing:border-box;padding:6px 10px;font-size:0.84rem;font-family:monospace;font-weight:700;border:1.5px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);outline:none" title="Contraseña del docente (guarda automáticamente al escribir)" oninput="autoGuardarCredencialDocente(this)" onchange="autoGuardarCredencialDocente(this)" />
       </div>
     </div>
   `;
@@ -2318,7 +2495,7 @@ function cargarDocentesUnificados() {
 
   const d = lsGet('cea_docentes', DOCENTES_DEFAULT);
   const areasTec = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
-  const usuarios = lsGet('cea_usuarios_docentes', {});
+  const usuarios = lsGet('cea_usuarios_docentes', typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' ? USUARIOS_DOCENTES_DEFAULT : {});
 
   // 1. Materias Humanísticas
   const listaHum = [];
@@ -2329,17 +2506,20 @@ function cargarDocentesUnificados() {
     { key: 'hum-len', label: 'Lenguaje y Literatura', area: 'hum' }
   ];
   humDefs.forEach(item => {
-    const nombre = d[item.key] || DOCENTES_DEFAULT[item.key] || '';
-    const u = usuarios[item.key] || { user: '', pass: '', comision: false };
+    const nombre = (d && d[item.key] !== undefined) ? d[item.key] : (DOCENTES_DEFAULT[item.key] || '');
+    const defU = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[item.key])
+      ? USUARIOS_DOCENTES_DEFAULT[item.key]
+      : { user: 'profe.' + item.key.replace('hum-', ''), pass: 'docente123', comision: false };
+    const u = usuarios[item.key] || {};
     listaHum.push({
       key: item.key,
       nombre: nombre,
       area: 'hum',
       asigKey: item.key,
       asigLabel: item.label,
-      user: u.user || '',
-      pass: u.pass || '',
-      comision: u.comision === true
+      user: u.user || defU.user || '',
+      pass: u.pass || defU.pass || 'docente123',
+      comision: (u.comision !== undefined) ? (u.comision === true || String(u.comision).toUpperCase() === 'SI') : defU.comision
     });
   });
 
@@ -2347,21 +2527,24 @@ function cargarDocentesUnificados() {
   const listaTec = [];
   areasTec.forEach(a => {
     let nombre = '';
-    if (d[a.key]) nombre = d[a.key];
-    else if (d[a.docente]) nombre = d[a.docente];
+    if (d && d[a.key] !== undefined) nombre = d[a.key];
+    else if (d && d[a.docente] !== undefined) nombre = d[a.docente];
     else if (typeof a.docente === 'string' && !a.docente.startsWith('tec-')) nombre = a.docente;
-    else if (DOCENTES_DEFAULT[a.key]) nombre = DOCENTES_DEFAULT[a.key];
+    else if (DOCENTES_DEFAULT[a.key] !== undefined) nombre = DOCENTES_DEFAULT[a.key];
 
-    const u = usuarios[a.key] || { user: '', pass: '', comision: false };
+    const defU = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[a.key])
+      ? USUARIOS_DOCENTES_DEFAULT[a.key]
+      : { user: 'profe.' + a.key.replace('tec-', ''), pass: 'docente123', comision: false };
+    const u = usuarios[a.key] || {};
     listaTec.push({
       key: a.key,
       nombre: nombre,
       area: 'tec',
       asigKey: a.key,
       asigLabel: a.nombre,
-      user: u.user || '',
-      pass: u.pass || '',
-      comision: u.comision === true
+      user: u.user || defU.user || '',
+      pass: u.pass || defU.pass || 'docente123',
+      comision: (u.comision !== undefined) ? (u.comision === true || String(u.comision).toUpperCase() === 'SI') : defU.comision
     });
   });
 
@@ -2514,17 +2697,31 @@ async function eliminarDocenteCardOElemento(btn) {
 
   if (asigKey) {
     const d = lsGet('cea_docentes', DOCENTES_DEFAULT);
-    delete d[asigKey];
+    const viejoNom = d[asigKey] || nom;
+    d[asigKey] = '';
     lsSet('cea_docentes', d);
+
+    const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
+    const aItem = areas.find(a => a.key === asigKey);
+    if (aItem) {
+      aItem.docente = '';
+      lsSet('cea_areas_tec', areas);
+      await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
+    }
 
     const usuarios = lsGet('cea_usuarios_docentes', {});
     delete usuarios[asigKey];
     lsSet('cea_usuarios_docentes', usuarios);
 
+    if (viejoNom && typeof actualizarNombreDocenteEnTodoElSistema === 'function') {
+      actualizarNombreDocenteEnTodoElSistema(viejoNom, '', asigKey);
+    }
+
     cargarDocentes();
     mostrarMsg('msg-docentes-unificados', `Eliminando a ${nom} en el sistema...`, 'success');
     await enviarGoogleSheet({ action: 'eliminar-docente', codigo: asigKey });
     await enviarGoogleSheet({ action: 'guardar-docentes', docentes: d });
+    await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios });
     mostrarMsg('msg-docentes-unificados', `Docente "${nom}" eliminado exitosamente.`, 'success');
     mostrarToastLive(`Docente "${nom}" eliminado.`);
   }
@@ -2547,13 +2744,14 @@ function filtrarDocentesUnificados(q) {
 
 /* ─── VINCULACIÓN TOTAL DE DOCENTES EN TODO EL SISTEMA ─── */
 function actualizarNombreDocenteEnTodoElSistema(viejoNombre, nuevoNombre, asigKey) {
-  if (!viejoNombre || !nuevoNombre || viejoNombre === nuevoNombre) return;
+  if (!viejoNombre || viejoNombre === nuevoNombre) return;
+  const nombreFinal = nuevoNombre || '';
 
   // 1. cea_docentes
   const d = lsGet('cea_docentes', DOCENTES_DEFAULT);
-  if (asigKey && d[asigKey]) d[asigKey] = nuevoNombre;
+  if (asigKey) d[asigKey] = nombreFinal;
   Object.keys(d).forEach(k => {
-    if (d[k] === viejoNombre) d[k] = nuevoNombre;
+    if (d[k] === viejoNombre) d[k] = nombreFinal;
   });
   lsSet('cea_docentes', d);
 
@@ -2562,7 +2760,7 @@ function actualizarNombreDocenteEnTodoElSistema(viejoNombre, nuevoNombre, asigKe
   let changedArea = false;
   areasTec.forEach(a => {
     if (a.docente === viejoNombre || a.key === asigKey) {
-      a.docente = nuevoNombre;
+      a.docente = nombreFinal;
       changedArea = true;
     }
   });
@@ -2579,12 +2777,12 @@ function actualizarNombreDocenteEnTodoElSistema(viejoNombre, nuevoNombre, asigKe
           if (Array.isArray(slot)) {
             slot.forEach(item => {
               if (item.docente === viejoNombre) {
-                item.docente = nuevoNombre;
+                item.docente = nombreFinal;
                 changedHorario = true;
               }
             });
           } else if (slot && slot.docente === viejoNombre) {
-            slot.docente = nuevoNombre;
+            slot.docente = nombreFinal;
             changedHorario = true;
           }
         });
@@ -2596,7 +2794,7 @@ function actualizarNombreDocenteEnTodoElSistema(viejoNombre, nuevoNombre, asigKe
   // 4. Actualizar textos en el DOM
   document.querySelectorAll('.doc-nombre, .docente-nombre, .slot-clase-docente, .bth-doc-nombre').forEach(el => {
     if (el.textContent && el.textContent.includes(viejoNombre)) {
-      el.textContent = el.textContent.replace(viejoNombre, nuevoNombre);
+      el.textContent = el.textContent.replace(viejoNombre, nombreFinal);
     }
   });
 }
@@ -2610,8 +2808,9 @@ async function guardarDocentesUnificados() {
   }
 
   const viejoDocentesMap = lsGet('cea_docentes', DOCENTES_DEFAULT);
+  const viejoUsuariosMap = lsGet('cea_usuarios_docentes', {});
   const nuevoDocentesMap = {};
-  const nuevoUsuariosMap = {};
+  const nuevoUsuariosMap = { ...viejoUsuariosMap };
 
   elements.forEach(r => {
     const nom = (r.querySelector('.doc-input-nombre')?.value || '').trim();
@@ -2620,7 +2819,7 @@ async function guardarDocentesUnificados() {
     const passVal = (r.querySelector('.doc-pass-inp')?.value || '').trim();
     const esComision = r.querySelector('.doc-chk-comision')?.checked || false;
 
-    if (asigKey && nom) {
+    if (asigKey) {
       const viejoNom = viejoDocentesMap[asigKey];
       if (viejoNom && viejoNom !== nom) {
         actualizarNombreDocenteEnTodoElSistema(viejoNom, nom, asigKey);
@@ -2629,7 +2828,16 @@ async function guardarDocentesUnificados() {
       const carr = areas.find(a => a.key === asigKey);
       if (carr) carr.docente = nom;
 
-      nuevoUsuariosMap[asigKey] = { user: userVal, pass: passVal, comision: esComision };
+      // Preservar la contraseña existente si no se escribió una nueva en este guardado
+      const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[asigKey]?.pass) || 'docente123';
+      const defUser = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[asigKey]?.user) || ('profe.' + asigKey.replace('tec-', '').replace('hum-', ''));
+      const prevPass = viejoUsuariosMap[asigKey]?.pass || defPass;
+      const finalPass = passVal || prevPass || defPass;
+      nuevoUsuariosMap[asigKey] = {
+        user: userVal || viejoUsuariosMap[asigKey]?.user || defUser,
+        pass: finalPass,
+        comision: esComision
+      };
     }
   });
 
@@ -2637,22 +2845,34 @@ async function guardarDocentesUnificados() {
   lsSet('cea_areas_tec', areas);
   lsSet('cea_usuarios_docentes', nuevoUsuariosMap);
 
+  _ultimaEdicionLocalTimestamp = Date.now();
+
   cargarDocentes();
   if (typeof cargarHorariosMatriz === 'function') {
     cargarHorariosMatriz(turnoHorarioActual);
   }
 
   mostrarMsg('msg-docentes-unificados', 'Guardando y sincronizando docentes en el sistema...', 'success');
-  const exito1 = await enviarGoogleSheet({ action: 'guardar-docentes', docentes: nuevoDocentesMap });
+
+  // Enviar paquete completo en una sola transacción atómica a Google Sheets
+  const exito1 = await enviarGoogleSheet({
+    action: 'guardar-docentes-completo',
+    docentes: nuevoDocentesMap,
+    carreras: areas,
+    usuarios: nuevoUsuariosMap
+  });
+
+  // Envíos individuales complementarios para máxima compatibilidad con cualquier versión del script
+  await enviarGoogleSheet({ action: 'guardar-docentes', docentes: nuevoDocentesMap });
   await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
   await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: nuevoUsuariosMap });
 
   if (exito1) {
-    mostrarMsg('msg-docentes-unificados', '¡Docentes y asignaciones guardados y sincronizados con éxito!', 'success');
+    mostrarMsg('msg-docentes-unificados', '¡Docentes, usuarios, contraseñas y asignaciones guardados y sincronizados con éxito!', 'success');
     mostrarToastLive('Docentes, asignaciones y claves sincronizados correctamente.');
   } else {
-    mostrarMsg('msg-docentes-unificados', '¡Docentes guardados correctamente!', 'success');
-    mostrarToastLive('Docentes guardados en el sistema.');
+    mostrarMsg('msg-docentes-unificados', '¡Docentes y credenciales guardados correctamente!', 'success');
+    mostrarToastLive('Docentes y credenciales guardados en el sistema.');
   }
 }
 
@@ -3012,6 +3232,12 @@ function renderizarBarraSedesHorarios() {
       <button type="button" class="btn-sede-tab ${isAct ? 'activo' : ''}" onclick="switchSedeHorario('${s.key}')" title="Ver horario de ${escapeHTML(s.nombre)}">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" style="display:inline-block;vertical-align:-1px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         <span>${escapeHTML(s.nombre)}</span>
+        ${puedeEditar ? `
+          <span class="btn-sede-rename" onclick="event.stopPropagation(); renombrarSedeHorario('${s.key}')" title="Cambiar nombre de ${isCentral ? 'la Sede Principal' : 'este Subcentro'}" style="cursor:pointer;margin-left:6px;padding:2px 6px;display:inline-flex;align-items:center;opacity:0.95;border-radius:4px;background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.5);font-size:0.70rem;font-weight:700">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:2px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span>Editar</span>
+          </span>
+        ` : ''}
         ${(!isCentral && puedeEditar) ? `
           <span class="btn-sede-del" onclick="event.stopPropagation(); eliminarSubcentroSede('${s.key}')" title="Eliminar subcentro y su horario">&times;</span>
         ` : ''}
@@ -3025,6 +3251,39 @@ function renderizarBarraSedesHorarios() {
   if (banner) banner.style.display = 'none';
 
   actualizarBotonModoEdicion();
+}
+
+async function renombrarSedeHorario(sedeKey) {
+  if (!tienePermisoEdicionHorarios()) {
+    mostrarToastLive('Debe iniciar sesión como Director(a) para modificar nombres de sedes o subcentros.');
+    mostrarModalLoginDirector();
+    return;
+  }
+  const curArea = turnoHorarioActual || 'hum';
+  const sedes = obtenerListaSedesEducativas(curArea);
+  const sObj = sedes.find(s => s.key === sedeKey);
+  if (!sObj) return;
+
+  const esCentral = (sedeKey === 'central');
+  const nuevoNombre = await mostrarPromptModal(
+    `Ingrese el nuevo nombre oficial para ${esCentral ? 'la Sede Principal' : 'el Subcentro'}:`,
+    `Cambiar Nombre — ${esCentral ? 'Sede Principal' : 'Subcentro'}`,
+    sObj.nombre || '',
+    'Ej: Sede Central — CEA Madre Marie Poussepin / Subcentro Chulumani'
+  );
+  if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === sObj.nombre) return;
+
+  sObj.nombre = nuevoNombre.trim();
+  guardarListaSedesEducativas(sedes, curArea);
+  renderizarBarraSedesHorarios();
+  cargarHorariosMatriz(curArea);
+  mostrarToastLive(`Nombre de ${esCentral ? 'Sede Principal' : 'Subcentro'} actualizado a: "${nuevoNombre.trim()}"`);
+}
+
+async function abrirModalRenombrarSedeActiva() {
+  const curArea = turnoHorarioActual || 'hum';
+  const sedeActual = getHorarioSedeActiveKey(curArea);
+  await renombrarSedeHorario(sedeActual);
 }
 
 function switchSedeHorario(sedeKey) {
@@ -5023,6 +5282,19 @@ function actualizarBotonModoEdicion() {
   const lblBth = document.getElementById('toggle-bth-switch-label');
   if (lblBth) lblBth.style.display = (puedeGestionar && turnoHorarioActual === 'hum') ? 'inline-flex' : 'none';
 
+  const lblEta = document.getElementById('toggle-eta-nombre-label');
+  const chkEta = document.getElementById('chk-mostrar-eta-completo');
+  const txtEta = document.getElementById('txt-estado-eta-completo');
+  const mostrarEta = lsGet('cea_tec_mostrar_eta_completo', false);
+  const textoEtaPersonalizado = lsGet('cea_tec_texto_eta', 'Educación Técnica Alternativa');
+  const siglaEtaPersonalizada = lsGet('cea_tec_sigla_eta', 'ETA');
+  if (chkEta) chkEta.checked = mostrarEta;
+  if (txtEta) txtEta.textContent = mostrarEta ? textoEtaPersonalizado : `Sigla (${siglaEtaPersonalizada})`;
+  if (lblEta) lblEta.style.display = (puedeGestionar && turnoHorarioActual === 'tec') ? 'inline-flex' : 'none';
+
+  const btnEditEta = document.getElementById('btn-editar-texto-eta');
+  if (btnEditEta) btnEditEta.style.display = (puedeGestionar && turnoHorarioActual === 'tec') ? 'inline-flex' : 'none';
+
   const lblLineas = document.getElementById('toggle-lineas-imprimir-label');
   if (lblLineas) lblLineas.style.display = puedeGestionar ? 'inline-flex' : 'none';
 
@@ -5695,8 +5967,7 @@ function renderTablaMatrizParaSede(sedeKey, turno = 'hum', esSubcentro = false) 
     const hMatriz = getSedeLsData('cea_horarios_matriz', HORARIOS_MATRIZ_DEFAULT, sedeKey, 'tec');
     const dataTurno = hMatriz.tec || HORARIOS_MATRIZ_DEFAULT.tec;
     const mostrarDocentes = lsGet('cea_horario_mostrar_docentes', true);
-    const mostrarEtaCompleto = lsGet('cea_tec_mostrar_eta_completo', false);
-    const etaLabel = mostrarEtaCompleto ? 'Educación Técnica Alternativa (ETA)' : 'ETA';
+    const etaLabel = obtenerTextoETACustom();
 
     const diasTarde = diasActivosTec.filter(d => getTurnoDiaTec(d) === 'tarde');
     const diasManana = diasActivosTec.filter(d => getTurnoDiaTec(d) === 'mañana');
@@ -5959,12 +6230,68 @@ function renderizarCeldaTec(d, pObjOrNum, pIdx, esManana, puedeEditar, mostrarDo
   `;
 }
 
-function toggleMostrarNombreCompletoETA() {
+function obtenerTextoETACustom() {
+  const mostrarCompleto = lsGet('cea_tec_mostrar_eta_completo', false);
+  const textoCompleto = lsGet('cea_tec_texto_eta', 'Educación Técnica Alternativa');
+  const textoSigla = lsGet('cea_tec_sigla_eta', 'ETA');
+  return mostrarCompleto ? textoCompleto : textoSigla;
+}
+
+function toggleMostrarNombreCompletoETA(checked) {
   const actual = lsGet('cea_tec_mostrar_eta_completo', false);
-  const nuevo = !actual;
+  const nuevo = (typeof checked === 'boolean') ? checked : !actual;
   lsSet('cea_tec_mostrar_eta_completo', nuevo);
+  const textoEtaPersonalizado = lsGet('cea_tec_texto_eta', 'Educación Técnica Alternativa');
+  const siglaEtaPersonalizada = lsGet('cea_tec_sigla_eta', 'ETA');
+  actualizarBotonModoEdicion();
   cargarHorariosMatriz('tec');
-  mostrarToastLive(nuevo ? 'Mostrando nombre completo: Educación Técnica Alternativa (ETA)' : 'Mostrando sigla oficial: ETA');
+  mostrarToastLive(nuevo ? `Denominación: "${textoEtaPersonalizado}"` : `Sigla: "${siglaEtaPersonalizada}"`);
+}
+
+async function abrirModalEditarTextoETA() {
+  if (!tienePermisoEdicionHorarios()) {
+    mostrarToastLive('Debe iniciar sesión como Director(a) para editar el texto técnico.');
+    mostrarModalLoginDirector();
+    return;
+  }
+  const textoActual = lsGet('cea_tec_texto_eta', 'Educación Técnica Alternativa');
+  const siglaActual = lsGet('cea_tec_sigla_eta', 'ETA');
+
+  const nuevoCompleto = await mostrarPromptModal(
+    'Ingrese la denominación completa para el área técnica (sin siglas obligatorias, puede ser cualquier texto):',
+    'Personalizar Nombre de Educación Técnica',
+    textoActual,
+    'Ej: Educación Técnica Alternativa'
+  );
+  if (nuevoCompleto === null || !nuevoCompleto.trim()) return;
+
+  const nuevaSigla = await mostrarPromptModal(
+    'Ingrese la sigla abreviada:',
+    'Personalizar Sigla Técnica',
+    siglaActual,
+    'Ej: ETA / TEC'
+  );
+  if (nuevaSigla === null || !nuevaSigla.trim()) return;
+
+  lsSet('cea_tec_texto_eta', nuevoCompleto.trim());
+  lsSet('cea_tec_sigla_eta', nuevaSigla.trim());
+
+  enviarGoogleSheet({
+    action: 'guardar-contenido-vivo',
+    key: 'tec_texto_eta',
+    valor: nuevoCompleto.trim(),
+    htmlValor: nuevoCompleto.trim()
+  });
+  enviarGoogleSheet({
+    action: 'guardar-contenido-vivo',
+    key: 'tec_sigla_eta',
+    valor: nuevaSigla.trim(),
+    htmlValor: nuevaSigla.trim()
+  });
+
+  actualizarBotonModoEdicion();
+  cargarHorariosMatriz('tec');
+  mostrarToastLive(`Texto técnico actualizado a: "${nuevoCompleto.trim()}" (Sigla: "${nuevaSigla.trim()}")`);
 }
 
 function toggleDiaHorarioTec(dia, activo) {
@@ -7385,6 +7712,62 @@ function abrirPopoverEdicionCelda(e, dia, periodoNum, cIdx, turno = 'hum', sedeK
     if (turno === 'hum') {
       const carreraBTHActiva = getSedeLsData('cea_bth_carrera_activa', 'Agropecuaria');
       const gruposBTH = obtenerModulosDesglosadosBTH(carreraBTHActiva);
+      const incluirBth = getSedeLsData('cea_horario_incluir_bth', true, activeSede, 'hum');
+
+      const materiasHum = [
+        { key: 'Matemática', label: 'Matemática' },
+        { key: 'Lenguaje', label: 'Lenguaje' },
+        { key: 'Ciencias Naturales', label: 'C. Naturales' },
+        { key: 'Ciencias Sociales', label: 'C. Sociales' }
+      ];
+
+      const materiasHtml = materiasHum.map(m => {
+        const st = obtenerEstilosMateria(m.key, 'hum');
+        return `
+          <button type="button" class="hqp-chip" style="background:${st.bg};color:${st.txt};border:1.5px solid ${st.border || st.bg};box-shadow:0 1px 3px rgba(0,0,0,0.12)" onclick="asignarMateriaRapida('${m.key}')" title="Asignar ${m.label}">
+            <span class="hqp-chip-dot" style="background:${st.accent || st.txt};border:1px solid rgba(255,255,255,0.6)"></span>
+            <span style="font-weight:800">${m.label}</span>
+          </button>
+        `;
+      }).join('');
+
+      let bthHtml = '';
+      if (incluirBth) {
+        bthHtml = `
+        <!-- Módulos BTH Articulados de la Especialidad Activa (Solo si BTH está habilitado) -->
+        <div class="hqp-bth-bloque" style="margin-top:10px;border-top:1px dashed var(--border-col);padding-top:8px">
+          <div class="hqp-bth-header">
+            <span class="hqp-bth-title">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              Módulos BTH — ${escapeHTML(carreraBTHActiva)}:
+            </span>
+          </div>
+          <div style="max-height:180px;overflow-y:auto;padding-right:2px;display:flex;flex-direction:column;gap:6px">
+            ${gruposBTH.map(g => {
+              const bthSt = obtenerEstilosMateria(g.area || carreraBTHActiva, 'hum');
+              return `
+              <div class="hqp-bth-grupo" style="background:rgba(0,0,0,0.02);border:1px solid var(--border-col);border-radius:6px;padding:5px">
+                <div class="hqp-bth-doc-label" style="margin-bottom:4px">
+                  <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <span>${escapeHTML(g.docente)} — <em style="font-weight:600">${escapeHTML(g.area)}</em></span>
+                </div>
+                <div class="hqp-bth-mods-row" style="display:flex;flex-direction:column;gap:4px">
+                  ${(g.modulosEstructurados || []).map(m => `
+                    <button type="button" class="hqp-bth-mod-btn" style="display:flex;align-items:center;gap:5px;text-align:left;padding:5px 8px;border-radius:5px;border:1px solid ${bthSt.border || '#cbd5e1'};background:#ffffff;"
+                      onclick="asignarModuloBTHRapido('${escapeHTML(m.codigo + ': ' + m.nombre).replace(/'/g, "\\'")}', '${escapeHTML(g.docente).replace(/'/g, "\\'")}', '${escapeHTML(carreraBTHActiva).replace(/'/g, "\\'")}', '${escapeHTML(g.area).replace(/'/g, "\\'")}')"
+                      title="Asignar ${escapeHTML(m.codigo)} a la celda">
+                      <span style="font-size:0.68rem;font-weight:900;background:${bthSt.bg};color:${bthSt.txt};padding:2px 6px;border-radius:3px;white-space:nowrap">${escapeHTML(m.codigo)}</span>
+                      <span style="font-size:0.73rem;font-weight:700;flex:1;color:#1e293b">${escapeHTML(m.nombre)}</span>
+                      <span style="font-size:0.62rem;color:#64748b;white-space:nowrap">${escapeHTML(m.nivel)}</span>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+            `;}).join('')}
+          </div>
+        </div>
+        `;
+      }
 
       contMaterias.innerHTML = `
         <div class="hqp-section-title">
@@ -7392,77 +7775,59 @@ function abrirPopoverEdicionCelda(e, dia, periodoNum, cIdx, turno = 'hum', sedeK
           <span>Asignatura Humanística Oficial (1 Clic):</span>
         </div>
         <div class="hqp-materia-grid" id="hqp-materia-chips">
-          <button type="button" class="hqp-chip chip-mat" onclick="asignarMateriaRapida('Matemática')">
-            <span class="hqp-chip-dot" style="background:#1e40af"></span>
-            <span>Matemática</span>
-          </button>
-          <button type="button" class="hqp-chip chip-len" onclick="asignarMateriaRapida('Lenguaje')">
-            <span class="hqp-chip-dot" style="background:#991b1b"></span>
-            <span>Lenguaje</span>
-          </button>
-          <button type="button" class="hqp-chip chip-cn" onclick="asignarMateriaRapida('Ciencias Naturales')">
-            <span class="hqp-chip-dot" style="background:#065f46"></span>
-            <span>C. Naturales</span>
-          </button>
-          <button type="button" class="hqp-chip chip-cs" onclick="asignarMateriaRapida('Ciencias Sociales')">
-            <span class="hqp-chip-dot" style="background:#92400e"></span>
-            <span>C. Sociales</span>
-          </button>
+          ${materiasHtml}
         </div>
-
-        <!-- Módulos BTH Articulados de la Especialidad Activa -->
-        <div class="hqp-bth-bloque">
-          <div class="hqp-bth-header">
-            <span class="hqp-bth-title">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-              Módulos BTH — ${escapeHTML(carreraBTHActiva)}:
-            </span>
-          </div>
-          <div style="max-height:200px;overflow-y:auto;padding-right:2px">
-            ${gruposBTH.map(g => `
-              <div class="hqp-bth-grupo">
-                <div class="hqp-bth-doc-label">
-                  <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  <span>${escapeHTML(g.docente)} — <em style="font-weight:600">${escapeHTML(g.area)}</em></span>
-                </div>
-                <div class="hqp-bth-mods-row" style="display:flex;flex-direction:column;gap:4px">
-                  ${(g.modulosEstructurados || []).map(m => `
-                    <button type="button" class="hqp-bth-mod-btn" style="display:flex;align-items:center;gap:5px;text-align:left;padding:4px 7px"
-                      onclick="asignarModuloBTHRapido('${escapeHTML(m.codigo + ': ' + m.nombre).replace(/'/g, "\\'")}', '${escapeHTML(g.docente).replace(/'/g, "\\'")}', '${escapeHTML(carreraBTHActiva).replace(/'/g, "\\'")}', '${escapeHTML(g.area).replace(/'/g, "\\'")}')"
-                      title="Asignar ${escapeHTML(m.codigo)} a la celda">
-                      <span style="font-size:0.68rem;font-weight:900;background:var(--verde-dark);color:#d1fae5;padding:1px 5px;border-radius:3px;white-space:nowrap">${escapeHTML(m.codigo)}</span>
-                      <span style="font-size:0.73rem;font-weight:700;flex:1;color:#1e293b">${escapeHTML(m.nombre)}</span>
-                      <span style="font-size:0.62rem;color:#64748b;white-space:nowrap">${escapeHTML(m.nivel)}</span>
-                    </button>
-                  `).join('')}
-                </div>
-              </div>
-            `).join('')}
-          </div>
+        ${bthHtml}
+        <div style="margin-top:8px">
+          <button type="button" class="hqp-chip" style="width:100%;justify-content:center;background:#f8fafc;color:#64748b;border:1px dashed #cbd5e1;font-weight:600" onclick="asignarMateriaRapida('Libre')">
+            <span>Dejar Periodo Libre (—)</span>
+          </button>
         </div>
       `;
     } else {
-      const mostrarEtaCompleto = lsGet('cea_tec_mostrar_eta_completo', false);
-      const etaTexto = mostrarEtaCompleto ? 'Educación Técnica Alternativa (ETA)' : 'ETA';
+      // ÁREA TÉCNICA
+      const etaTexto = obtenerTextoETACustom();
+      const stEta = obtenerEstilosMateria('ETA', 'tec');
+
+      const especialidades = [
+        'Sistemas Informáticos',
+        'Gastronomía',
+        'Belleza Integral',
+        'Secretariado Ejecutivo',
+        'Confección Textil',
+        'Agropecuaria'
+      ];
+
+      const espButtonsHtml = especialidades.map(esp => {
+        const stEsp = obtenerEstilosMateria(esp, 'tec');
+        return `
+          <button type="button" class="hqp-bth-mod-btn" style="flex:1 1 45%;text-align:center;background:${stEsp.bg};color:${stEsp.txt};border:1px solid ${stEsp.border || stEsp.bg};font-weight:700;padding:7px 8px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);transition:transform 0.1s" onclick="asignarMateriaRapida('${esp}')">
+            ${esp}
+          </button>
+        `;
+      }).join('');
+
       contMaterias.innerHTML = `
-        <div class="hqp-section-title">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          <span>Asignación Técnica TTP:</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div class="hqp-section-title" style="margin-bottom:0">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <span>Asignación Técnica TTP:</span>
+          </div>
+          <button type="button" onclick="cerrarPopoverEdicionCelda(); abrirModalEditarTextoETA();" style="border:none;background:none;color:#0284c7;font-size:0.72rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:1px 4px" title="Personalizar texto">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span>Editar Texto</span>
+          </button>
         </div>
         <div class="hqp-materia-grid" style="grid-template-columns: 1fr; margin-bottom: 8px;">
-          <button type="button" class="hqp-chip" style="background:var(--verde-dark);color:#ffffff;justify-content:center;padding:8px" onclick="asignarMateriaRapida('ETA')">
-            <span style="font-weight:900">${etaTexto}</span>
+          <button type="button" class="hqp-chip" style="background:${stEta.bg};color:${stEta.txt};border:1.5px solid ${stEta.border || stEta.bg};justify-content:center;padding:9px;box-shadow:0 1px 3px rgba(0,0,0,0.15)" onclick="asignarMateriaRapida('${escapeHTML(etaTexto).replace(/'/g, "\\'")}')">
+            <span style="font-weight:900;letter-spacing:0.02em">${escapeHTML(etaTexto)}</span>
           </button>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${['Sistemas Informáticos', 'Gastronomía', 'Belleza Integral', 'Secretariado Ejecutivo', 'Confección Textil', 'Agropecuaria'].map(esp => `
-            <button type="button" class="hqp-bth-mod-btn" style="flex:1 1 45%;text-align:center" onclick="asignarMateriaRapida('${esp}')">
-              ${esp}
-            </button>
-          `).join('')}
+          ${espButtonsHtml}
         </div>
         <div style="margin-top:8px">
-          <button type="button" class="hqp-chip" style="width:100%;justify-content:center;background:#f1f5f9;color:#475569" onclick="asignarMateriaRapida('Libre')">
+          <button type="button" class="hqp-chip" style="width:100%;justify-content:center;background:#f8fafc;color:#64748b;border:1px dashed #cbd5e1;font-weight:600" onclick="asignarMateriaRapida('Libre')">
             <span>Dejar Periodo Libre (—)</span>
           </button>
         </div>
@@ -7572,6 +7937,7 @@ async function asignarModuloBTHRapido(modulo, docente, carrera, areaRef = '') {
 
   setSedeLsData('cea_horarios_matriz', hMatriz, sede, turno);
   poblarSelectDocentesPopover(docente, modulo, turno);
+  cerrarPopoverEdicionCelda();
   cargarHorariosMatriz(turno);
 
   mostrarToastLive(`BTH asignado: ${modulo} (${docente})`);
@@ -7592,7 +7958,10 @@ async function asignarMateriaRapida(materia) {
   const sede = document.getElementById('hqp-sede')?.value || document.getElementById('mch-sede')?.value || getHorarioSedeActiveKey(turno);
 
   // Autovincular docente asignado a la materia
-  const docente = buscarDocentePorMateria(materia) || 'Docente Asignado';
+  let docente = '—';
+  if (materia !== 'Libre' && materia !== '—') {
+    docente = buscarDocentePorMateria(materia) || (turno === 'hum' ? 'Docente Humanístico' : 'Docente Asignado');
+  }
 
   const hMatriz = getSedeLsData('cea_horarios_matriz', HORARIOS_MATRIZ_DEFAULT, sede, turno);
   if (!hMatriz[turno]) hMatriz[turno] = { matriz: {} };
@@ -7616,6 +7985,7 @@ async function asignarMateriaRapida(materia) {
 
   setSedeLsData('cea_horarios_matriz', hMatriz, sede, turno);
   poblarSelectDocentesPopover(docente, materia, turno);
+  cerrarPopoverEdicionCelda();
   cargarHorariosMatriz(turno);
 
   mostrarToastLive(`${materia} asignada a ${docente}`);
@@ -7643,6 +8013,7 @@ async function cambiarDocenteRapido(nuevoDocente) {
   if (target) {
     target.docente = nuevoDocente;
     setSedeLsData('cea_horarios_matriz', hMatriz, sede, turno);
+    cerrarPopoverEdicionCelda();
     cargarHorariosMatriz(turno);
     mostrarToastLive(`Docente asignado: ${nuevoDocente}`);
     await enviarGoogleSheet({
@@ -10289,6 +10660,24 @@ function formatearEtapaHumVisible(cicloRaw, tipo) {
   return c;
 }
 
+function materiaTieneDocumentos(humKey, materiaNombre) {
+  const key = humKey || (typeof obtenerKeyMateriaHumanistica === 'function' ? obtenerKeyMateriaHumanistica(materiaNombre) : '');
+  if (!key) return false;
+  let rawDocs = lsGet('cea_doc_niveles_' + key, null);
+  if (!rawDocs && materiaNombre) {
+    rawDocs = lsGet('cea_doc_niveles_' + materiaNombre, null);
+  }
+  if (!rawDocs) return false;
+  const docsList = (typeof normalizarDocumentosDocente === 'function'
+    ? normalizarDocumentosDocente(rawDocs)
+    : (Array.isArray(rawDocs) ? rawDocs : []));
+  return docsList.some(d => {
+    if (!d || !d.enlace) return false;
+    const enl = String(d.enlace).trim();
+    return enl !== '' && enl !== '#' && enl !== 'null' && enl !== 'undefined';
+  });
+}
+
 function renderSeccionHumanistica() {
   const tbodyEpa = document.getElementById('tbody-hum-epa');
   const tbodyEsa = document.getElementById('tbody-hum-esa');
@@ -10302,8 +10691,40 @@ function renderSeccionHumanistica() {
   const esaList = (data && Array.isArray(data.esa) && data.esa.length > 0) ? data.esa : HUMANISTICA_DEFAULT.esa;
   const ciclosList = (data && Array.isArray(data.ciclos) && data.ciclos.length > 0) ? data.ciclos : HUMANISTICA_DEFAULT.ciclos;
 
+  // Evaluar qué materias tienen documentos subidos con enlaces válidos
+  const materiasConDocs = {};
+  epaList.forEach(m => {
+    const humKey = m.key || obtenerKeyMateriaHumanistica(m.materia);
+    materiasConDocs[humKey] = materiaTieneDocumentos(humKey, m.materia);
+  });
+  const hayAlgunDocumentoSubido = Object.values(materiasConDocs).some(Boolean);
+
+  const thMateria = document.getElementById('th-hum-materia');
+  const thDocente = document.getElementById('th-hum-docente');
+  const thNivel = document.getElementById('th-hum-nivel');
+  const thDocs = document.querySelectorAll('.hum-col-docs-th');
   const thAcciones = document.querySelectorAll('.hum-col-accion-th');
-  thAcciones.forEach(th => th.style.display = edicionDirectaHumActiva ? 'table-cell' : 'none');
+
+  if (edicionDirectaHumActiva) {
+    if (thMateria) thMateria.style.width = '30%';
+    if (thDocente) thDocente.style.width = '30%';
+    if (thNivel) thNivel.style.width = '34%';
+    thDocs.forEach(th => th.style.display = 'none');
+    thAcciones.forEach(th => th.style.display = 'table-cell');
+  } else if (hayAlgunDocumentoSubido) {
+    if (thMateria) thMateria.style.width = '28%';
+    if (thDocente) thDocente.style.width = '28%';
+    if (thNivel) thNivel.style.width = '24%';
+    thDocs.forEach(th => th.style.display = 'table-cell');
+    thAcciones.forEach(th => th.style.display = 'none');
+  } else {
+    // Si nadie tiene documentos subidos, la columna Documentos NO aparece
+    if (thMateria) thMateria.style.width = '36%';
+    if (thDocente) thDocente.style.width = '34%';
+    if (thNivel) thNivel.style.width = '30%';
+    thDocs.forEach(th => th.style.display = 'none');
+    thAcciones.forEach(th => th.style.display = 'none');
+  }
 
   const btnAddEpa = document.getElementById('btn-add-materia-epa');
   const btnAddEsa = document.getElementById('btn-add-materia-esa');
@@ -10343,27 +10764,56 @@ function renderSeccionHumanistica() {
   }
 
   if (!edicionDirectaHumActiva) {
-    // Vista pública institucional unificada (Minimalista, moderna y sin redundancia)
-    tbodyEpa.innerHTML = epaList.map(m => `
-      <tr>
-        <td style="padding:7px 12px;font-weight:700;color:var(--text-main)">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:6px;height:6px;border-radius:50%;background:var(--verde);display:inline-block;flex-shrink:0"></span>
-            <strong style="font-size:0.92rem">${escapeHTML(m.materia)}</strong>
+    // Vista pública institucional
+    tbodyEpa.innerHTML = epaList.map(m => {
+      const humKey = m.key || obtenerKeyMateriaHumanistica(m.materia);
+      const tieneDocs = Boolean(materiasConDocs[humKey]);
+
+      let docCellHTML = '';
+      if (hayAlgunDocumentoSubido) {
+        if (tieneDocs) {
+          docCellHTML = `
+            <td style="text-align:center;padding:10px 14px;">
+              <button type="button" class="btn-ver-doc-hum" onclick="event.stopPropagation(); abrirModalMateriaHumanistica('${humKey}', '${escapeHTML(m.materia)}', '${escapeHTML(m.docente)}')" style="padding:6px 14px;background:var(--verde);color:#ffffff;border:none;border-radius:6px;font-size:0.82rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,0.12);transition:all 0.2s" title="Ver y descargar documentos de ${escapeHTML(m.materia)}">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                <span>Documentos</span>
+              </button>
+            </td>
+          `;
+        } else {
+          docCellHTML = `
+            <td style="text-align:center;padding:10px 14px;color:var(--text-sec);font-size:0.84rem;opacity:0.55;user-select:none">
+              —
+            </td>
+          `;
+        }
+      }
+
+      const rowClickAttrs = tieneDocs
+        ? `class="hum-materia-row-clickable" onclick="abrirModalMateriaHumanistica('${humKey}', '${escapeHTML(m.materia)}', '${escapeHTML(m.docente)}')" style="cursor:pointer;transition:background 0.2s" title="Haga clic para ver y descargar los documentos de ${escapeHTML(m.materia)}"`
+        : `class="hum-materia-row" style="transition:background 0.2s"`;
+
+      return `
+      <tr ${rowClickAttrs}>
+        <td style="padding:10px 14px;font-weight:700;color:var(--text-main)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--verde);display:inline-block;flex-shrink:0"></span>
+            <strong style="font-size:0.95rem;color:var(--verde-dark);font-weight:700">${escapeHTML(m.materia)}</strong>
           </div>
         </td>
-        <td style="padding:7px 12px;font-size:0.89rem;color:var(--text-main)">
-          <span style="font-weight:600">${escapeHTML(m.docente)}</span>
+        <td style="padding:10px 14px;font-size:0.90rem;color:var(--text-main)">
+          <span style="font-weight:700">${escapeHTML(m.docente)}</span>
         </td>
-        <td style="text-align:center;padding:7px 12px;">
-          <div style="display:inline-flex;align-items:center;gap:6px;flex-wrap:nowrap;justify-content:center">
-            <span class="acred-badge" style="background:#f0fdf4;color:#063c17;font-size:0.76rem;padding:3px 12px;border-radius:50px;border:1px solid #86efac;font-weight:750;white-space:nowrap;display:inline-flex;align-items:center;gap:5px">
-              <span style="width:5px;height:5px;border-radius:50%;background:#16a34a"></span> Primaria (EPA) y Secundaria (ESA)
-            </span>
-          </div>
+        <td style="padding:10px 14px;color:var(--text-sec);font-size:0.86rem;">
+          <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(22,101,52,0.08);color:var(--verde-dark);padding:3px 10px;border-radius:6px;font-weight:700;font-size:0.82rem">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            ${escapeHTML(m.ciclo && m.ciclo !== '1° – 6°' && m.ciclo !== '1° - 6°' ? m.ciclo : 'Primaria (EPA) y Secundaria (ESA)')}
+          </span>
         </td>
+        ${docCellHTML}
       </tr>
-    `).join('');
+      `;
+    }).join('');
 
     if (tbodyEsa) tbodyEsa.innerHTML = '';
   } else {
@@ -11616,13 +12066,21 @@ async function guardarEdicionCarreraTecInline(key) {
   const docentes = lsGet('cea_docentes', DOCENTES_DEFAULT);
 
   const idx = areas.findIndex(a => a.key === key);
+  const viejoNom = (idx !== -1 && areas[idx].docente) ? areas[idx].docente : (docentes[key] || '');
+
   if (idx !== -1) {
     if (nuevoNombre) areas[idx].nombre = nuevoNombre;
-    if (nuevoDocente) areas[idx].docente = nuevoDocente;
+    areas[idx].docente = nuevoDocente;
     areas[idx].resumen = nuevoResumen;
   }
 
   docentes[key] = nuevoDocente;
+
+  if (viejoNom && viejoNom !== nuevoDocente) {
+    if (typeof actualizarNombreDocenteEnTodoElSistema === 'function') {
+      actualizarNombreDocenteEnTodoElSistema(viejoNom, nuevoDocente, key);
+    }
+  }
 
   lsSet('cea_areas_tec', areas);
   lsSet('cea_docentes', docentes);
@@ -12671,10 +13129,8 @@ async function cambiarCredencialesDirector() {
   const nuevaP  = (document.getElementById('cred-nueva-pass')?.value || '').trim();
   const nuevaP2 = (document.getElementById('cred-nueva-pass2')?.value || '').trim();
 
-  const creds = lsGet('cea_director_creds', { user: 'user', pass: 'user' });
-
-  if (actual !== creds.pass) {
-    mostrarMsg('msg-credenciales', 'La contraseña actual es incorrecta.', 'error');
+  if (!actual) {
+    mostrarMsg('msg-credenciales', 'Debe ingresar la contraseña actual guardada en Google Sheets.', 'error');
     return;
   }
 
@@ -12683,19 +13139,45 @@ async function cambiarCredencialesDirector() {
     return;
   }
 
-  if (nuevoU) creds.user = nuevoU;
-  if (nuevaP) creds.pass = nuevaP;
+  mostrarMsg('msg-credenciales', 'Validando con Google Sheets y guardando...', 'info');
 
-  lsSet('cea_director_creds', creds);
+  const session = lsGet('cea_session', null);
+  const curUser = (session && session.name) ? session.name : 'user';
+
+  // Verificar credencial actual directamente con Google Sheets
+  try {
+    const resp = await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'login',
+        user: nuevoU || curUser,
+        pass: actual
+      })
+    });
+    const data = await resp.json();
+    if (!data || data.status !== 'success') {
+      mostrarMsg('msg-credenciales', 'La contraseña actual no coincide con la registrada en Google Sheets.', 'error');
+      return;
+    }
+  } catch(eNet) {
+    console.warn('Error al verificar contraseña con Google Sheets:', eNet);
+  }
+
+  const creds = {
+    user: nuevoU || curUser,
+    pass: nuevaP || actual
+  };
+
+  await enviarGoogleSheet({ action: 'guardar-credenciales-director', creds: creds });
 
   document.getElementById('cred-actual').value = '';
   document.getElementById('cred-nuevo-user').value = '';
   document.getElementById('cred-nueva-pass').value = '';
   document.getElementById('cred-nueva-pass2').value = '';
 
-  mostrarMsg('msg-credenciales', 'Guardando...', 'success');
-  await enviarGoogleSheet({ action: 'guardar-credenciales-director', creds: creds });
-  mostrarMsg('msg-credenciales', '¡Guardado exitosamente!', 'success');
+  mostrarMsg('msg-credenciales', '¡Credenciales actualizadas exitosamente en Google Sheets!', 'success');
+  mostrarToastLive('¡Contraseña del Director actualizada en Google Sheets!');
 }
 
 /* ─── USUARIOS DOCENTES ─── */
@@ -12967,9 +13449,50 @@ function actualizarNiveles() {
     }
   }
 
+  // Actualizar opciones de Sede y Subcentros dinámicamente según el área seleccionada
+  actualizarOpcionesSedeSubcentro(valArea);
+
   // Actualizar validación de edad al cambiar opciones de nivel
   validarEdadInscripcionLive();
 }
+
+function actualizarOpcionesSedeSubcentro(valArea) {
+  const grpSede = document.getElementById('grp-fi-sede');
+  const selSede = document.getElementById('fi-sede-select');
+  if (!selSede) return;
+
+  // Si no se ha seleccionado un área aún, mantener oculto el grupo de sede/subcentro
+  if (!valArea || valArea === '' || valArea.startsWith('--')) {
+    if (grpSede) grpSede.style.display = 'none';
+    selSede.innerHTML = '<option value="Sede Central (Centro de Chulumani)" selected>Sede Central (Centro de Chulumani)</option>';
+    return;
+  }
+
+  const areaKey = (valArea === 'tecnica' || valArea === 'tec') ? 'tec' : 'hum';
+  const sedes = (typeof obtenerListaSedesEducativas === 'function') 
+    ? obtenerListaSedesEducativas(areaKey) 
+    : [{ key: 'central', nombre: 'Sede Central - CEA' }];
+  
+  const subcentros = (sedes && Array.isArray(sedes)) ? sedes.filter(s => {
+    if (!s || s.key === 'central') return false;
+    const n = (s.nombre || '').trim();
+    return n && n !== 'Sede Central - CEA' && n !== 'Sede Central (Centro de Chulumani)' && !n.toLowerCase().includes('sede central');
+  }) : [];
+
+  if (subcentros.length === 0) {
+    if (grpSede) grpSede.style.display = 'none';
+    selSede.innerHTML = '<option value="Sede Central (Centro de Chulumani)" selected>Sede Central (Centro de Chulumani)</option>';
+  } else {
+    if (grpSede) grpSede.style.display = 'block';
+    let optionsHtml = '<option value="Sede Central (Centro de Chulumani)">Sede Central (Centro de Chulumani)</option>';
+    subcentros.forEach(s => {
+      const nom = s.nombre.trim();
+      optionsHtml += `<option value="Subcentro: ${escapeHTML(nom)}">Subcentro: ${escapeHTML(nom)}</option>`;
+    });
+    selSede.innerHTML = optionsHtml;
+  }
+}
+window.actualizarOpcionesSedeSubcentro = actualizarOpcionesSedeSubcentro;
 
 /* ─── SISTEMA DE CÁLCULO Y VALIDACIÓN DE EDAD (EPJA / ETTP) ─── */
 function calcularEdad(fechaNacimientoStr) {
@@ -14000,6 +14523,8 @@ async function manejarFormInscripcion(e) {
     telefono: sanitizarTextoSimple(form.telefono?.value || ''),
     area: sanitizarTextoSimple(form.area?.value || ''),
     carrera: sanitizarTextoSimple(textoNivel || form.carrera?.value || ''),
+    sede: sanitizarTextoSimple(form.sede?.value || 'Sede Central (Centro de Chulumani)'),
+    comunidad: sanitizarTextoSimple(form.comunidad?.value || ''),
     observaciones: sanitizarTextoSimple(form.observaciones?.value || ''),
     semestre: semInfo.semestre,
     gestion: semInfo.gestion,
@@ -14017,6 +14542,7 @@ async function manejarFormInscripcion(e) {
   ins.unshift({ ...data, fecha: new Date().toLocaleString() });
   lsSet('cea_inscripciones', ins);
   cargarInscripciones();
+  if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
 
   // 2. Guardar datos para los botones de acción (PDF y WhatsApp)
   window._ultimoRegistroInscripcion = data;
@@ -14108,6 +14634,42 @@ function cerrarVoucherInscripcion() {
   if (v) v.style.display = 'none';
 }
 
+function formatearFechaSoloNumerosDMY(fechaStr) {
+  if (!fechaStr) return '—';
+  const str = String(fechaStr).trim();
+  const m = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (m) {
+    return `${m[3].padStart(2, '0')}/${m[2].padStart(2, '0')}/${m[1]}`;
+  }
+  const m2 = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (m2) {
+    return `${m2[1].padStart(2, '0')}/${m2[2].padStart(2, '0')}/${m2[3]}`;
+  }
+  const dt = new Date(str);
+  if (!isNaN(dt.getTime())) {
+    const d = String(dt.getDate()).padStart(2, '0');
+    const mo = String(dt.getMonth() + 1).padStart(2, '0');
+    const y = dt.getFullYear();
+    return `${d}/${mo}/${y}`;
+  }
+  return str;
+}
+
+function formatearFechaRegistroConHora(fechaStr) {
+  if (!fechaStr) return '—';
+  const str = String(fechaStr).trim();
+  const dt = new Date(str);
+  if (!isNaN(dt.getTime())) {
+    const d = String(dt.getDate()).padStart(2, '0');
+    const mo = String(dt.getMonth() + 1).padStart(2, '0');
+    const y = dt.getFullYear();
+    const h = String(dt.getHours()).padStart(2, '0');
+    const min = String(dt.getMinutes()).padStart(2, '0');
+    return `${d}/${mo}/${y}, ${h}:${min}`;
+  }
+  return str;
+}
+
 function consultarInscripcionPorCI() {
   const inp = document.getElementById('ci-consulta-inp');
   const box = document.getElementById('resultado-consulta-box');
@@ -14147,6 +14709,13 @@ function consultarInscripcionPorCI() {
   const semStr = String(encontrada.semestre || '');
   const badgeClass = semStr.includes('2') ? 'badge-semestre-2' : (semStr.includes('1') ? 'badge-semestre-1' : 'badge-semestre-siguiente');
 
+  const fnacFormateada = formatearFechaSoloNumerosDMY(encontrada.fechaNacimiento);
+  const edadCalc = encontrada.edad || (encontrada.fechaNacimiento ? calcularEdad(encontrada.fechaNacimiento) : null);
+  const fnacTexto = fnacFormateada !== '—' 
+    ? `${fnacFormateada} ${edadCalc ? `(${edadCalc} años cumplidos)` : ''}`
+    : (edadCalc ? `${edadCalc} años cumplidos` : '—');
+  const fechaRegFormateada = formatearFechaRegistroConHora(encontrada.fechaRegistro || encontrada.fecha);
+
   box.innerHTML = `
     <div style="background:var(--verde-light);border:1.5px solid var(--verde);border-radius:10px;padding:16px;color:#1e293b">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid #c8e6c9;padding-bottom:8px">
@@ -14157,13 +14726,17 @@ function consultarInscripcionPorCI() {
         <span style="font-size:0.75rem;padding:3px 8px;background:#c8e6c9;border-radius:12px;font-weight:700;color:var(--verde-dark)">REGISTRO ACTIVO</span>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:8px;font-size:0.86rem;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;font-size:0.86rem;margin-bottom:14px">
         <div><strong>Postulante:</strong><br>${escapeHTML(String(encontrada.nombre || '—'))}</div>
-        <div><strong>Cédula de Identidad:</strong><br>${escapeHTML(String(encontrada.ci || '—'))}</div>
-        <div><strong>Edad / F. Nacimiento:</strong><br><strong style="color:var(--verde-dark)">${encontrada.edad ? `${escapeHTML(String(encontrada.edad))} años cumplidos` : (encontrada.fechaNacimiento ? `${calcularEdad(String(encontrada.fechaNacimiento))} años` : '—')}</strong> <small style="color:var(--text-sec)">(${escapeHTML(String(encontrada.fechaNacimiento || '—'))})</small></div>
+        <div><strong>Cédula de Identidad (CI):</strong><br>${escapeHTML(String(encontrada.ci || '—'))}</div>
+        <div><strong>Fecha de Nacimiento y Edad:</strong><br><strong style="color:var(--verde-dark)">${fnacTexto}</strong></div>
+        <div><strong>Teléfono / WhatsApp:</strong><br>${escapeHTML(String(encontrada.telefono || '—'))}</div>
+        <div><strong>¿De dónde vienes? (Comunidad):</strong><br><strong style="color:#0f172a">${escapeHTML(String(encontrada.comunidad || encontrada.direccion || 'Chulumani / Sud Yungas'))}</strong></div>
+        <div><strong>Centro o Subcentro a inscribirse:</strong><br><strong style="color:var(--verde-dark)">${escapeHTML(String(encontrada.sede || encontrada.subcentro || 'Sede Central (Centro de Chulumani)'))}</strong></div>
         <div><strong>Área Solicitada:</strong><br>${String(encontrada.area || '').toLowerCase().includes('tec') ? 'Área Técnica (ETA)' : 'Área Humanística (EPA/ESA)'}</div>
         <div><strong>Carrera / Especialidad:</strong><br>${escapeHTML(String(encontrada.carrera || '—'))}</div>
         <div><strong>Semestre Asignado:</strong><br><span class="badge-semestre ${badgeClass}">${escapeHTML(String(encontrada.semestre || '1er Semestre'))} (${escapeHTML(String(encontrada.gestion || '2026'))})</span></div>
+        <div><strong>Fecha de Registro:</strong><br><strong>${escapeHTML(fechaRegFormateada)}</strong></div>
         ${encontrada.esCasoExcepcional || encontrada.casoExcepcional ? `
           <div style="grid-column: 1 / -1; background:#fef3c7; border:1px solid #f59e0b; border-radius:6px; padding:6px 10px; font-size:0.80rem; color:#92400e">
             <strong style="display:inline-flex;align-items:center;gap:4px">
@@ -14172,8 +14745,6 @@ function consultarInscripcionPorCI() {
             </strong> ${escapeHTML(String(encontrada.casoExcepcional || 'Sí'))}${encontrada.detalleExcepcion ? ` (${escapeHTML(String(encontrada.detalleExcepcion))})` : ''}
           </div>
         ` : ''}
-        <div><strong>Teléfono:</strong><br>${escapeHTML(String(encontrada.telefono || '—'))}</div>
-        <div><strong>Fecha Registro:</strong><br>${escapeHTML(String(encontrada.fecha || 'Gestión 2026'))}</div>
       </div>
 
       ${encontrada.avisoVigencia ? `
@@ -14276,7 +14847,7 @@ function descargarComprobanteInscripcionPDF(dataOverride) {
           <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3.5px 8px; font-weight:700; width:34%; background:#f8fafc;">Área de Formación:</td><td style="padding:3.5px 8px; font-weight:800; color:#15803d;">${data.area === 'tecnica' ? 'EDUCACIÓN TÉCNICA TECNOLÓGICA (ETTP / ETA)' : 'EDUCACIÓN DE PERSONAS JÓVENES Y ADULTAS (EPJA - Humanística)'}</td></tr>
           <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3.5px 8px; font-weight:700; background:#f8fafc;">Especialidad / Carrera Solicitada:</td><td style="padding:3.5px 8px; font-weight:800; color:#0f172a;">${data.carrera || '—'}</td></tr>
           <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3.5px 8px; font-weight:700; background:#f8fafc;">Semestre Asignado:</td><td style="padding:3.5px 8px; font-weight:800; color:#15803d;">${data.semestre || '1er Semestre'} — Gestión ${data.gestion || '2026'}</td></tr>
-          ${(data.esCasoExcepcional || data.casoExcepcional) ? `
+          ${esRegistroCasoExcepcional(data) ? `
           <tr style="border-bottom:1px solid #e2e8f0;background:#fffbeb;">
             <td style="padding:3.5px 8px; font-weight:700; color:#92400e; background:#fef3c7;">Modalidad de Matrícula:</td>
             <td style="padding:3.5px 8px; font-weight:800; color:#b45309; line-height:1.2;">
@@ -14301,7 +14872,7 @@ function descargarComprobanteInscripcionPDF(dataOverride) {
           1. Dos (2) fotocopias simples de Cédula de Identidad vigente (cotejada con original).<br>
           2. Fotocopia de Libreta o Certificado de Calificaciones del último nivel aprobado.<br>
           3. Para el Área Técnica: Certificado del nivel anterior (Básico/Auxiliar) si corresponde.<br>
-          ${(data.esCasoExcepcional || data.casoExcepcional) ? `4. Documento o certificado físico de respaldo de la causal de excepción legal (menores de edad).<br>5. ` : '4. '}Presentar esta ficha oficial impresa o digital al momento de la entrega de carpetas.
+          ${esRegistroCasoExcepcional(data) ? `4. Documento o certificado físico de respaldo de la causal de excepción legal.<br>5. ` : '4. '}Presentar esta ficha oficial impresa o digital al momento de la entrega de carpetas.
         </div>
         <div style="text-align:center;">
           <img src="${qrUrl}" alt="QR Verificación" style="width:68px; height:68px; border:1px solid #cbd5e1; padding:2px; border-radius:4px; display:inline-block;" />
@@ -14309,19 +14880,11 @@ function descargarComprobanteInscripcionPDF(dataOverride) {
         </div>
       </div>
 
-      <!-- SECCIÓN DE FIRMAS EN 3 COLUMNAS -->
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; text-align:center; margin-top:16px; padding-top:4px;">
-        <div style="border-top:1.5px solid #64748b; padding-top:3px;">
-          <strong style="font-size:7.2pt; display:block; color:#0f172a;">Firma del Participante</strong>
-          <span style="font-size:6.3pt; color:#64748b;">Postulante Interesado</span>
-        </div>
-        <div style="border-top:1.5px solid #64748b; padding-top:3px;">
-          <strong style="font-size:7.2pt; display:block; color:#0f172a;">${directorNom}</strong>
-          <span style="font-size:6.3pt; color:#64748b;">Director(a) CEA</span>
-        </div>
-        <div style="border-top:1.5px solid #64748b; padding-top:3px;">
-          <strong style="font-size:7.2pt; display:block; color:#0f172a;">Sello y Recepción</strong>
-          <span style="font-size:6.3pt; color:#64748b;">Kardex / Secretaría Escolar</span>
+      <!-- SECCIÓN DE FIRMA EXCLUSIVA DEL PARTICIPANTE -->
+      <div style="display:flex; justify-content:center; align-items:center; margin-top:20px; padding-top:4px;">
+        <div style="width:260px; text-align:center; border-top:1.8px solid #334155; padding-top:4px;">
+          <strong style="font-size:7.8pt; display:block; color:#0f172a; text-transform:uppercase;">Firma del Participante</strong>
+          <span style="font-size:6.8pt; color:#64748b; display:block; margin-top:1px;">C.I.: ${data.ci || '_____________________'}</span>
         </div>
       </div>
     </div>
@@ -14433,14 +14996,34 @@ function conmutarSubvistaInscripciones(subvista) {
   if (subvista === 'mensajes') {
     if (panelInsc) panelInsc.style.display = 'none';
     if (panelMsg) panelMsg.style.display = 'block';
-    if (btnPreinsc) btnPreinsc.classList.remove('active');
-    if (btnMsg) btnMsg.classList.add('active');
+    if (btnPreinsc) {
+      btnPreinsc.classList.remove('active');
+      btnPreinsc.style.background = 'var(--bg-card)';
+      btnPreinsc.style.color = 'var(--text-main)';
+      btnPreinsc.style.border = '1.5px solid var(--border-col)';
+    }
+    if (btnMsg) {
+      btnMsg.classList.add('active');
+      btnMsg.style.background = 'var(--verde-dark)';
+      btnMsg.style.color = '#ffffff';
+      btnMsg.style.border = 'none';
+    }
     cargarMensajesContactoAdmin();
   } else {
     if (panelInsc) panelInsc.style.display = 'block';
     if (panelMsg) panelMsg.style.display = 'none';
-    if (btnPreinsc) btnPreinsc.classList.add('active');
-    if (btnMsg) btnMsg.classList.remove('active');
+    if (btnPreinsc) {
+      btnPreinsc.classList.add('active');
+      btnPreinsc.style.background = 'var(--verde-dark)';
+      btnPreinsc.style.color = '#ffffff';
+      btnPreinsc.style.border = 'none';
+    }
+    if (btnMsg) {
+      btnMsg.classList.remove('active');
+      btnMsg.style.background = 'var(--bg-card)';
+      btnMsg.style.color = 'var(--text-main)';
+      btnMsg.style.border = '1.5px solid var(--border-col)';
+    }
     resetearFiltrosInscripciones();
     cargarInscripciones();
   }
@@ -14483,6 +15066,11 @@ function cargarMensajesContactoAdmin() {
   if (countBadge) {
     countBadge.textContent = noLeidos;
     countBadge.style.display = noLeidos > 0 ? 'inline-block' : 'none';
+  }
+
+  const subtabMsgBadge = document.getElementById('badge-count-subtab-msg');
+  if (subtabMsgBadge) {
+    subtabMsgBadge.textContent = total;
   }
 
   const kpiTotal = document.getElementById('kpi-msg-total');
@@ -14615,7 +15203,7 @@ async function eliminarMensajeContacto(id) {
   const item = msgs[idx];
   const ok = typeof mostrarConfirmModal === 'function'
     ? await mostrarConfirmModal(`¿Estás seguro de eliminar el mensaje de "${item.nombre || 'este remitente'}"?`, 'Eliminar Mensaje', 'Eliminar', true)
-    : confirm('¿Eliminar este mensaje?');
+    : true;
   if (!ok) return;
 
   msgs.splice(idx, 1);
@@ -14633,7 +15221,7 @@ async function limpiarMensajesContacto() {
 
   const ok = typeof mostrarConfirmModal === 'function'
     ? await mostrarConfirmModal('¿Estás seguro de eliminar TODOS los mensajes y consultas de contacto recibidos?', 'Vaciar Bandeja de Mensajes', 'Eliminar Todos', true)
-    : confirm('¿Eliminar todos los mensajes?');
+    : true;
   if (!ok) return;
 
   lsSet('cea_mensajes_contacto', []);
@@ -14667,9 +15255,147 @@ function exportarMensajesContactoCSV() {
 
 /* ─── GESTIÓN DE PRE-INSCRIPCIONES (CONTEOS TÉCNICA Y HUMANÍSTICA, SEMESTRES Y GESTIONES) ─── */
 let estadoFiltroInscripciones = 'todas';
+window.estadoFiltroInscripciones = estadoFiltroInscripciones;
 let estadoFiltroSemestre = 'todos'; // 'todos', 'sem1', 'sem2'
-let estadoFiltroGestion = '2026'; // 'todas', '2024', '2025', '2026', ... '2040'
+let estadoFiltroGestion = '2026';
+window.estadoFiltroGestion = estadoFiltroGestion;
+let estadoFiltroSede = 'todas';
+window.estadoFiltroSede = estadoFiltroSede;
 let textoBusquedaInscripciones = '';
+
+function formatearFechaNacimientoConEdad(fnac, edad) {
+  if (!fnac) return '';
+  let str = String(fnac).trim();
+  let dStr = str;
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const parts = str.split('T')[0].split('-');
+    dStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
+  } else if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(str)) {
+    dStr = str;
+  }
+  const edadNum = (edad !== undefined && edad !== null && edad !== '') ? edad : (typeof calcularEdad === 'function' ? calcularEdad(fnac) : null);
+  const edadTexto = edadNum ? ` (${edadNum} años)` : '';
+  return `${dStr}${edadTexto}`;
+}
+window.formatearFechaNacimientoConEdad = formatearFechaNacimientoConEdad;
+
+function cambiarFiltroSede(val) {
+  estadoFiltroSede = val || 'todas';
+  window.estadoFiltroSede = estadoFiltroSede;
+  cargarInscripciones();
+}
+window.cambiarFiltroSede = cambiarFiltroSede;
+
+function esRegistroCasoExcepcional(item) {
+  if (!item) return false;
+  const area = String(item.area || '').toLowerCase();
+  const carrera = String(item.carrera || '').toLowerCase();
+  const esTec = area.includes('tec') || carrera.includes('sistemas') || carrera.includes('gastronom') || carrera.includes('belleza') || carrera.includes('secretariado') || carrera.includes('confecci') || carrera.includes('agropecuaria') || Boolean(item.esTecnica);
+  // En área técnica NUNCA existe caso excepcional
+  if (esTec) return false;
+  const esVal = item.esCasoExcepcional;
+  if (esVal === true || esVal === 1 || esVal === 'true' || esVal === '1' || esVal === 'SI' || esVal === 'SÍ' || esVal === 'si' || esVal === 'sí') return true;
+  const c = String(item.casoExcepcional || '').trim();
+  if (c && !['false', '0', 'NO', 'No', 'no', 'Ninguno', 'Inscripción Regular', 'Regular', '—', '-', 'null', 'undefined'].includes(c)) return true;
+  return false;
+}
+window.esRegistroCasoExcepcional = esRegistroCasoExcepcional;
+
+function formatearFechaRegistroReporte(raw) {
+  if (!raw) return { fechaStr: '—', horaStr: '' };
+  const s = String(raw).trim();
+  if (!s || s === '—' || s === '-') return { fechaStr: '—', horaStr: '' };
+
+  // Caso 1: DD/MM/AAAA [HH:mm[:ss]]
+  const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s*,?\s*(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (dmyMatch) {
+    const dia = String(dmyMatch[1]).padStart(2, '0');
+    const mes = String(dmyMatch[2]).padStart(2, '0');
+    let anio = dmyMatch[3];
+    if (anio.length === 2) anio = '20' + anio;
+    let horaStr = '';
+    if (dmyMatch[4] !== undefined && dmyMatch[5] !== undefined) {
+      let hora = parseInt(dmyMatch[4], 10);
+      const min = String(dmyMatch[5]).padStart(2, '0');
+      const ampm = hora >= 12 ? 'PM' : 'AM';
+      const hora12 = hora % 12 || 12;
+      horaStr = `${String(hora12).padStart(2, '0')}:${min} ${ampm}`;
+    }
+    return { fechaStr: `${dia}/${mes}/${anio}`, horaStr };
+  }
+
+  // Caso 2: AAAA-MM-DD [HH:mm[:ss]]
+  const ymdMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (ymdMatch) {
+    const anio = ymdMatch[1];
+    const mes = String(ymdMatch[2]).padStart(2, '0');
+    const dia = String(ymdMatch[3]).padStart(2, '0');
+    let horaStr = '';
+    if (ymdMatch[4] !== undefined && ymdMatch[5] !== undefined) {
+      let hora = parseInt(ymdMatch[4], 10);
+      const min = String(ymdMatch[5]).padStart(2, '0');
+      const ampm = hora >= 12 ? 'PM' : 'AM';
+      const hora12 = hora % 12 || 12;
+      horaStr = `${String(hora12).padStart(2, '0')}:${min} ${ampm}`;
+    }
+    return { fechaStr: `${dia}/${mes}/${anio}`, horaStr };
+  }
+
+  // Fallback con Date
+  const dt = new Date(s);
+  if (!isNaN(dt.getTime())) {
+    const dia = String(dt.getDate()).padStart(2, '0');
+    const mes = String(dt.getMonth() + 1).padStart(2, '0');
+    const anio = dt.getFullYear();
+    let hora = dt.getHours();
+    const min = String(dt.getMinutes()).padStart(2, '0');
+    const ampm = hora >= 12 ? 'PM' : 'AM';
+    const hora12 = hora % 12 || 12;
+    const horaStr = `${String(hora12).padStart(2, '0')}:${min} ${ampm}`;
+    return { fechaStr: `${dia}/${mes}/${anio}`, horaStr };
+  }
+
+  return { fechaStr: s, horaStr: '' };
+}
+window.formatearFechaRegistroReporte = formatearFechaRegistroReporte;
+
+function actualizarOpcionesFiltroGestion() {
+  const select = document.getElementById('filtro-gestion-select');
+  if (!select) return;
+  const ins = lsGet('cea_inscripciones', []);
+  const gestionesSet = new Set();
+  const anioActual = String(new Date().getFullYear() || '2026');
+  gestionesSet.add(anioActual);
+
+  if (Array.isArray(ins)) {
+    ins.forEach(item => {
+      if (!item) return;
+      const g = clasificarGestionRegistro(item);
+      if (g && /^\d{4}$/.test(g)) {
+        gestionesSet.add(g);
+      }
+    });
+  }
+
+  const gestionesOrdenadas = Array.from(gestionesSet).sort((a, b) => b.localeCompare(a));
+  const valorPrevio = estadoFiltroGestion || select.value || anioActual;
+
+  let optionsHTML = `<option value="todas">Todas las Gestiones (Historial)</option>`;
+  gestionesOrdenadas.forEach(g => {
+    const esAct = (g === anioActual) ? ' (Actual)' : '';
+    optionsHTML += `<option value="${g}">Gestión ${g}${esAct}</option>`;
+  });
+
+  select.innerHTML = optionsHTML;
+  if (Array.from(select.options).some(o => o.value === valorPrevio)) {
+    select.value = valorPrevio;
+  } else {
+    select.value = gestionesOrdenadas.includes(anioActual) ? anioActual : 'todas';
+  }
+  estadoFiltroGestion = select.value;
+  window.estadoFiltroGestion = estadoFiltroGestion;
+}
+window.actualizarOpcionesFiltroGestion = actualizarOpcionesFiltroGestion;
 
 function clasificarGestionRegistro(item) {
   if (!item) return '2026';
@@ -14682,6 +15408,7 @@ function clasificarGestionRegistro(item) {
 
 function cambiarFiltroGestion(gestion) {
   estadoFiltroGestion = String(gestion || 'todas').trim();
+  window.estadoFiltroGestion = estadoFiltroGestion;
   const select = document.getElementById('filtro-gestion-select');
   if (select && select.value !== estadoFiltroGestion) {
     select.value = estadoFiltroGestion;
@@ -14739,12 +15466,39 @@ function cargarInscripciones() {
   if (!tbody) return;
 
   try {
+    if (typeof actualizarOpcionesFiltroGestion === 'function') {
+      actualizarOpcionesFiltroGestion();
+    }
+
     const rawIns = lsGet('cea_inscripciones', []);
     const ins = Array.isArray(rawIns) ? rawIns.filter(Boolean) : [];
 
+    // Si la gestión seleccionada no tiene registros pero existen pre-inscripciones en otras gestiones o en el historial, mostrar todas o la gestión con datos
+    let gestionFiltroActual = estadoFiltroGestion;
+    if (gestionFiltroActual && gestionFiltroActual !== 'todas') {
+      const tieneEnGestion = ins.some(item => clasificarGestionRegistro(item) === String(gestionFiltroActual));
+      if (!tieneEnGestion && ins.length > 0) {
+        // Encontrar la gestión más reciente con datos o usar todas
+        const primeraGestion = clasificarGestionRegistro(ins[0]);
+        if (primeraGestion) {
+          gestionFiltroActual = primeraGestion;
+          estadoFiltroGestion = primeraGestion;
+          window.estadoFiltroGestion = primeraGestion;
+          const selG = document.getElementById('filtro-gestion-select');
+          if (selG) selG.value = primeraGestion;
+        } else {
+          gestionFiltroActual = 'todas';
+          estadoFiltroGestion = 'todas';
+          window.estadoFiltroGestion = 'todas';
+          const selG = document.getElementById('filtro-gestion-select');
+          if (selG) selG.value = 'todas';
+        }
+      }
+    }
+
     // Filtrar según gestión seleccionada (o histórico completo)
-    const insGestion = (estadoFiltroGestion && estadoFiltroGestion !== 'todas')
-      ? ins.filter(item => clasificarGestionRegistro(item) === String(estadoFiltroGestion))
+    const insGestion = (gestionFiltroActual && gestionFiltroActual !== 'todas')
+      ? ins.filter(item => clasificarGestionRegistro(item) === String(gestionFiltroActual))
       : ins;
 
     // 1. Calcular conteos oficiales (Áreas y Semestres) para la gestión seleccionada
@@ -14833,7 +15587,31 @@ function cargarInscripciones() {
     if (pPrim) pPrim.textContent = humPrimCount;
     if (pSec) pSec.textContent = humSecCount;
 
-    // 4. Filtrar lista según semestre, pestaña de área y búsqueda textual
+    // Actualizar también la pestaña superior y el badge de subpestaña Pre-Inscripciones Recibidas
+    const badgeSubtabInsc = document.getElementById('badge-count-subtab-insc');
+    if (badgeSubtabInsc) badgeSubtabInsc.textContent = total;
+
+    const statTopInsc = document.getElementById('stat-inscripciones-num');
+    if (statTopInsc) statTopInsc.textContent = total;
+
+    // 3.5 Poblar dinámicamente el selector de sedes/subcentros según los registros de la gestión activa
+    const selSedeFilter = document.getElementById('filtro-sede-select');
+    if (selSedeFilter) {
+      const sedesSet = new Set();
+      insGestion.forEach(it => {
+        const s = String(it.sede || 'Sede Central (Centro de Chulumani)').trim();
+        if (s) sedesSet.add(s);
+      });
+      const currentVal = estadoFiltroSede || 'todas';
+      let opts = `<option value="todas"${currentVal === 'todas' ? ' selected' : ''}>Todas las Sedes / Subcentros (${insGestion.length})</option>`;
+      Array.from(sedesSet).sort().forEach(s => {
+        const cSede = insGestion.filter(it => String(it.sede || 'Sede Central (Centro de Chulumani)').trim() === s).length;
+        opts += `<option value="${escapeHTML(s)}"${currentVal === s ? ' selected' : ''}>${escapeHTML(s)} (${cSede})</option>`;
+      });
+      selSedeFilter.innerHTML = opts;
+    }
+
+    // 4. Filtrar lista según semestre, sede, pestaña de área y búsqueda textual
     const filtradas = insGestion.filter(item => {
       if (!item) return false;
 
@@ -14843,17 +15621,25 @@ function cargarInscripciones() {
         if (estadoFiltroSemestre !== semClasif) return false;
       }
 
+      // Filtro Sede / Subcentro
+      if (estadoFiltroSede && estadoFiltroSede !== 'todas') {
+        const sReg = String(item.sede || 'Sede Central (Centro de Chulumani)').trim();
+        if (sReg !== estadoFiltroSede) return false;
+      }
+
       const area = String(item.area || '').toLowerCase();
       const carrera = String(item.carrera || '').toLowerCase();
       const nombre = String(item.nombre || '').toLowerCase();
       const ci = String(item.ci || '').toLowerCase();
       const tel = String(item.telefono || '').toLowerCase();
       const semText = String(item.semestre || '').toLowerCase();
+      const comunidadText = String(item.comunidad || '').toLowerCase();
+      const sedeText = String(item.sede || '').toLowerCase();
 
       // Búsqueda textual
       if (textoBusquedaInscripciones) {
         const q = String(textoBusquedaInscripciones).trim().toLowerCase();
-        const coincide = nombre.includes(q) || ci.includes(q) || carrera.includes(q) || tel.includes(q) || area.includes(q) || semText.includes(q);
+        const coincide = nombre.includes(q) || ci.includes(q) || carrera.includes(q) || tel.includes(q) || area.includes(q) || semText.includes(q) || comunidadText.includes(q) || sedeText.includes(q);
         if (!coincide) return false;
       }
 
@@ -14879,7 +15665,7 @@ function cargarInscripciones() {
     }
 
     if (!filtradas.length) {
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:26px;color:var(--text-sec)">No hay pre-inscripciones que coincidan con los filtros seleccionados.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:26px;color:var(--text-sec)">No hay pre-inscripciones que coincidan con los filtros seleccionados.</td></tr>`;
       return;
     }
 
@@ -14918,15 +15704,27 @@ function cargarInscripciones() {
       const ciEscaped = escapeHTML(ciStr || '—');
       const carreraEscaped = escapeHTML(String(item.carrera || 'No especificado'));
       const obsEscaped = item.observaciones ? escapeHTML(String(item.observaciones)) : '';
-      const casoEx = (item.esCasoExcepcional || item.casoExcepcional) ? escapeHTML(String(item.casoExcepcional || 'Sí')) : '';
-      const fechaEscaped = escapeHTML(String(item.fecha || '—'));
+      const esExcep = esRegistroCasoExcepcional(item);
+      const casoEx = esExcep ? escapeHTML(String(item.casoExcepcional || 'Caso Excepcional')) : '';
+      const fechaInfo = formatearFechaRegistroReporte(item.fecha);
+
+      const sedeVal = String(item.sede || 'Sede Central (Centro de Chulumani)').trim();
+      const esCentral = sedeVal.toLowerCase().includes('central') && !sedeVal.toLowerCase().includes('subcentro');
+      const badgeSede = esCentral
+        ? `<span style="display:inline-block;padding:2px 8px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;font-size:0.75rem;font-weight:700">Sede Central</span>`
+        : `<span style="display:inline-block;padding:2px 8px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;border-radius:4px;font-size:0.75rem;font-weight:700">${escapeHTML(sedeVal)}</span>`;
+
+      const comVal = String(item.comunidad || '').trim();
+      const comHTML = comVal
+        ? `<strong style="font-size:0.83rem;color:var(--text-main)">${escapeHTML(comVal)}</strong>`
+        : `<span style="color:var(--text-sec);font-style:italic">—</span>`;
 
       return `
         <tr>
           <td style="font-weight:700;color:var(--text-sec)">${i + 1}</td>
           <td>
             <strong style="color:var(--text-main);font-size:0.95rem">${nombreEscaped}</strong>
-            ${fnacStr ? `<br><small style="color:var(--text-sec)">F.Nac: ${escapeHTML(fnacStr)} ${edadCalc ? `(<strong>${escapeHTML(String(edadCalc))} años</strong>)` : ''}</small>` : ''}
+            ${fnacStr ? `<br><small style="color:var(--text-sec)">F. Nac: <strong style="color:var(--verde-dark)">${escapeHTML(formatearFechaNacimientoConEdad(fnacStr, edadCalc))}</strong></small>` : ''}
             ${casoEx ? `<br><span class="badge-caso-excepcional" title="${casoEx}"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:-1px;margin-right:2px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Caso Excepcional: ${casoEx}</span>` : ''}
             ${obsEscaped ? `<br><small style="color:var(--amarillo-dark);font-style:italic">Obs: ${obsEscaped}</small>` : ''}
           </td>
@@ -14936,6 +15734,8 @@ function cargarInscripciones() {
             <strong>${carreraEscaped}</strong>
             ${badgeNivel}
           </td>
+          <td>${badgeSede}</td>
+          <td>${comHTML}</td>
           <td>${semestreBadge}</td>
           <td>
             ${telLimpio ? `<a href="https://wa.me/591${telLimpio.slice(-8)}" target="_blank" rel="noopener" style="color:var(--verde);font-weight:700;display:inline-flex;align-items:center;gap:4px">
@@ -14943,7 +15743,10 @@ function cargarInscripciones() {
               ${escapeHTML(telRaw)}
             </a>` : (telRaw ? escapeHTML(telRaw) : '—')}
           </td>
-          <td style="font-size:0.8rem;color:var(--text-sec)">${fechaEscaped}</td>
+          <td style="font-size:0.8rem;color:var(--text-sec);line-height:1.25">
+            <strong style="color:var(--text-main);font-size:0.83rem">${fechaInfo.fechaStr}</strong>
+            ${fechaInfo.horaStr ? `<div style="font-size:0.75rem;color:var(--text-sec);margin-top:2px">${fechaInfo.horaStr}</div>` : ''}
+          </td>
           <td style="text-align:center">
             <button type="button" class="btn-doc-del" onclick="eliminarInscripcionPorCI('${encodeURIComponent(ciStr)}', '${encodeURIComponent(String(item.nombre || ''))}')" title="Eliminar pre-inscripción">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -14954,12 +15757,16 @@ function cargarInscripciones() {
     }).join('');
   } catch (err) {
     console.error('Error al renderizar pre-inscripciones:', err);
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:26px;color:var(--rojo)">Ocurrió un error al cargar la lista de pre-inscripciones. Por favor recarga o verifica la consola.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:26px;color:var(--rojo)">Ocurrió un error al cargar la lista de pre-inscripciones. Por favor recarga o verifica la consola.</td></tr>`;
   }
 }
 
 function filtrarInscripciones(tipo, btn) {
   estadoFiltroInscripciones = tipo;
+  window.estadoFiltroInscripciones = tipo;
+  const areaDetectada = (tipo === 'tecnica') ? 'tecnica' : ((tipo === 'humanistica' || tipo === 'primaria' || tipo === 'secundaria') ? 'humanistica' : 'todas');
+  window.areaImpresionReporte = areaDetectada;
+  areaImpresionReporte = areaDetectada;
   const container = document.getElementById('insc-filter-buttons');
   if (container) {
     const btns = container.querySelectorAll('.insc-pill-btn');
@@ -15001,10 +15808,13 @@ function exportarInscripcionesCSV() {
 
 /* ─── DASHBOARD VISUAL INTERACTIVO DE PRE-INSCRIPCIONES ─── */
 let filtroDashboardActivo = 'todas';
+window.filtroDashboardActivo = 'todas';
 
 function abrirDashboardVisualInscripciones(filtro = 'todas') {
   filtroDashboardActivo = filtro;
+  window.filtroDashboardActivo = filtro;
   areaImpresionReporte = filtro;
+  window.areaImpresionReporte = filtro;
   const modal = document.getElementById('modalDashboardInscripciones');
   if (!modal) return;
 
@@ -15024,7 +15834,9 @@ function cerrarDashboardVisualInscripciones() {
 
 function filtrarDashboardVisual(filtro) {
   filtroDashboardActivo = filtro;
+  window.filtroDashboardActivo = filtro;
   areaImpresionReporte = filtro;
+  window.areaImpresionReporte = filtro;
   ['todas', 'tecnica', 'humanistica'].forEach(f => {
     const btn = document.getElementById('btn-dash-filtro-' + f);
     if (btn) btn.classList.toggle('active', f === filtro);
@@ -15569,19 +16381,32 @@ function actualizarContenidoDashboardVisual() {
 
 /* ─── REPORTE OFICIAL ORGANIZADO Y MODAL DE OPCIONES ─── */
 let areaImpresionReporte = 'todas';
+window.areaImpresionReporte = 'todas';
 
-function abrirModalOpcionesImpresion() {
-  const modal = document.getElementById('modalOpcionesImpresionReporte');
-  if (modal) modal.style.display = 'flex';
+function detectarAreaActivaPreinscripciones() {
+  const dashModal = document.getElementById('modalDashboardInscripciones');
+  if (dashModal && dashModal.style.display !== 'none') {
+    return window.filtroDashboardActivo || 'todas';
+  }
+  const estado = window.estadoFiltroInscripciones || 'todas';
+  if (estado === 'tecnica') return 'tecnica';
+  if (estado === 'humanistica' || estado === 'primaria' || estado === 'secundaria') return 'humanistica';
+  return 'todas';
 }
+window.detectarAreaActivaPreinscripciones = detectarAreaActivaPreinscripciones;
 
-function cerrarModalOpcionesImpresion() {
-  const modal = document.getElementById('modalOpcionesImpresionReporte');
-  if (modal) modal.style.display = 'none';
-}
-
-function seleccionarAreaImpresion(area) {
+function cambiarAreaImpresionModal(area) {
   areaImpresionReporte = area;
+  window.areaImpresionReporte = area;
+  const labels = {
+    'todas': 'Vista Global (Toda la Institución)',
+    'tecnica': 'Solo Área Técnica (6 Carreras)',
+    'humanistica': 'Solo Área Humanística (EPJA y BTH)'
+  };
+  const badge = document.getElementById('print-modal-area-detectada-badge');
+  if (badge) {
+    badge.textContent = labels[area] || labels['todas'];
+  }
   ['todas', 'tecnica', 'humanistica'].forEach(a => {
     const btn = document.getElementById('btn-print-area-' + a);
     if (btn) {
@@ -15593,12 +16418,28 @@ function seleccionarAreaImpresion(area) {
       } else {
         btn.classList.remove('active');
         btn.style.border = '2px solid var(--border-col)';
-        btn.style.background = 'var(--bg-body)';
+        btn.style.background = 'var(--bg-card)';
         btn.style.color = 'var(--text-main)';
       }
     }
   });
 }
+window.cambiarAreaImpresionModal = cambiarAreaImpresionModal;
+window.seleccionarAreaImpresion = cambiarAreaImpresionModal;
+
+function abrirModalOpcionesImpresion() {
+  const areaDetectada = detectarAreaActivaPreinscripciones();
+  cambiarAreaImpresionModal(areaDetectada);
+  const modal = document.getElementById('modalOpcionesImpresionReporte');
+  if (modal) modal.style.display = 'flex';
+}
+window.abrirModalOpcionesImpresion = abrirModalOpcionesImpresion;
+
+function cerrarModalOpcionesImpresion() {
+  const modal = document.getElementById('modalOpcionesImpresionReporte');
+  if (modal) modal.style.display = 'none';
+}
+window.cerrarModalOpcionesImpresion = cerrarModalOpcionesImpresion;
 
 function actualizarEstiloTipoReporte() {
   const radioNom = document.getElementById('opt-rep-nominal');
@@ -15629,21 +16470,20 @@ function actualizarEstiloTipoReporte() {
 function confirmarImpresionDesdeModal() {
   const radioEst = document.getElementById('opt-rep-estadisticas');
   const soloEstadisticas = radioEst ? radioEst.checked : false;
-  const area = window.areaImpresionReporte || (typeof detectarAreaActiva === 'function' ? detectarAreaActiva() : (filtroDashboardActivo || 'todas'));
+  const area = window.areaImpresionReporte || detectarAreaActivaPreinscripciones() || 'todas';
+  cerrarModalOpcionesImpresion();
+  if (typeof window.cerrarDashboardVisualInscripciones === 'function') {
+    window.cerrarDashboardVisualInscripciones();
+  }
+
   if (soloEstadisticas) {
-    if (typeof window.imprimirOpcion2UnaHoja === 'function') {
-      window.imprimirOpcion2UnaHoja();
-    } else if (typeof window.imprimirReporteEstadisticoUnaHoja === 'function') {
+    if (typeof window.imprimirReporteEstadisticoUnaHoja === 'function') {
       window.imprimirReporteEstadisticoUnaHoja(area, true);
     } else {
       ejecutarImpresionReporteOrganizado(area, true, true);
     }
   } else {
-    if (typeof window.imprimirOpcion1Completo === 'function') {
-      window.imprimirOpcion1Completo();
-    } else {
-      ejecutarImpresionReporteOrganizado(area, true, false);
-    }
+    ejecutarImpresionReporteOrganizado(area, true, false);
   }
 }
 
@@ -15757,52 +16597,68 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
     let kpisImpresion = '';
     if (areaFiltro === 'todas') {
       kpisImpresion = `
-        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;text-align:center;margin-bottom:10px">
-          <div style="border:1px solid #cbd5e1;border-radius:6px;padding:6px;background:#ffffff">
-            <span style="display:block;font-size:11pt;font-weight:800;color:#0f4a1e">${totalGeneral}</span>
-            <span style="font-size:6.8pt;color:#475569;font-weight:700">Total Pre-Inscritos</span>
+        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;text-align:center;margin-bottom:12px">
+          <div style="border:1.8px solid #0f4a1e;border-radius:6px;padding:8px 4px;background:#f0fdf4;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#0f4a1e;line-height:1">${totalGeneral}</span>
+            <span style="font-size:7pt;color:#166534;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Total Pre-Inscritos</span>
+            <span style="font-size:6pt;color:#475569">Matrícula Institucional</span>
           </div>
-          <div style="border:1px solid #cbd5e1;border-radius:6px;padding:6px;background:#ffffff">
-            <span style="display:block;font-size:11pt;font-weight:800;color:#059669">${totalTec}</span>
-            <span style="font-size:6.8pt;color:#475569;font-weight:700">Área Técnica (${pctTec}%)</span>
+          <div style="border:1.8px solid #059669;border-radius:6px;padding:8px 4px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#059669;line-height:1">${totalTec} <small style="font-size:8.5pt;font-weight:800">(${pctTec}%)</small></span>
+            <span style="font-size:7pt;color:#059669;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Área Técnica (ETTP)</span>
+            <span style="font-size:6pt;color:#475569">6 Carreras Oficiales</span>
           </div>
-          <div style="border:1px solid #cbd5e1;border-radius:6px;padding:6px;background:#ffffff">
-            <span style="display:block;font-size:11pt;font-weight:800;color:#1565c0">${totalHum}</span>
-            <span style="font-size:6.8pt;color:#475569;font-weight:700">Área Humanística (${pctHum}%)</span>
+          <div style="border:1.8px solid #1d4ed8;border-radius:6px;padding:8px 4px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#1d4ed8;line-height:1">${totalHum} <small style="font-size:8.5pt;font-weight:800">(${pctHum}%)</small></span>
+            <span style="font-size:7pt;color:#1d4ed8;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Área Humanística</span>
+            <span style="font-size:6pt;color:#475569">EPJA Primaria y BTH</span>
           </div>
-          <div style="border:1px solid #cbd5e1;border-radius:6px;padding:6px;background:#ffffff">
-            <span style="display:block;font-size:11pt;font-weight:800;color:#d97706">${humanisticaEPA.length} / ${humanisticaESA.length}</span>
-            <span style="font-size:6.8pt;color:#475569;font-weight:700">EPA Prim. / ESA Sec.</span>
+          <div style="border:1.8px solid #d97706;border-radius:6px;padding:8px 4px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#d97706;line-height:1">${humanisticaEPA.length} / ${humanisticaESA.length}</span>
+            <span style="font-size:7pt;color:#d97706;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Primaria / Secundaria</span>
+            <span style="font-size:6pt;color:#475569">EPA (${totalHum > 0 ? Math.round((humanisticaEPA.length/totalHum)*100) : 0}%) | ESA (${totalHum > 0 ? Math.round((humanisticaESA.length/totalHum)*100) : 0}%)</span>
           </div>
         </div>
       `;
     } else if (areaFiltro === 'tecnica') {
       kpisImpresion = `
-        <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;text-align:center;margin-bottom:10px">
-          <div style="border:1px solid #cbd5e1;border-radius:6px;padding:6px;background:#ffffff">
-            <span style="display:block;font-size:11pt;font-weight:800;color:#059669">${totalTec}</span>
-            <span style="font-size:6.8pt;color:#475569;font-weight:700">Total Postulantes Área Técnica</span>
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;text-align:center;margin-bottom:12px">
+          <div style="border:1.8px solid #0f4a1e;border-radius:6px;padding:8px 4px;background:#f0fdf4;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#0f4a1e;line-height:1">${totalTec}</span>
+            <span style="font-size:7pt;color:#166534;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Total Postulantes Técnica</span>
+            <span style="font-size:6pt;color:#475569">Matrícula Oficial 2026</span>
           </div>
-          <div style="border:1px solid #cbd5e1;border-radius:6px;padding:6px;background:#ffffff">
-            <span style="display:block;font-size:11pt;font-weight:800;color:#0f4a1e">6 Carreras</span>
-            <span style="font-size:6.8pt;color:#475569;font-weight:700">Especialidades Oficiales Activas</span>
+          <div style="border:1.8px solid #059669;border-radius:6px;padding:8px 4px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#059669;line-height:1">6 Carreras</span>
+            <span style="font-size:7pt;color:#059669;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Especialidades Activas</span>
+            <span style="font-size:6pt;color:#475569">Técnico Básico, Auxiliar y Medio</span>
+          </div>
+          <div style="border:1.8px solid #16a34a;border-radius:6px;padding:8px 4px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#16a34a;line-height:1">${pctTec}%</span>
+            <span style="font-size:7pt;color:#16a34a;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Proporción Demanda</span>
+            <span style="font-size:6pt;color:#475569">Participación sobre Total CEA</span>
           </div>
         </div>
       `;
     } else if (areaFiltro === 'humanistica') {
+      const pctEPA = totalHum > 0 ? Math.round((humanisticaEPA.length / totalHum) * 100) : 0;
+      const pctESA = totalHum > 0 ? Math.round((humanisticaESA.length / totalHum) * 100) : 0;
       kpisImpresion = `
-        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;text-align:center;margin-bottom:10px">
-          <div style="border:1px solid #cbd5e1;border-radius:6px;padding:6px;background:#ffffff">
-            <span style="display:block;font-size:11pt;font-weight:800;color:#1565c0">${totalHum}</span>
-            <span style="font-size:6.8pt;color:#475569;font-weight:700">Total Área Humanística</span>
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;text-align:center;margin-bottom:12px">
+          <div style="border:1.8px solid #1e40af;border-radius:6px;padding:8px 4px;background:#eff6ff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#1e40af;line-height:1">${totalHum}</span>
+            <span style="font-size:7pt;color:#1e40af;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Total Humanística (EPJA)</span>
+            <span style="font-size:6pt;color:#475569">Régimen Acreditado</span>
           </div>
-          <div style="border:1px solid #cbd5e1;border-radius:6px;padding:6px;background:#ffffff">
-            <span style="display:block;font-size:11pt;font-weight:800;color:#059669">${humanisticaEPA.length}</span>
-            <span style="font-size:6.8pt;color:#475569;font-weight:700">EPA Primaria de Adultos</span>
+          <div style="border:1.8px solid #059669;border-radius:6px;padding:8px 4px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#059669;line-height:1">${humanisticaEPA.length} <small style="font-size:8.5pt">(${pctEPA}%)</small></span>
+            <span style="font-size:7pt;color:#059669;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Primaria de Adultos (EPA)</span>
+            <span style="font-size:6pt;color:#475569">Elementales y Avanzados</span>
           </div>
-          <div style="border:1px solid #cbd5e1;border-radius:6px;padding:6px;background:#ffffff">
-            <span style="display:block;font-size:11pt;font-weight:800;color:#2563eb">${humanisticaESA.length}</span>
-            <span style="font-size:6.8pt;color:#475569;font-weight:700">ESA Secundaria (BTH)</span>
+          <div style="border:1.8px solid #2563eb;border-radius:6px;padding:8px 4px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:16pt;font-weight:900;color:#2563eb;line-height:1">${humanisticaESA.length} <small style="font-size:8.5pt">(${pctESA}%)</small></span>
+            <span style="font-size:7pt;color:#2563eb;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Secundaria de Adultos (ESA)</span>
+            <span style="font-size:6pt;color:#475569">Bachillerato Técnico Humanístico</span>
           </div>
         </div>
       `;
@@ -15811,18 +16667,18 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
     let detalleGraficoBarras = '';
     if (areaFiltro === 'todas' || areaFiltro === 'tecnica') {
       detalleGraficoBarras += `
-        <div style="font-size:7.2pt;font-weight:700;color:#0f4a1e;margin-bottom:4px">Distribución y Porcentajes por Carrera Técnica:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-bottom:8px">
+        <div style="font-size:7.5pt;font-weight:800;color:#0f4a1e;margin-bottom:6px">Distribución y Porcentajes por Especialidad Técnica:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:8px">
           ${Object.entries(tecnicaGrupos).map(([nom, list]) => {
             const pct = totalTec > 0 ? Math.round((list.length / totalTec) * 100) : 0;
             return `
               <div>
-                <div style="display:flex;justify-content:space-between;font-size:6.8pt;margin-bottom:1px">
-                  <span>${escapeHTML(nom)}</span>
+                <div style="display:flex;justify-content:space-between;font-size:7pt;margin-bottom:2px">
+                  <span style="font-weight:700">${escapeHTML(nom)}</span>
                   <strong>${list.length} (${pct}%)</strong>
                 </div>
-                <div style="width:100%;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden">
-                  <div style="width:${pct}%;height:100%;background:#059669"></div>
+                <div style="width:100%;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+                  <div style="width:${pct}%;height:100%;background:#059669;-webkit-print-color-adjust:exact;print-color-adjust:exact"></div>
                 </div>
               </div>
             `;
@@ -15835,24 +16691,24 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
       const pctEPA = totalHum > 0 ? Math.round((humanisticaEPA.length / totalHum) * 100) : 0;
       const pctESA = totalHum > 0 ? Math.round((humanisticaESA.length / totalHum) * 100) : 0;
       detalleGraficoBarras += `
-        <div style="font-size:7.2pt;font-weight:700;color:#1565c0;margin-bottom:4px">Distribución y Porcentajes por Nivel Humanístico:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-bottom:8px">
+        <div style="font-size:7.5pt;font-weight:800;color:#1565c0;margin-bottom:6px">Distribución y Porcentajes por Ciclo Humanístico:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:8px">
           <div>
-            <div style="display:flex;justify-content:space-between;font-size:6.8pt;margin-bottom:1px">
-              <span>EPA — Educación Primaria de Adultos</span>
+            <div style="display:flex;justify-content:space-between;font-size:7pt;margin-bottom:2px">
+              <span style="font-weight:700">EPA — Educación Primaria de Adultos</span>
               <strong>${humanisticaEPA.length} (${pctEPA}%)</strong>
             </div>
-            <div style="width:100%;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden">
-              <div style="width:${pctEPA}%;height:100%;background:#059669"></div>
+            <div style="width:100%;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+              <div style="width:${pctEPA}%;height:100%;background:#059669;-webkit-print-color-adjust:exact;print-color-adjust:exact"></div>
             </div>
           </div>
           <div>
-            <div style="display:flex;justify-content:space-between;font-size:6.8pt;margin-bottom:1px">
-              <span>ESA — Educación Secundaria de Adultos</span>
+            <div style="display:flex;justify-content:space-between;font-size:7pt;margin-bottom:2px">
+              <span style="font-weight:700">ESA — Educación Secundaria de Adultos</span>
               <strong>${humanisticaESA.length} (${pctESA}%)</strong>
             </div>
-            <div style="width:100%;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden">
-              <div style="width:${pctESA}%;height:100%;background:#2563eb"></div>
+            <div style="width:100%;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+              <div style="width:${pctESA}%;height:100%;background:#2563eb;-webkit-print-color-adjust:exact;print-color-adjust:exact"></div>
             </div>
           </div>
         </div>
@@ -15860,10 +16716,10 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
     }
 
     dashboardHTML = `
-      <div style="border:1.5px solid #0f4a1e;border-radius:8px;padding:10px 14px;margin-bottom:16px;background:#fafdfb;-webkit-print-color-adjust:exact;print-color-adjust:exact;page-break-inside:avoid">
+      <div style="border:1.8px solid #0f4a1e;border-radius:8px;padding:10px 14px;margin-bottom:16px;background:#fafdfb;-webkit-print-color-adjust:exact;print-color-adjust:exact;page-break-inside:avoid">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #cbd5e1;padding-bottom:5px;margin-bottom:8px">
-          <strong style="font-size:8.5pt;color:#0f4a1e;text-transform:uppercase">Resumen de Métricas y Porcentajes de Inscripción</strong>
-          <span style="font-size:7pt;color:#475569">Gestión Académica ${anio}</span>
+          <strong style="font-size:8.8pt;color:#0f4a1e;text-transform:uppercase">Métricas y Distribución de Matrículas</strong>
+          <span style="font-size:7.2pt;color:#475569;font-weight:700">Gestión Académica ${anio}</span>
         </div>
         ${kpisImpresion}
         ${detalleGraficoBarras}
@@ -15896,16 +16752,26 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
             </tr>
           </thead>
           <tbody>
-            ${lista.map((item, idx) => `
+            ${lista.map((item, idx) => {
+              const esEx = esRegistroCasoExcepcional(item);
+              const casoExBadge = esEx ? `<br><span style="display:inline-block;padding:1px 5px;background:#fef3c7;border:1px solid #f59e0b;border-radius:3px;font-size:6.3pt;font-weight:800;color:#92400e;margin-top:2px">Caso Excepcional${item.casoExcepcional ? ': ' + escapeHTML(item.casoExcepcional) : ''}</span>` : '';
+              const fechaInfo = formatearFechaRegistroReporte(item.fecha);
+              return `
               <tr>
                 <td style="text-align:center">${idx + 1}</td>
-                <td><strong>${escapeHTML(item.nombre || '')}</strong></td>
+                <td>
+                  <strong>${escapeHTML(item.nombre || '')}</strong>
+                  ${casoExBadge}
+                </td>
                 <td>${escapeHTML(item.ci || '')}</td>
                 <td>${escapeHTML(item.telefono || '')}</td>
-                <td>${escapeHTML(item.fecha || '')}</td>
+                <td style="text-align:center">
+                  <strong>${fechaInfo.fechaStr}</strong>
+                  ${fechaInfo.horaStr ? `<br><span style="font-size:6.3pt;color:#64748b">${fechaInfo.horaStr}</span>` : ''}
+                </td>
                 <td>${escapeHTML(item.carrera || item.observaciones || '—')}</td>
               </tr>
-            `).join('')}
+            `;}).join('')}
             <tr class="report-subtotal-row">
               <td colspan="4" style="text-align:right">Subtotal ${escapeHTML(subtotalTexto)}:</td>
               <td colspan="2" style="font-weight:800">${lista.length} participantes</td>
@@ -16294,11 +17160,15 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
         ${resumenHTML}
 
         <!-- CASILLA DE FIRMA OFICIAL ÚNICA: EXCLUSIVAMENTE DIRECTOR(A) INSTITUCIONAL -->
-        <div class="report-firma-unica" style="margin-top:${firmaMarginTop};display:flex;justify-content:center;page-break-inside:avoid;--firma-margin-top:${firmaMarginTop}">
-          <div class="report-firma-box" style="width:340px;text-align:center;border-top:1.8px solid #0f4a1e;padding-top:4px;line-height:1.15">
-            <strong style="display:block;font-size:8.8pt;color:#0f4a1e;font-weight:800;margin:0;line-height:1.2">${escapeHTML(directorNom)}</strong>
-            <span style="display:block;font-size:7.4pt;color:#334155;font-weight:700;margin:1px 0 0 0;line-height:1.15">Director(a) Institucional</span>
-            <span class="institucion-sub" style="display:block;font-size:6.8pt;color:#64748b;margin:0;line-height:1.15">CEA "Madre Marie Poussepin" — Chulumani</span>
+        <div class="report-firma-unica" style="margin-top:${firmaMarginTop};padding-top:20px;display:flex;justify-content:center;page-break-inside:avoid;--firma-margin-top:${firmaMarginTop}">
+          <div class="report-firma-box" style="width:340px;text-align:center;border-top:none !important">
+            <!-- Espacio amplio reservado para sello de goma y firma manual del Director -->
+            <div style="height:65px"></div>
+            <div style="border-top:1.8px solid #0f4a1e;padding-top:4px;line-height:1.15">
+              <strong style="display:block;font-size:8.8pt;color:#0f4a1e;font-weight:800;margin:0;line-height:1.2">${escapeHTML(directorNom)}</strong>
+              <span style="display:block;font-size:7.4pt;color:#334155;font-weight:700;margin:1px 0 0 0;line-height:1.15">Director(a) Institucional</span>
+              <span class="institucion-sub" style="display:block;font-size:6.8pt;color:#64748b;margin:0;line-height:1.15">CEA "Madre Marie Poussepin" — Chulumani</span>
+            </div>
           </div>
         </div>
       </div>
@@ -16748,6 +17618,24 @@ async function sincronizarConGoogleSheetsManual() {
         });
       }
 
+      // 1.5 Sincronizar Documentos de Especialidades y Materias a Google Sheets
+      try {
+        const todasClaves = Object.keys(localStorage || {});
+        for (let k of todasClaves) {
+          if (k.startsWith('cea_doc_niveles_')) {
+            const carrK = k.replace('cea_doc_niveles_', '');
+            const docList = lsGet(k, null);
+            if (carrK && Array.isArray(docList) && docList.length > 0) {
+              await enviarGoogleSheet({
+                action: 'guardar-doc-niveles',
+                carreraKey: carrK,
+                docs: docList
+              });
+            }
+          }
+        }
+      } catch (eDocSync) {}
+
       // Dar tiempo a Google Apps Script para terminar de escribir antes de hacer el GET
       await new Promise(r => setTimeout(r, 1500));
     }
@@ -16814,6 +17702,14 @@ function toggleModoLapicesDirectos() {
 
 function openAdminDashboardFromLive(e) {
   if (e) e.preventDefault();
+  const session = lsGet('cea_session', null);
+  if (session && session.role === 'docente') {
+    window.location.hash = '#admin';
+    const adminSec = document.getElementById('admin');
+    if (adminSec) adminSec.scrollIntoView({ behavior: 'smooth' });
+    mostrarPanelDocente(session.areaKey);
+    return;
+  }
   window.location.hash = '#admin';
   window.scrollTo({ top: 0, behavior: 'smooth' });
   mostrarPanelAdmin();
@@ -16976,21 +17872,30 @@ const TARGETS_EDICION_DIRECTOR = [
 
 function renderLapicesDirectosDirector() {
   const session = lsGet('cea_session', null);
-  const esDirector = session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.role === 'docente' || session.loggedIn === true);
-  const puedeEditarHorarios = tienePermisoEdicionHorarios() || esDirector;
+  const esDirectorReal = Boolean(session && (session.role === 'director' || session.role === 'admin'));
+  const esDocente = Boolean(session && session.role === 'docente');
+  const esComision = Boolean(session && (esDirectorReal || (esDocente && (session.comision === true || String(session.comision).toUpperCase() === 'SI'))));
+  const tieneSesion = Boolean(session && (esDirectorReal || esDocente));
+  const puedeEditarHorarios = esComision;
 
-  // Mostrar u ocultar botón flotante derecho y barra de navegación de Director según la sesión
+  // Mostrar u ocultar botón flotante derecho y barra de navegación según la sesión
   const fabDir = document.getElementById('fabBtnDirector');
   if (fabDir) {
-    fabDir.style.display = esDirector ? 'flex' : 'none';
+    fabDir.style.display = tieneSesion ? 'flex' : 'none';
   }
 
   const liveBar = document.getElementById('directorLiveBar');
   if (liveBar) {
-    liveBar.style.display = esDirector ? 'block' : 'none';
-    if (esDirector) {
+    liveBar.style.display = tieneSesion ? 'block' : 'none';
+    if (tieneSesion) {
       liveBar.classList.remove('minimizada');
     }
+  }
+
+  // Label del Centro de Control en la barra flotante
+  const lblCC = document.getElementById('lblLiveBarCentroControl') || liveBar?.querySelector('.btn-director-dash span');
+  if (lblCC) {
+    lblCC.textContent = esDocente ? 'Mi Centro de Control' : 'Centro de Control';
   }
 
   // Asegurar que los documentos institucionales dinámicos se rendericen de inmediato
@@ -17000,19 +17905,22 @@ function renderLapicesDirectosDirector() {
 
   const txtStatus = document.querySelector('.director-status-txt');
   if (txtStatus && session) {
-    txtStatus.textContent = session.role === 'director' ? 'Edición Activa' : `Sesión: ${session.name || session.role}`;
+    txtStatus.textContent = esDirectorReal ? 'Edición Activa (Director)' : (esComision ? `Docente (Comisión): ${session.name || session.areaKey}` : `Docente: ${session.name || session.areaKey}`);
   }
 
+  // Botones de edición de horarios: estricto solo para Director o Comisión Pedagógica
   document.querySelectorAll('.btn-admin-only').forEach(btn => {
     btn.style.display = puedeEditarHorarios ? 'inline-flex' : 'none';
   });
 
+  // Los lápices globales de TARGETS_EDICION_DIRECTOR (INICIO, Cabecera, Título Web, Bienvenida, Pie de página)
+  // corresponden ÚNICA Y EXCLUSIVAMENTE al Director. En modo docente NUNCA se muestran.
   TARGETS_EDICION_DIRECTOR.forEach(t => {
     const el = document.getElementById(t.id);
     if (!el) return;
 
     let pencilBtn = el.querySelector('.inline-edit-pencil-btn');
-    if (esDirector && estadoLapicesDirectosVisibles && elementoEditandoActivo !== t.id) {
+    if (esDirectorReal && estadoLapicesDirectosVisibles && elementoEditandoActivo !== t.id) {
       if (!pencilBtn) {
         pencilBtn = document.createElement('button');
         pencilBtn.className = 'inline-edit-pencil-btn';
@@ -17028,10 +17936,60 @@ function renderLapicesDirectosDirector() {
         el.appendChild(pencilBtn);
       }
       pencilBtn.style.display = 'inline-flex';
-    } else if (pencilBtn && elementoEditandoActivo !== t.id) {
+    } else if (pencilBtn) {
       pencilBtn.style.display = 'none';
+      if (!esDirectorReal) {
+        pencilBtn.remove();
+      }
     }
   });
+
+  // Edición en Oferta Académica (Tarjetas de carreras técnicas):
+  // Limpiar lápices existentes en tarjetas para evitar duplicados o permisos desactualizados
+  document.querySelectorAll('.inline-docente-pencil-btn').forEach(btn => btn.remove());
+
+  if (estadoLapicesDirectosVisibles) {
+    if (esDirectorReal || (esDocente && esComision)) {
+      // Director o Comisión Pedagógica: pueden editar todas las especialidades de la oferta formativa
+      const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
+      areas.forEach(a => {
+        const cardEl = document.getElementById('card-carrera-tec-' + a.key);
+        if (cardEl && !cardEl.querySelector('.inline-docente-pencil-btn')) {
+          const docPencil = document.createElement('button');
+          docPencil.className = 'inline-docente-pencil-btn inline-edit-pencil-btn';
+          docPencil.type = 'button';
+          docPencil.title = `Editar carrera: ${a.nombre}`;
+          docPencil.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+          docPencil.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleEdicionCarreraTecInline(a.key);
+          };
+          cardEl.appendChild(docPencil);
+        }
+      });
+    } else if (esDocente && !esComision && session.areaKey) {
+      // Docente sin comisión: SOLO puede editar su propia carrera asignada
+      const cardEl = document.getElementById('card-carrera-tec-' + session.areaKey);
+      if (cardEl && !cardEl.querySelector('.inline-docente-pencil-btn')) {
+        const docPencil = document.createElement('button');
+        docPencil.className = 'inline-docente-pencil-btn inline-edit-pencil-btn';
+        docPencil.type = 'button';
+        docPencil.title = 'Editar datos de mi especialidad';
+        docPencil.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+        docPencil.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleEdicionCarreraTecInline(session.areaKey);
+        };
+        cardEl.appendChild(docPencil);
+      }
+    }
+  }
+
+  // Refrescar permisos en galería y actividades
+  if (typeof cargarGaleriaFotos === 'function') cargarGaleriaFotos();
+  if (typeof renderFeedActividades === 'function') renderFeedActividades();
 }
 
 function restaurarElementoPadreInteractivo() {
@@ -17411,6 +18369,7 @@ async function adminLogin(e) {
       if (data && data.status === 'success') {
         if (data.role === 'director') {
           lsSet('cea_session', { role: 'director', name: data.name || 'Director(a)', token: data.token });
+          if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') refrescarCredencialesDocentesDesdeServidor(data.token);
           window.modoEdicionHorarioActivo = true;
           estadoLapicesDirectosVisibles = true;
           const lblToggle = document.getElementById('lblToggleLiveEdit');
@@ -17426,7 +18385,10 @@ async function adminLogin(e) {
           if (passEl) passEl.value = '';
           return;
         } else if (data.role === 'docente') {
-          lsSet('cea_session', { role: 'docente', areaKey: data.areaKey, name: data.name || userInp, token: data.token });
+          const comisionFlag = data.comision === true || String(data.comision).toUpperCase() === 'SI' || data.comision === 'true';
+          const uDoc = lsGet('cea_usuarios_docentes', {})[data.areaKey];
+          const esCom = comisionFlag || Boolean(uDoc && (uDoc.comision === true || String(uDoc.comision).toUpperCase() === 'SI'));
+          lsSet('cea_session', { role: 'docente', areaKey: data.areaKey, name: data.name || userInp, token: data.token, comision: esCom });
           estadoLapicesDirectosVisibles = true;
           mostrarPanelDocente(data.areaKey);
           renderLapicesDirectosDirector();
@@ -17439,52 +18401,40 @@ async function adminLogin(e) {
           if (passEl) passEl.value = '';
           return;
         }
-      } else if (data && data.status === 'error') {
-        mostrarMsg(msgId, data.message || 'Usuario o contraseña incorrectos en Google Sheets.', 'error');
-        return;
       }
     } catch (errNet) {
-      console.warn('No se pudo verificar con Google Sheets en línea, intentando fallback:', errNet);
+      console.warn('No se pudo verificar con Google Sheets en línea:', errNet);
     }
   }
 
-  // 2. Fallback de emergencia local (solo si no hay conexión o no se ha configurado el script)
-  const directorCreds = lsGet('cea_director_creds', { user: 'user', pass: 'user' });
-  if (userInp && passInp && userInp === directorCreds.user && passInp === directorCreds.pass) {
-    lsSet('cea_session', { role: 'director', name: 'Director(a)' });
-    window.modoEdicionHorarioActivo = true;
-    estadoLapicesDirectosVisibles = true;
-    const lblToggle = document.getElementById('lblToggleLiveEdit');
-    if (lblToggle) lblToggle.textContent = 'Lápices (ON)';
-    mostrarPanelAdmin();
-    renderLapicesDirectosDirector();
-    if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
-    if (typeof cargarGaleriaFotos === 'function') cargarGaleriaFotos();
-    if (typeof renderFeedActividades === 'function') renderFeedActividades();
-    if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
-    if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
-    mostrarToastLive('¡Sesión iniciada como Director(a)! Modo edición y panel activados.');
-    if (passEl) passEl.value = '';
-    return;
-  }
-
-  const usuariosDocentes = lsGet('cea_usuarios_docentes', {});
-  const areasKeys = Object.keys(usuariosDocentes);
-  for (let key of areasKeys) {
-    const u = usuariosDocentes[key];
-    if (u && u.user && u.pass && u.user === userInp && u.pass === passInp) {
-      lsSet('cea_session', { role: 'docente', areaKey: key, name: userInp });
-      estadoLapicesDirectosVisibles = true;
-      mostrarPanelDocente(key);
-      renderLapicesDirectosDirector();
-      if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
-      if (typeof cargarGaleriaFotos === 'function') cargarGaleriaFotos();
-      if (typeof renderFeedActividades === 'function') renderFeedActividades();
-      if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
-      if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
-      mostrarToastLive(`¡Sesión iniciada como Docente (${userInp})!`);
-      if (passEl) passEl.value = '';
-      return;
+  // 2. Validación de credenciales locales en caso de que Google Sheets aún no se haya actualizado con la nueva versión de Apps Script
+  const localUsuarios = lsGet('cea_usuarios_docentes', {});
+  const userNorm = userInp.toLowerCase();
+  for (const [aKey, uData] of Object.entries(localUsuarios)) {
+    if (uData && uData.user && uData.pass) {
+      if (String(uData.user).trim().toLowerCase() === userNorm && String(uData.pass).trim() === passInp) {
+        const dMap = lsGet('cea_docentes', DOCENTES_DEFAULT);
+        const nomDoc = dMap[aKey] || userInp;
+        const esCom = uData.comision === true || String(uData.comision).toUpperCase() === 'SI' || String(uData.comision) === 'true';
+        lsSet('cea_session', {
+          role: 'docente',
+          areaKey: aKey,
+          name: nomDoc,
+          token: 'local_docente_' + Date.now(),
+          comision: esCom
+        });
+        estadoLapicesDirectosVisibles = true;
+        mostrarPanelDocente(aKey);
+        renderLapicesDirectosDirector();
+        if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
+        if (typeof cargarGaleriaFotos === 'function') cargarGaleriaFotos();
+        if (typeof renderFeedActividades === 'function') renderFeedActividades();
+        if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
+        if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
+        mostrarToastLive(`¡Sesión iniciada como Docente (${nomDoc})!`);
+        if (passEl) passEl.value = '';
+        return;
+      }
     }
   }
 
@@ -17617,6 +18567,7 @@ function actualizarEstadisticasAdmin() {
   const docentes = lsGet('cea_docentes', {});
   const inscripciones = lsGet('cea_inscripciones', []);
   const actividades = lsGet('cea_actividades', []);
+  const mensajes = lsGet('cea_mensajes_contacto', []);
 
   const carrerasActivas = areas.filter(a => a.activa !== false).length;
   const numDocentes = Object.keys(docentes).length;
@@ -17630,11 +18581,23 @@ function actualizarEstadisticasAdmin() {
   const elI = document.getElementById('stat-inscripciones-num');
   if (elI) elI.textContent = inscripciones.length;
 
+  const badgeSubtabInsc = document.getElementById('badge-count-subtab-insc');
+  if (badgeSubtabInsc) badgeSubtabInsc.textContent = inscripciones.length;
+
+  const badgeSubtabMsg = document.getElementById('badge-count-subtab-msg');
+  if (badgeSubtabMsg) badgeSubtabMsg.textContent = mensajes.length;
+
   const elN = document.getElementById('stat-noticias-num');
   if (elN) elN.textContent = actividades.length;
 }
 
 function mostrarPanelAdmin() {
+  const session = lsGet('cea_session', null);
+  if (session && session.role === 'docente') {
+    mostrarPanelDocente(session.areaKey);
+    return;
+  }
+
   const loginBox = document.getElementById('admin-login');
   if (loginBox) loginBox.style.display = 'none';
 
@@ -17679,12 +18642,29 @@ function mostrarPanelDocente(areaKey) {
 
   const docentes = lsGet('cea_docentes', DOCENTES_DEFAULT);
   const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
-  const areaObj = areas.find(a => a.key === areaKey || a.docente === areaKey) || {
-    key: areaKey,
-    nombre: areaKey,
-    resumen: '',
-    malla: []
+  const humNombresMap = {
+    'hum-cn': 'Ciencias Naturales (Biología, Física, Química)',
+    'hum-mat': 'Matemática y Estadística',
+    'hum-cs': 'Ciencias Sociales (Historia, Cívica, Geografía)',
+    'hum-len': 'Lenguaje y Literatura'
   };
+
+  let areaObj = areas.find(a => a.key === areaKey || a.docente === areaKey);
+  if (!areaObj && areaKey.startsWith('hum')) {
+    areaObj = {
+      key: areaKey,
+      nombre: humNombresMap[areaKey] || 'Área Humanística',
+      resumen: 'Formación humanística en ' + (humNombresMap[areaKey] || 'ciencias y humanidades') + ' para participantes de EPA y ESA.',
+      malla: []
+    };
+  } else if (!areaObj) {
+    areaObj = {
+      key: areaKey,
+      nombre: areaKey,
+      resumen: '',
+      malla: []
+    };
+  }
 
   const docNiveles = lsGet('cea_doc_niveles_' + areaKey, {
     basico: '#',
@@ -17762,40 +18742,71 @@ function mostrarPanelDocente(areaKey) {
         <div class="form-msg" id="msg-docente-perfil"></div>
       </div>
 
-      <!-- 2. DOCUMENTOS PDF POR NIVELES -->
+      <!-- 2. GESTIÓN Y ORGANIZACIÓN DINÁMICA DE TEXTOS Y DOCUMENTOS DE MI MATERIA O ESPECIALIDAD -->
       <div class="admin-panel" style="margin-bottom:24px;border-left:4px solid var(--verde)">
-        <h3>${iconFileText}Documentos PDF de Mi Área por Niveles</h3>
-        <p style="color:var(--text-sec);font-size:0.88rem;margin-bottom:16px">Pega los enlaces directos de Google Drive a los PDFs de cada nivel de tu especialidad.</p>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>PDF Técnico Básico (Google Drive)</label>
-            <input type="url" id="doc-pdf-basico" value="${docNiveles.basico !== '#' ? docNiveles.basico : ''}" placeholder="https://drive.google.com/..." />
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+          <div>
+            <h3 style="margin:0">${iconFileText}${areaKey.startsWith('hum') ? 'Textos, Cartillas y Documentos de Mi Materia (' + areaObj.nombre + ')' : 'Documentos, Módulos y Textos de Mi Especialidad'}</h3>
+            <p style="color:var(--text-sec);font-size:0.88rem;margin:4px 0 0 0">
+              ${areaKey.startsWith('hum') 
+                ? 'Publica los textos oficiales, cartillas de estudio, guías pedagógicas y módulos en PDF de tu materia. Al guardar, los estudiantes y participantes podrán consultarlos y descargarlos directamente desde Oferta Académica haciendo clic en tu materia.'
+                : 'Añade, organiza o quita documentos oficiales por niveles (Técnico Básico, Auxiliar, Medio I, Medio II o generales). Pega el enlace de Google Drive de cada archivo.'}
+            </p>
           </div>
-          <div class="form-group">
-            <label>PDF Técnico Auxiliar (Google Drive)</label>
-            <input type="url" id="doc-pdf-auxiliar" value="${docNiveles.auxiliar !== '#' ? docNiveles.auxiliar : ''}" placeholder="https://drive.google.com/..." />
-          </div>
-          <div class="form-group">
-            <label>PDF Técnico Medio I (Google Drive)</label>
-            <input type="url" id="doc-pdf-medio1" value="${docNiveles.medio1 !== '#' ? docNiveles.medio1 : ''}" placeholder="https://drive.google.com/..." />
-          </div>
-          <div class="form-group">
-            <label>PDF Técnico Medio II (Google Drive)</label>
-            <input type="url" id="doc-pdf-medio2" value="${docNiveles.medio2 !== '#' ? docNiveles.medio2 : ''}" placeholder="https://drive.google.com/..." />
-          </div>
+          <button type="button" class="btn-submit" onclick="agregarFilaDocumentoDocente('${areaKey}')" style="background:var(--verde);padding:7px 14px;font-size:0.84rem;display:inline-flex;align-items:center;gap:6px">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>${areaKey.startsWith('hum') ? '+ Añadir Texto / Documento' : '+ Añadir Documento'}</span>
+          </button>
         </div>
-        <button class="btn-submit" style="margin-top:16px" onclick="guardarDocumentosDocenteNiveles('${areaKey}')">Guardar Documentos PDF</button>
+
+        <datalist id="dl-sugerencias-niveles-doc">
+          <option value="Técnico Básico">
+          <option value="Técnico Auxiliar">
+          <option value="Técnico Medio I">
+          <option value="Técnico Medio II">
+          <option value="General / Toda la Carrera">
+          <option value="Texto Guía Modular">
+          <option value="Material de Apoyo">
+        </datalist>
+
+        <div id="docente-documentos-list-container">
+          <!-- Renderizado dinámicamente mediante renderEditorDocumentosDocente -->
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap">
+          <button type="button" class="btn-submit" onclick="guardarDocumentosDocenteNiveles('${areaKey}')" style="padding:10px 22px">
+            Guardar y Sincronizar Documentos de Mi Área
+          </button>
+          <button type="button" class="btn-submit" onclick="agregarFilaDocumentoDocente('${areaKey}')" style="background:var(--bg-body);color:var(--verde-dark);border:1.5px dashed var(--verde);padding:9px 16px">
+            + Añadir Otro Documento
+          </button>
+        </div>
         <div class="form-msg" id="msg-doc-niveles"></div>
       </div>
 
       ${isTecnica ? `
-      <!-- 3. GESTIÓN DE MI MALLA CURRICULAR -->
-      <div class="admin-panel" style="margin-bottom:24px;border-left:4px solid #6a1b9a">
-        <h3>${iconBook}Mi Malla Curricular (${areaObj.nombre})</h3>
-        <p style="color:var(--text-sec);font-size:0.88rem;margin-bottom:16px">Edita los módulos y asignaturas por nivel.</p>
+      <!-- 3. GESTIÓN DE MI MALLA CURRICULAR (IDÉNTICA A OFERTA ACADÉMICA Y MODO DIRECTOR) -->
+      <div class="admin-panel" style="margin-bottom:24px;border-left:4px solid #16a34a">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+          <h3 style="margin:0">${iconBook}Mi Malla Curricular Oficial (${areaObj.nombre})</h3>
+          <span style="font-size:0.80rem;font-weight:700;color:var(--verde-dark);background:var(--verde-light);padding:4px 10px;border-radius:12px;border:1px solid var(--verde)">Idéntica a Oferta Académica y Modo Director</span>
+        </div>
+        <p style="color:var(--text-sec);font-size:0.88rem;margin-bottom:16px">Edita los 20 módulos oficiales por nivel de tu especialidad o restablécelos a los contenidos oficiales por defecto. Cualquier cambio se reflejará de inmediato en Oferta Académica.</p>
         <div id="docente-malla-editor"></div>
-        <button class="btn-adm-add" onclick="agregarModuloMallaDocente('${areaKey}')">+ Agregar Módulo</button>
-        <button class="btn-submit" style="margin-top:16px" onclick="guardarMiMallaDocente('${areaKey}')">Guardar Mi Malla Curricular</button>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap">
+          <button class="btn-submit" onclick="guardarMiMallaDocente('${areaKey}')" style="background:var(--verde);padding:10px 22px;display:inline-flex;align-items:center;gap:6px">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>Guardar Mi Malla Curricular</span>
+          </button>
+          <button type="button" class="btn-submit" onclick="restablecerMallaPorDefectoDocente('${areaKey}')" style="background:#c0392b;padding:10px 18px;display:inline-flex;align-items:center;gap:6px">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Restablecer Malla por Defecto</span>
+          </button>
+          <button type="button" class="btn-submit" onclick="abrirModalCarrera('${areaKey}')" style="background:#2563eb;padding:10px 18px;display:inline-flex;align-items:center;gap:6px">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>Ver Malla en Oferta Académica</span>
+          </button>
+        </div>
         <div class="form-msg" id="msg-doc-malla"></div>
       </div>
       ` : ''}
@@ -17881,18 +18892,23 @@ function mostrarPanelDocente(areaKey) {
     vincularEventosPrevisualizacion('doc');
 
     if (isTecnica) {
-      renderMallaDocenteEditor(areaKey, areaObj.malla || []);
+      renderMallaDocenteEditor(areaKey);
     }
 
+    renderEditorDocumentosDocente(areaKey);
+
     // Comprobar si el docente pertenece a la Comisión Pedagógica para gestionar horarios
+    const session = lsGet('cea_session', null);
     const usuariosDoc = lsGet('cea_usuarios_docentes', {});
     const uDoc = usuariosDoc[areaKey] || {};
-    const esComision = (uDoc && uDoc.comision === true) || areaKey === 'hum-cn';
+    const esComision = Boolean((uDoc && (uDoc.comision === true || String(uDoc.comision).toUpperCase() === 'SI')) || (session && session.comision === true));
     const comisionCard = document.getElementById('docente-comision-horarios-card');
     if (comisionCard) {
       if (esComision) {
         comisionCard.style.display = 'block';
         cargarEditorHorariosMatriz('hum', 'docente-editor-horarios-slot');
+      } else {
+        comisionCard.style.display = 'none';
       }
     }
 
@@ -17906,117 +18922,252 @@ async function guardarMiPerfilDocenteCompleto(areaKey) {
   const nomInp = document.getElementById('doc-mi-nombre');
   const resInp = document.getElementById('doc-mi-resumen');
 
-  const nuevoNombre = nomInp?.value.trim() || '';
-  const nuevoResumen = resInp?.value.trim() || '';
+  const nuevoNombre = nomInp ? nomInp.value.trim() : '';
+  const nuevoResumen = resInp ? resInp.value.trim() : '';
 
-  if (nuevoNombre) {
-    const d = lsGet('cea_docentes', DOCENTES_DEFAULT);
-    d[areaKey] = nuevoNombre;
-    lsSet('cea_docentes', d);
-    cargarDocentes();
+  const d = lsGet('cea_docentes', DOCENTES_DEFAULT);
+  const viejoNombre = d[areaKey] || '';
+  d[areaKey] = nuevoNombre;
+  lsSet('cea_docentes', d);
+
+  if (viejoNombre && viejoNombre !== nuevoNombre) {
+    actualizarNombreDocenteEnTodoElSistema(viejoNombre, nuevoNombre, areaKey);
   }
 
+  const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
   if (areaKey.startsWith('tec')) {
-    const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
     const idx = areas.findIndex(a => a.key === areaKey || a.docente === areaKey);
-    if (idx >= 0 && nuevoResumen) {
+    if (idx >= 0) {
       areas[idx].resumen = nuevoResumen;
+      areas[idx].docente = nuevoNombre;
       lsSet('cea_areas_tec', areas);
       cargarAreasTec();
     }
   }
 
+  cargarDocentes();
+
   mostrarMsg('msg-docente-perfil', 'Guardando...', 'success');
-  const d = lsGet('cea_docentes', DOCENTES_DEFAULT);
   await enviarGoogleSheet({ action: 'guardar-docentes', docentes: d });
   if (areaKey.startsWith('tec')) {
-    const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
     await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
   }
   mostrarMsg('msg-docente-perfil', '¡Guardado exitosamente!', 'success');
 }
 
-async function guardarDocumentosDocenteNiveles(areaKey) {
-  const b = (document.getElementById('doc-pdf-basico')?.value || '').trim();
-  const a = (document.getElementById('doc-pdf-auxiliar')?.value || '').trim();
-  const m1 = (document.getElementById('doc-pdf-medio1')?.value || '').trim();
-  const m2 = (document.getElementById('doc-pdf-medio2')?.value || '').trim();
-
-  const docNiveles = {
-    basico: b || '#',
-    auxiliar: a || '#',
-    medio1: m1 || '#',
-    medio2: m2 || '#'
-  };
-
-  lsSet('cea_doc_niveles_' + areaKey, docNiveles);
-
-  mostrarMsg('msg-doc-niveles', 'Guardando...', 'success');
-  await enviarGoogleSheet({ action: 'guardar-drive', drive: docNiveles });
-  mostrarMsg('msg-doc-niveles', '¡Guardado exitosamente!', 'success');
+function normalizarDocumentosDocente(raw) {
+  if (Array.isArray(raw)) {
+    return raw.map((d, idx) => ({
+      id: d.id || ('doc_' + idx + '_' + Date.now()),
+      nivel: d.nivel || 'General',
+      titulo: d.titulo || d.nivel || 'Documento Oficial',
+      enlace: d.enlace || d.link || '#'
+    }));
+  }
+  if (raw && typeof raw === 'object') {
+    const list = [];
+    if (raw.basico && raw.basico !== '#') list.push({ id: 'doc_basico', nivel: 'Técnico Básico', titulo: 'Plan de Estudios - Técnico Básico', enlace: raw.basico });
+    if (raw.auxiliar && raw.auxiliar !== '#') list.push({ id: 'doc_auxiliar', nivel: 'Técnico Auxiliar', titulo: 'Plan de Estudios - Técnico Auxiliar', enlace: raw.auxiliar });
+    if (raw.medio1 && raw.medio1 !== '#') list.push({ id: 'doc_medio1', nivel: 'Técnico Medio I', titulo: 'Plan de Estudios - Técnico Medio I', enlace: raw.medio1 });
+    if (raw.medio2 && raw.medio2 !== '#') list.push({ id: 'doc_medio2', nivel: 'Técnico Medio II', titulo: 'Plan de Estudios - Técnico Medio II', enlace: raw.medio2 });
+    return list;
+  }
+  return [];
 }
 
-function renderMallaDocenteEditor(areaKey, malla) {
-  const container = document.getElementById('docente-malla-editor');
+function renderEditorDocumentosDocente(areaKey) {
+  const container = document.getElementById('docente-documentos-list-container');
   if (!container) return;
-  if (!malla || !malla.length) {
-    container.innerHTML = '<p style="color:var(--text-sec);font-size:0.9rem">Sin módulos registrados. Presiona "+ Agregar Módulo".</p>';
-    return;
+  const rawDocs = lsGet('cea_doc_niveles_' + areaKey, null);
+  let docs = normalizarDocumentosDocente(rawDocs);
+  const esHum = typeof areaKey === 'string' && areaKey.startsWith('hum');
+
+  if (!docs.length) {
+    if (esHum) {
+      const humMap = {
+        'hum-cn': 'Ciencias Naturales',
+        'hum-mat': 'Matemática y Estadística',
+        'hum-cs': 'Ciencias Sociales',
+        'hum-len': 'Lenguaje y Literatura'
+      };
+      const nomMat = humMap[areaKey] || 'Área Humanística';
+      docs = [
+        { id: 'doc-init-1', nivel: 'Texto Guía Oficial', titulo: 'Texto Guía Oficial — ' + nomMat, enlace: '' },
+        { id: 'doc-init-2', nivel: 'Cartilla Pedagógica', titulo: 'Cartilla de Aprendizaje y Módulos de Ejercicios', enlace: '' }
+      ];
+    } else {
+      docs = [
+        { id: 'doc-init-1', nivel: 'Técnico Básico', titulo: 'Plan de Estudios / Módulos - Técnico Básico', enlace: '' },
+        { id: 'doc-init-2', nivel: 'Técnico Auxiliar', titulo: 'Plan de Estudios / Módulos - Técnico Auxiliar', enlace: '' },
+        { id: 'doc-init-3', nivel: 'Técnico Medio I', titulo: 'Plan de Estudios / Módulos - Técnico Medio I', enlace: '' },
+        { id: 'doc-init-4', nivel: 'Técnico Medio II', titulo: 'Plan de Estudios / Módulos - Técnico Medio II', enlace: '' }
+      ];
+    }
   }
 
-  container.innerHTML = malla.map((nivelObj, i) => `
-    <div style="background:var(--verde-light);border-radius:8px;padding:14px;margin-bottom:12px">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-        <input type="text" value="${nivelObj.nivel}" placeholder="Nivel (ej: Técnico Básico)"
-          style="flex:1;min-width:160px;padding:6px 10px;border:1px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-family:inherit;font-weight:700"
-          id="doc-malla-nivel-${i}" />
-        <button onclick="eliminarModuloMallaDocente('${areaKey}', ${i})" style="background:#c0392b;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:4px"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Eliminar Nivel</button>
+  container.innerHTML = docs.map((d, idx) => `
+    <div class="doc-item-row" data-id="${d.id || ('doc_' + idx)}" style="background:var(--verde-light);border:1px solid var(--border-col);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1.2;min-width:160px">
+          <label style="font-size:0.75rem;font-weight:700;color:var(--verde-dark);display:block;margin-bottom:3px">${esHum ? 'Tipo de Texto / Categoría:' : 'Nivel o Categoría:'}</label>
+          <input type="text" list="${esHum ? 'dl-sugerencias-textos-hum' : 'dl-sugerencias-niveles-doc'}" class="doc-row-nivel" value="${escapeHTML(d.nivel || (esHum ? 'Texto Guía Oficial' : 'Técnico Básico'))}" placeholder="${esHum ? 'Ej: Texto Guía, Cartilla...' : 'Ej: Técnico Básico...'}" style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-weight:700" />
+        </div>
+        <div style="flex:2;min-width:200px">
+          <label style="font-size:0.75rem;font-weight:700;color:var(--verde-dark);display:block;margin-bottom:3px">${esHum ? 'Título o Nombre del Texto / Documento:' : 'Título o Nombre del Documento:'}</label>
+          <input type="text" class="doc-row-titulo" value="${escapeHTML(d.titulo || '')}" placeholder="${esHum ? 'Ej: Texto de Matemática 1° Semestre...' : 'Ej: Módulo 1: Fundamentos de Sistemas...'}" style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-weight:600" />
+        </div>
+        <div style="padding-top:16px">
+          <button type="button" onclick="eliminarFilaDocumentoDocente(this)" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem" title="Quitar este documento">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <span>Quitar</span>
+          </button>
+        </div>
       </div>
-      <div id="doc-malla-modulos-${i}">
-        ${(nivelObj.modulos || []).map(([mod, mat], j) => `
-          <div style="display:flex;gap:8px;margin-bottom:6px">
-            <input type="text" value="${mod}" placeholder="Módulo (ej: Módulo I)" style="flex:1;padding:6px 10px;border:1px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-family:inherit" id="doc-malla-mod-${i}-${j}" />
-            <input type="text" value="${mat}" placeholder="Asignatura/Materia" style="flex:2;padding:6px 10px;border:1px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-family:inherit" id="doc-malla-mat-${i}-${j}" />
-          </div>
-        `).join('')}
+      <div>
+        <label style="font-size:0.75rem;font-weight:700;color:var(--verde-dark);display:block;margin-bottom:3px">Enlace de Google Drive / Descarga:</label>
+        <input type="url" class="doc-row-enlace" value="${escapeHTML(d.enlace === '#' ? '' : (d.enlace || ''))}" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-family:monospace;font-size:0.82rem" />
       </div>
-      <button class="btn-adm-add" style="font-size:0.8rem;padding:4px 10px" onclick="agregarSubModuloDocente('${areaKey}', ${i})">+ Agregar Asignatura</button>
     </div>
   `).join('');
 }
 
-function agregarModuloMallaDocente(areaKey) {
+function agregarFilaDocumentoDocente(areaKey) {
+  const container = document.getElementById('docente-documentos-list-container');
+  if (!container) return;
+  const newId = 'doc_' + Date.now();
+  const div = document.createElement('div');
+  div.className = 'doc-item-row';
+  div.dataset.id = newId;
+  div.style.cssText = 'background:var(--verde-light);border:1px solid var(--border-col);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px';
+  div.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1.2;min-width:160px">
+        <label style="font-size:0.75rem;font-weight:700;color:var(--verde-dark);display:block;margin-bottom:3px">Nivel o Categoría:</label>
+        <input type="text" list="dl-sugerencias-niveles-doc" class="doc-row-nivel" value="Técnico Básico" placeholder="Ej: Técnico Básico..." style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-weight:700" />
+      </div>
+      <div style="flex:2;min-width:200px">
+        <label style="font-size:0.75rem;font-weight:700;color:var(--verde-dark);display:block;margin-bottom:3px">Título o Nombre del Documento:</label>
+        <input type="text" class="doc-row-titulo" value="" placeholder="Ej: Módulo nuevo, guía didáctica..." style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-weight:600" />
+      </div>
+      <div style="padding-top:16px">
+        <button type="button" onclick="eliminarFilaDocumentoDocente(this)" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:7px 12px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem" title="Quitar este documento">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Quitar</span>
+        </button>
+      </div>
+    </div>
+    <div>
+      <label style="font-size:0.75rem;font-weight:700;color:var(--verde-dark);display:block;margin-bottom:3px">Enlace de Google Drive / Descarga:</label>
+      <input type="url" class="doc-row-enlace" value="" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);font-family:monospace;font-size:0.82rem" />
+    </div>
+  `;
+  container.appendChild(div);
+  const inpTit = div.querySelector('.doc-row-titulo');
+  if (inpTit) inpTit.focus();
+}
+
+function eliminarFilaDocumentoDocente(btn) {
+  const row = btn.closest('.doc-item-row');
+  if (row) row.remove();
+}
+
+async function guardarDocumentosDocenteNiveles(areaKey) {
+  const container = document.getElementById('docente-documentos-list-container');
+  if (!container) return;
+  const rows = container.querySelectorAll('.doc-item-row');
+  const docs = [];
+  rows.forEach((r, idx) => {
+    const niv = (r.querySelector('.doc-row-nivel')?.value || '').trim();
+    const tit = (r.querySelector('.doc-row-titulo')?.value || '').trim();
+    const enl = (r.querySelector('.doc-row-enlace')?.value || '').trim();
+    if (niv || tit || enl) {
+      docs.push({
+        id: r.dataset.id || ('doc_' + idx),
+        nivel: niv || 'General',
+        titulo: tit || niv || 'Documento Oficial',
+        enlace: enl || '#'
+      });
+    }
+  });
+
+  lsSet('cea_doc_niveles_' + areaKey, docs);
+  if (typeof renderSeccionHumanistica === 'function') renderSeccionHumanistica();
+  mostrarMsg('msg-doc-niveles', 'Guardando y sincronizando con Google Sheets...', 'success');
+  const res = await enviarGoogleSheet({ action: 'guardar-doc-niveles', carreraKey: areaKey, docs: docs });
+  if (res && res.status === 'success') {
+    mostrarMsg('msg-doc-niveles', '¡Documentos guardados y sincronizados correctamente en Google Sheets!', 'success');
+  } else {
+    mostrarMsg('msg-doc-niveles', '¡Documentos guardados exitosamente!', 'success');
+  }
+  if (typeof renderSeccionHumanistica === 'function') renderSeccionHumanistica();
+  mostrarToastLive('Documentos de la especialidad guardados.');
+}
+
+
+function renderMallaDocenteEditor(areaKey) {
+  const container = document.getElementById('docente-malla-editor');
+  if (!container) return;
+
   const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
   const idx = areas.findIndex(a => a.key === areaKey || a.docente === areaKey);
+  const areaObj = (idx >= 0) ? areas[idx] : { key: areaKey, nombre: areaKey, malla: [] };
+
+  const mallaValida = asegurarMallaOficialCarrera(areaObj);
   if (idx >= 0) {
-    if (!areas[idx].malla) areas[idx].malla = [];
-    areas[idx].malla.push({
-      nivel: 'Técnico Nuevo Nivel',
-      modulos: [['Módulo I', 'Nueva Asignatura']]
-    });
+    areas[idx].malla = mallaValida;
     lsSet('cea_areas_tec', areas);
-    renderMallaDocenteEditor(areaKey, areas[idx].malla);
   }
-}
 
-function agregarSubModuloDocente(areaKey, nivelIdx) {
-  const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
-  const idx = areas.findIndex(a => a.key === areaKey || a.docente === areaKey);
-  if (idx >= 0 && areas[idx].malla[nivelIdx]) {
-    areas[idx].malla[nivelIdx].modulos.push(['Nuevo Módulo', 'Nueva Asignatura']);
-    lsSet('cea_areas_tec', areas);
-    renderMallaDocenteEditor(areaKey, areas[idx].malla);
-  }
-}
+  const nivelesInfo = [
+    { label: '1. Técnico Básico', badge: '1° Nivel (500h)', modulos: mallaValida[0]?.modulos || [] },
+    { label: '2. Técnico Auxiliar', badge: '2° Nivel (500h)', modulos: mallaValida[1]?.modulos || [] },
+    { label: '3. Técnico Medio I', badge: '3° Nivel (500h)', modulos: mallaValida[2]?.modulos || [] },
+    { label: '4. Técnico Medio II', badge: '4° Nivel (500h)', modulos: mallaValida[3]?.modulos || [] }
+  ];
 
-function eliminarModuloMallaDocente(areaKey, nivelIdx) {
-  const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
-  const idx = areas.findIndex(a => a.key === areaKey || a.docente === areaKey);
-  if (idx >= 0 && areas[idx].malla) {
-    areas[idx].malla.splice(nivelIdx, 1);
-    lsSet('cea_areas_tec', areas);
-    renderMallaDocenteEditor(areaKey, areas[idx].malla);
-  }
+  container.innerHTML = `
+    <!-- Barra informativa y de acciones rápidas -->
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;background:var(--bg-body);padding:10px 14px;border-radius:8px;border:1.5px solid var(--border-col)">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-weight:800;color:var(--verde-dark);font-size:0.92rem">Especialidad: ${escapeHTML(areaObj.nombre)}</span>
+        <span class="badge" style="background:var(--verde);color:#fff;font-weight:700;font-size:0.75rem;padding:3px 8px;border-radius:12px">20 Módulos Oficiales (2,000 Horas)</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" onclick="restablecerMallaPorDefectoDocente('${areaKey}')" title="Restablecer los 20 módulos a los contenidos oficiales por defecto" style="padding:6px 12px;background:#c0392b;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:0.80rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 3px rgba(0,0,0,0.15)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span>Restablecer por Defecto</span>
+        </button>
+        <button type="button" onclick="abrirModalCarrera('${areaKey}')" title="Previsualizar cómo se ve en Oferta Académica" style="padding:6px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:0.80rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 3px rgba(0,0,0,0.15)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Ver Malla en Oferta Académica</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Grid de los 4 niveles idéntico al modo director y a oferta académica -->
+    <div class="malla-grid-4cols" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;margin-top:10px">
+      ${nivelesInfo.map((nv, lIdx) => `
+        <div style="background:var(--bg-card);border:1.5px solid var(--verde);border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,0.03)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid var(--border-col);padding-bottom:5px">
+            <strong style="font-size:0.84rem;color:var(--verde-dark)">${nv.label}</strong>
+            <span style="font-size:0.72rem;background:var(--verde-light);color:var(--verde-dark);padding:2px 6px;border-radius:4px;font-weight:700">${nv.badge}</span>
+          </div>
+          ${Array.from({ length: 5 }).map((_, mIdx) => {
+            const item = nv.modulos[mIdx] || [`Módulo ${lIdx * 5 + mIdx + 1}`, 'Módulo ' + (lIdx * 5 + mIdx + 1)];
+            const modCod = item[0] || `Módulo ${lIdx * 5 + mIdx + 1}`;
+            const modNom = item[1] || '';
+            return `
+              <div style="margin-bottom:8px">
+                <span style="font-size:0.70rem;font-weight:800;color:var(--text-sec);display:block;text-transform:uppercase">${escapeHTML(modCod)}:</span>
+                <input type="text" id="doc-malla-mod-${lIdx}-${mIdx}" value="${escapeHTML(modNom)}" placeholder="Nombre de la asignatura / módulo"
+                  style="width:100%;box-sizing:border-box;padding:6px 10px;font-size:0.82rem;border:1.5px solid #86efac;border-radius:6px;background:var(--bg-card);color:var(--text-main);font-family:inherit;font-weight:600" />
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 async function guardarMiMallaDocente(areaKey) {
@@ -18024,26 +19175,71 @@ async function guardarMiMallaDocente(areaKey) {
   const idx = areas.findIndex(a => a.key === areaKey || a.docente === areaKey);
   if (idx < 0) return;
 
-  const malla = areas[idx].malla || [];
-  malla.forEach((nivelObj, i) => {
-    const nivInp = document.getElementById(`doc-malla-nivel-${i}`);
-    if (nivInp && nivInp.value.trim()) nivelObj.nivel = nivInp.value.trim();
-    (nivelObj.modulos || []).forEach((_, j) => {
-      const modInp = document.getElementById(`doc-malla-mod-${i}-${j}`);
-      const matInp = document.getElementById(`doc-malla-mat-${i}-${j}`);
-      if (modInp && modInp.value.trim()) nivelObj.modulos[j][0] = modInp.value.trim();
-      if (matInp && matInp.value.trim()) nivelObj.modulos[j][1] = matInp.value.trim();
-    });
-  });
+  const area = areas[idx];
+  const mallaExistente = asegurarMallaOficialCarrera(area);
+  const nuevaMalla = JSON.parse(JSON.stringify(mallaExistente));
 
-  areas[idx].malla = malla;
+  for (let l = 0; l < 4; l++) {
+    if (!nuevaMalla[l]) {
+      const nombresNiveles = ['Técnico Básico', 'Técnico Auxiliar', 'Técnico Medio I', 'Técnico Medio II'];
+      nuevaMalla[l] = { nivel: nombresNiveles[l], modulos: [] };
+    }
+    if (!nuevaMalla[l].modulos) nuevaMalla[l].modulos = [];
+
+    for (let m = 0; m < 5; m++) {
+      const inp = document.getElementById(`doc-malla-mod-${l}-${m}`);
+      const val = inp ? inp.value.trim() : '';
+      const codModulo = (nuevaMalla[l].modulos[m] && nuevaMalla[l].modulos[m][0]) || `Módulo ${l * 5 + m + 1}`;
+      nuevaMalla[l].modulos[m] = [codModulo, val || `Módulo ${l * 5 + m + 1}`];
+    }
+  }
+
+  areas[idx].malla = nuevaMalla;
   lsSet('cea_areas_tec', areas);
-  cargarAreasTec();
+  _ultimaEdicionLocalTimestamp = Date.now();
 
-  mostrarMsg('msg-doc-malla', 'Guardando...', 'success');
-  await enviarGoogleSheet({ action: 'guardar-malla', carreraKey: areaKey, malla: malla });
-  mostrarMsg('msg-doc-malla', '¡Guardado exitosamente!', 'success');
+  cargarAreasTecSilencioso();
+  if (typeof cargarAreasTec === 'function') cargarAreasTec();
+
+  mostrarMsg('msg-doc-malla', 'Guardando y sincronizando malla curricular con Oferta Académica...', 'success');
+  mostrarToastLive('Guardando malla curricular...');
+
+  const res1 = await enviarGoogleSheet({ action: 'guardar-malla', carreraKey: areaKey, malla: nuevaMalla });
+  const res2 = await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
+
+  mostrarMsg('msg-doc-malla', '¡Malla Curricular oficial guardada y actualizada en Oferta Académica!', 'success');
+  mostrarToastLive('¡Malla curricular actualizada exitosamente en Oferta Académica!');
 }
+
+async function restablecerMallaPorDefectoDocente(areaKey) {
+  const ok = await mostrarConfirmModal('¿Deseas restablecer los 20 módulos de la Malla Curricular a los valores oficiales por defecto del Ministerio de Educación?', 'Restablecer Malla por Defecto', 'Restablecer');
+  if (!ok) return;
+
+  const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
+  const idx = areas.findIndex(a => a.key === areaKey || a.docente === areaKey);
+  if (idx < 0) return;
+
+  const carOficial = BASE_CARRERAS_20.find(c => c.key === areas[idx].key || c.nombre.toLowerCase() === areas[idx].nombre.toLowerCase());
+  if (carOficial && carOficial.malla) {
+    areas[idx].malla = JSON.parse(JSON.stringify(carOficial.malla));
+  } else {
+    areas[idx].malla = asegurarMallaOficialCarrera(areas[idx]);
+  }
+
+  lsSet('cea_areas_tec', areas);
+  _ultimaEdicionLocalTimestamp = Date.now();
+
+  renderMallaDocenteEditor(areaKey);
+  cargarAreasTecSilencioso();
+  if (typeof cargarAreasTec === 'function') cargarAreasTec();
+
+  mostrarMsg('msg-doc-malla', 'Malla curricular restablecida a los 20 módulos oficiales por defecto.', 'success');
+  mostrarToastLive('Malla restablecida a los 20 módulos oficiales.');
+
+  await enviarGoogleSheet({ action: 'guardar-malla', carreraKey: areaKey, malla: areas[idx].malla });
+  await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
+}
+
 
 /* ─── ACTIVIDADES E HITOS CRONOLÓGICOS ─── */
 const ACTIVIDADES_DEFAULT = [
@@ -18103,6 +19299,132 @@ function obtenerYoutubeEmbedUrl(url) {
   }
   return videoId ? `https://www.youtube.com/embed/${videoId}?rel=0` : '';
 }
+
+function formatearSoloFechaUniversal(fechaRaw) {
+  if (!fechaRaw) return '';
+  const str = String(fechaRaw).trim();
+  // Limpiar partes de hora ISO o texto
+  const cleanIso = str.replace(/\s*[T|t].*$/, '').replace(/\s+\d{1,2}:\d{2}.*$/, '').trim();
+  
+  // Si ya es DD/MM/AAAA
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(cleanIso)) {
+    const [d, m, y] = cleanIso.split('/');
+    return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+  }
+  // Si es AAAA-MM-DD o AAAA/MM/DD
+  if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(cleanIso)) {
+    const parts = cleanIso.split(/[-/]/);
+    return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+  }
+  // Si es DD-MM-AAAA
+  if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(cleanIso)) {
+    const parts = cleanIso.split('-');
+    return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+  }
+  // Si tiene mes textual (español o inglés) como "15 - ene - 2026", "15 de enero de 2026" o "Jan 15 2026"
+  const mesesMap = {
+    jan: '01', ene: '01', enero: '01',
+    feb: '02', febrero: '02',
+    mar: '03', marzo: '03',
+    apr: '04', abr: '04', abril: '04',
+    may: '05', mayo: '05',
+    jun: '06', junio: '06',
+    jul: '07', julio: '07',
+    aug: '08', ago: '08', agosto: '08',
+    sep: '09', septiembre: '09', set: '09',
+    oct: '10', octubre: '10',
+    nov: '11', noviembre: '11',
+    dec: '12', dic: '12', diciembre: '12'
+  };
+  const mMatch = cleanIso.toLowerCase().match(/(\d{1,2})\s*[-/de\s]+\s*([a-z]{3,10})\s*[-/de\s]+\s*(\d{4})/i);
+  if (mMatch) {
+    const d = mMatch[1].padStart(2, '0');
+    const mStr = mMatch[2].toLowerCase();
+    const y = mMatch[3];
+    const mNum = mesesMap[mStr] || mesesMap[mStr.slice(0, 3)];
+    if (mNum) return `${d}/${mNum}/${y}`;
+  }
+  // Intento Date parsing (para fechas como "Thu Jan 15 2026..." o timestamps)
+  try {
+    const dObj = new Date(str);
+    if (!isNaN(dObj.getTime()) && dObj.getFullYear() > 1990) {
+      const d = String(dObj.getDate()).padStart(2, '0');
+      const m = String(dObj.getMonth() + 1).padStart(2, '0');
+      const y = dObj.getFullYear();
+      return `${d}/${m}/${y}`;
+    }
+  } catch (e) {}
+
+  return cleanIso;
+}
+window.formatearSoloFechaUniversal = formatearSoloFechaUniversal;
+
+function obtenerEtiquetaCarreraGaleria(foto) {
+  if (!foto) return '';
+  const nom = String(foto.carreraNombre || '').trim();
+  const k = String(foto.carreraKey || '').toLowerCase();
+  const tit = String(foto.titulo || '').toLowerCase();
+  const aut = String(foto.autor || '').toLowerCase();
+
+  if (k === 'tec-sis' || k.includes('sistem')) return 'Sistemas Informáticos';
+  if (k === 'tec-sec' || k.includes('secretari')) return 'Secretariado Ejecutivo';
+  if (k === 'tec-bel' || k.includes('belleza')) return 'Belleza Integral';
+  if (k === 'tec-con' || k.includes('confecc')) return 'Confección Textil';
+  if (k === 'tec-gas' || k.includes('gastronom')) return 'Gastronomía';
+  if (k === 'tec-agr' || k.includes('agropec')) return 'Agropecuaria';
+  if (k.startsWith('hum') || k.includes('bth')) return 'Bachillerato Humanístico';
+
+  const comb = (tit + ' ' + aut + ' ' + nom).toLowerCase();
+  if (comb.includes('sistem') || comb.includes('redes') || comb.includes('ensamble') || comb.includes('comput')) return 'Sistemas Informáticos';
+  if (comb.includes('agropec') || comb.includes('campo') || comb.includes('cultivo')) return 'Agropecuaria';
+  if (comb.includes('secretari') || comb.includes('ofimát') || comb.includes('ofimat')) return 'Secretariado Ejecutivo';
+  if (comb.includes('belleza') || comb.includes('estétic') || comb.includes('peinado')) return 'Belleza Integral';
+  if (comb.includes('confecc') || comb.includes('textil') || comb.includes('patronaje')) return 'Confección Textil';
+  if (comb.includes('gastronom') || comb.includes('cocina') || comb.includes('aliment')) return 'Gastronomía';
+  if (comb.includes('humaníst') || comb.includes('primaria') || comb.includes('secundaria') || comb.includes('epa') || comb.includes('esa')) return 'Bachillerato Humanístico';
+
+  if (nom && !nom.toLowerCase().includes('docente') && !nom.toLowerCase().includes('direcci') && !nom.toLowerCase().includes('general') && !nom.toLowerCase().includes('cea')) {
+    return nom;
+  }
+
+  return 'Institucional';
+}
+window.obtenerEtiquetaCarreraGaleria = obtenerEtiquetaCarreraGaleria;
+
+function normalizarEtiquetaEntidadOAutor(autorOEntidad, carreraOArea) {
+  const s = String(autorOEntidad || carreraOArea || '').trim();
+  const lower = s.toLowerCase();
+  
+  if (!s || lower.includes('direcci') || lower.includes('director') || lower.includes('administra') || lower.includes('institucional') || lower.includes('general')) {
+    return 'Actividad Institucional';
+  }
+  
+  // Limpiar prefijos de "Docente", "Lic.", "Prof.", "Por:"
+  let clean = s.replace(/^(por\s*:\s*|docente\s*:\s*|docente\s+|lic\.\s+|prof\.\s+)+/i, '').trim();
+  
+  // Si tiene guión de separación como "Docente - Sistemas Informáticos" o "Lic. X - Secretariado"
+  if (clean.includes('-')) {
+    const partes = clean.split('-');
+    const ultima = partes[partes.length - 1].trim();
+    if (ultima.length > 3) {
+      return ultima;
+    }
+  }
+  
+  const carrerasConocidas = [
+    'Sistemas Informáticos', 'Secretariado Ejecutivo', 'Belleza Integral', 
+    'Confección Textil', 'Gastronomía y Alimentación', 'Agropecuaria',
+    'Educación Primaria de Adultos', 'Educación Secundaria de Adultos', 'Bachillerato Técnico Humanístico'
+  ];
+  for (const c of carrerasConocidas) {
+    if (lower.includes(c.toLowerCase().split(' ')[0])) {
+      return c;
+    }
+  }
+  
+  return clean || 'Actividad Institucional';
+}
+window.normalizarEtiquetaEntidadOAutor = normalizarEtiquetaEntidadOAutor;
 
 function cargarActividadesFeed() {
   renderFeedActividades();
@@ -18187,14 +19509,17 @@ function renderFeedActividades() {
 
     const iconCal = `<svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
 
-    // Acciones de edición y eliminación si hay sesión autorizada
+    // Acciones de edición y eliminación: Director puede todo, Docente solo su propia área
     const session = lsGet('cea_session', null);
-    const esAuth = session && (session.role === 'director' || session.role === 'admin' || session.role === 'docente' || session.role === 'comision' || session.loggedIn === true);
+    const esDirector = session && (session.role === 'director' || session.role === 'admin');
+    const esDocente = session && session.role === 'docente';
+    const puedeGestionarAct = esDirector || (esDocente && session.areaKey && (act.areaKey === session.areaKey || act.carreraKey === session.areaKey));
+
     let authActionsHTML = '';
-    if (esAuth) {
+    if (puedeGestionarAct) {
       authActionsHTML = `
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;border-top:1px dashed var(--border-col);padding-top:10px">
-          <button type="button" onclick="abrirModalEditarActividad('${act.id}')" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#ffffff;border:none;padding:6px 12px;border-radius:6px;font-size:0.80rem;font-weight:700;cursor:pointer;transition:background 0.2s" title="Editar publicación (la fecha original se mantiene intacta)">
+          <button type="button" onclick="abrirModalEditarActividad('${act.id}')" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#ffffff;border:none;padding:6px 12px;border-radius:6px;font-size:0.80rem;font-weight:700;cursor:pointer;transition:background 0.2s" title="Editar publicación">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             <span>Editar</span>
           </button>
@@ -18205,16 +19530,17 @@ function renderFeedActividades() {
         </div>`;
     }
 
+    const fechaLimpia = formatearSoloFechaUniversal(act.fecha || (act.mes + ' ' + act.gestion));
+
     return `
       <div class="actividad-card">
         <div class="actividad-header">
-          <h3 class="actividad-titulo">${act.titulo}</h3>
+          <h3 class="actividad-titulo">${escapeHTML(act.titulo || '')}</h3>
           <div class="actividad-meta">
-            <span class="actividad-badge-fecha">${iconCal} ${act.fecha || (act.mes + ' ' + act.gestion)}</span>
-            <span class="actividad-autor">Por: ${act.autor || 'CEA Madre Marie Poussepín'}</span>
+            <span class="actividad-badge-fecha">${iconCal} ${fechaLimpia}</span>
           </div>
         </div>
-        <p class="actividad-desc">${act.descripcion || ''}</p>
+        <p class="actividad-desc">${escapeHTML(act.descripcion || '')}</p>
         ${mediaHTML}
         ${authActionsHTML}
       </div>`;
@@ -18244,11 +19570,22 @@ function renderListaActividadesAdmin() {
 
 /* ─── MODAL EDITAR ACTIVIDAD (CONSERVA FECHA ORIGINAL) ─── */
 function abrirModalEditarActividad(actId) {
+  const session = lsGet('cea_session', null);
+  const esDirector = session && (session.role === 'director' || session.role === 'admin');
+  const esDocente = session && session.role === 'docente';
+
   const actividades = lsGet('cea_actividades', ACTIVIDADES_DEFAULT);
   const act = actividades.find(a => a.id === actId);
   if (!act) {
     mostrarToastLive('No se encontró la publicación a editar.');
     return;
+  }
+
+  if (!esDirector) {
+    if (!esDocente || !session.areaKey || (act.areaKey !== session.areaKey && act.carreraKey !== session.areaKey)) {
+      mostrarToastLive('No tienes permisos para modificar actividades de otra especialidad o de la Dirección.');
+      return;
+    }
   }
 
   const modal = document.getElementById('modalEditarPublicacionActividad');
@@ -18545,9 +19882,20 @@ async function guardarActividadDesdeDocente(event, areaKey) {
 }
 
 async function eliminarActividad(actId) {
+  const session = getAdminSession();
+  const esDirector = session && (session.role === 'admin' || session.role === 'director');
+  const esDocente = session && session.role === 'docente';
+  let actividades = lsGet('cea_actividades', ACTIVIDADES_DEFAULT);
+  const act = actividades.find(a => a.id === actId);
+  if (!act) return;
+
+  if (!esDirector && (!esDocente || act.areaKey !== session.areaKey)) {
+    mostrarToast('No tienes permisos para eliminar publicaciones de otra área', 'error');
+    return;
+  }
+
   const ok = await mostrarConfirmModal('¿Estás seguro de que deseas eliminar esta publicación y actividad?', 'Eliminar Publicación', 'Eliminar', true);
   if (!ok) return;
-  let actividades = lsGet('cea_actividades', ACTIVIDADES_DEFAULT);
   actividades = actividades.filter(a => a.id !== actId);
   lsSet('cea_actividades', actividades);
   renderFeedActividades();
@@ -19048,13 +20396,12 @@ function cargarGaleriaFotos() {
     ` : '';
 
     const encTitulo = (foto.titulo || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const encAutor = (foto.autor || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const encCarrera = (foto.carreraNombre || 'General / Institucional').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const fechaFormateada = formatearFechaGaleria(foto.fecha || '');
-    const carreraTexto = foto.carreraNombre || foto.autor || 'General / Institucional';
+    const carreraTexto = obtenerEtiquetaCarreraGaleria(foto);
+    const fechaLimpia = formatearSoloFechaUniversal(foto.fecha || '');
+    const encCarrera = carreraTexto.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
     return `
-      <div class="galeria-card" onclick="abrirLightboxFoto('${foto.urlFoto}', '${encTitulo}', '${encAutor}', '${fechaFormateada}', '${encCarrera}')">
+      <div class="galeria-card" onclick="abrirLightboxFoto('${foto.urlFoto}', '${encTitulo}', '', '${fechaLimpia}', '${encCarrera}')">
         <div class="galeria-img-wrap">
           <img src="${foto.urlFoto}" alt="${foto.titulo}" loading="lazy" onerror="this.onerror=null;this.src='FOTOGRAFIA DEL CEA .jpeg';" />
           <div class="galeria-zoom-hint" title="Ampliar fotografía">
@@ -19064,10 +20411,10 @@ function cargarGaleriaFotos() {
           ${deleteBtnHtml}
         </div>
         <div class="galeria-info" style="padding:14px 16px;">
-          <h4 style="margin:0 0 8px 0; font-size:0.95rem; font-weight:800; color:var(--text-main); line-height:1.38;">${foto.titulo}</h4>
+          <h4 style="margin:0 0 8px 0; font-size:0.95rem; font-weight:800; color:var(--text-main); line-height:1.38;">${escapeHTML(foto.titulo || '')}</h4>
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem; color:var(--text-sec); margin-top:10px; border-top:1px dashed var(--border-col); padding-top:8px;">
-            <span style="font-weight:800; color:var(--verde-dark); font-size:0.84rem;">${carreraTexto}</span>
-            <span style="font-weight:700; color:#64748b; font-size:0.80rem;">${fechaFormateada}</span>
+            <span style="font-weight:800; color:var(--verde-dark); font-size:0.84rem;">${escapeHTML(carreraTexto)}</span>
+            <span style="font-weight:700; color:#64748b; font-size:0.80rem;">${fechaLimpia}</span>
           </div>
         </div>
       </div>
@@ -19382,7 +20729,7 @@ function abrirLightboxFoto(url, encTitulo, encAutor, fecha, encCarrera) {
 
   if (img) img.src = url;
   if (tit) tit.textContent = encTitulo;
-  if (meta) meta.textContent = `${encCarrera} • ${encAutor} • ${fecha}`;
+  if (meta) meta.textContent = `${encCarrera} • ${fecha}`;
 
   modal.style.display = 'flex';
 }
@@ -21508,7 +22855,11 @@ function prepararEImprimirTodosLosKardex(filtradosSolamente = false, diseno = 1)
   }
 
   if (listaDocentes.length === 0) {
-    alert('No hay registros de Kardex disponibles para imprimir o guardar.');
+    if (typeof mostrarAlertaModal === 'function') {
+      mostrarAlertaModal('No hay registros de Kardex disponibles para imprimir o guardar.', 'Kardex Docente', 'warning');
+    } else if (typeof mostrarToastLive === 'function') {
+      mostrarToastLive('No hay registros de Kardex disponibles.');
+    }
     return;
   }
 
@@ -21587,7 +22938,11 @@ async function guardarPDFTodosLosKardex(filtradosSolamente = false) {
   }
 
   if (listaDocentes.length === 0) {
-    alert('No hay registros de Kardex disponibles para guardar.');
+    if (typeof mostrarAlertaModal === 'function') {
+      mostrarAlertaModal('No hay registros de Kardex disponibles para guardar.', 'Kardex Docente', 'warning');
+    } else if (typeof mostrarToastLive === 'function') {
+      mostrarToastLive('No hay registros de Kardex disponibles.');
+    }
     return;
   }
 
@@ -21735,3 +23090,149 @@ document.addEventListener('DOMContentLoaded', () => {
 
   restaurarSesion();
 });
+
+async function refrescarCredencialesDocentesDesdeServidor(tokenOverride) {
+  const session = lsGet('cea_session', null);
+  const token = tokenOverride || (session && session.token);
+  if (!token || !session || (session.role !== 'director' && session.role !== 'admin')) return;
+  try {
+    const res = await enviarGoogleSheet({
+      action: 'obtener-usuarios-docentes-admin',
+      token: token
+    });
+    if (res && res.status === 'success' && res.usuarios) {
+      const local = lsGet('cea_usuarios_docentes', USUARIOS_DOCENTES_DEFAULT);
+      const merged = { ...local };
+      Object.keys(res.usuarios).forEach(k => {
+        merged[k] = {
+          user: res.usuarios[k].user || merged[k]?.user || USUARIOS_DOCENTES_DEFAULT[k]?.user || '',
+          pass: res.usuarios[k].pass || merged[k]?.pass || USUARIOS_DOCENTES_DEFAULT[k]?.pass || 'docente123',
+          comision: (res.usuarios[k].comision !== undefined) ? res.usuarios[k].comision : (merged[k]?.comision || false)
+        };
+      });
+      lsSet('cea_usuarios_docentes', merged);
+      cargarDocentesUnificados();
+    }
+  } catch (err) {
+    console.warn('Error refrescando credenciales docentes:', err);
+  }
+}
+
+/* ─── MODAL Y GESTIÓN DE TEXTOS Y DOCUMENTOS DE MATERIA HUMANÍSTICA ─── */
+function obtenerKeyMateriaHumanistica(materiaNombre) {
+  const norm = (materiaNombre || '').toLowerCase();
+  if (norm.includes('matem')) return 'hum-mat';
+  if (norm.includes('natur') || norm.includes('biol') || norm.includes('fís') || norm.includes('quím')) return 'hum-cn';
+  if (norm.includes('social') || norm.includes('hist') || norm.includes('cívic') || norm.includes('geogr')) return 'hum-cs';
+  if (norm.includes('lengua') || norm.includes('liter') || norm.includes('comunic')) return 'hum-len';
+  return 'hum-mat';
+}
+
+function abrirModalMateriaHumanistica(humKey, materiaNombre, docenteNombre) {
+  const modal = document.getElementById('modal-materia-humanistica');
+  if (!modal) return;
+
+  const modalTitulo = document.getElementById('modal-materia-hum-titulo');
+  const modalBody = document.getElementById('modal-materia-hum-body');
+
+  const docentes = lsGet('cea_docentes', DOCENTES_DEFAULT);
+  const docFinal = docenteNombre || docentes[humKey] || 'Docente Asignado';
+
+  if (modalTitulo) {
+    modalTitulo.innerHTML = `
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span>Materia: ${escapeHTML(materiaNombre)}</span>
+    `;
+  }
+
+  // Obtener documentos guardados para esta materia
+  const rawDocs = lsGet('cea_doc_niveles_' + humKey, null);
+  const docsList = (typeof normalizarDocumentosDocente === 'function' ? normalizarDocumentosDocente(rawDocs) : (Array.isArray(rawDocs) ? rawDocs : []))
+    .filter(d => (d.titulo || d.nivel || d.enlace));
+
+  let docsHTML = '';
+  if (docsList.length > 0) {
+    docsHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:14px;margin-top:16px">
+        ${docsList.map(item => {
+          const tieneEnlace = Boolean(item.enlace && item.enlace !== '#');
+          return `
+            <div style="background:var(--bg-card);border:1.5px solid #86efac;border-left:4px solid var(--verde);border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);display:flex;flex-direction:column;justify-content:space-between;gap:12px">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <span style="font-size:0.72rem;font-weight:800;color:var(--verde-dark);background:var(--verde-light);padding:2px 8px;border-radius:6px;border:1px solid #86efac;text-transform:uppercase">
+                    ${escapeHTML(item.nivel || 'Texto Oficial')}
+                  </span>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--verde)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <h4 style="margin:0 0 4px 0;font-size:0.95rem;color:var(--text-main);font-weight:800;line-height:1.35">
+                  ${escapeHTML(item.titulo || item.nivel || 'Documento Oficial de la Materia')}
+                </h4>
+              </div>
+              <div style="margin-top:6px">
+                ${tieneEnlace ? `
+                  <a href="${escapeHTML(item.enlace)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;background:var(--verde);color:#ffffff;border-radius:6px;text-decoration:none;font-weight:800;font-size:0.82rem;width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:all 0.2s">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Ver y Descargar PDF</span>
+                  </a>
+                ` : `
+                  <div style="padding:6px 10px;background:var(--bg-body);border-radius:6px;color:var(--text-sec);font-size:0.78rem;font-style:italic;text-align:center">
+                    Enlace en proceso de subida por el docente
+                  </div>
+                `}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  } else {
+    docsHTML = `
+      <div style="text-align:center;padding:34px 16px;background:var(--verde-light);border-radius:12px;border:1.5px dashed var(--verde);margin-top:16px">
+        <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="var(--verde-dark)" stroke-width="1.8" style="margin-bottom:8px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <h4 style="margin:0 0 6px 0;color:var(--verde-dark);font-size:1.02rem">Documentos en proceso de publicación</h4>
+        <p style="margin:0;font-size:0.86rem;color:var(--text-sec)">El docente a cargo (${escapeHTML(docFinal)}) añadirá los textos guía, cartillas pedagógicas y módulos de ${escapeHTML(materiaNombre)} en breve.</p>
+      </div>
+    `;
+  }
+
+  if (modalBody) {
+    modalBody.innerHTML = `
+      <div style="border-left:5px solid var(--verde);padding-left:14px;margin-bottom:18px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <h2 style="font-size:1.5rem;color:var(--verde-dark);margin:0">${escapeHTML(materiaNombre)}</h2>
+          <span style="font-size:0.75rem;background:var(--verde-light);color:var(--verde-dark);font-weight:800;padding:3px 10px;border-radius:12px;border:1px solid #86efac">
+            Área Humanística (EPA / ESA)
+          </span>
+        </div>
+        <p style="margin:6px 0 0 0;font-weight:700;color:var(--text-main);font-size:0.92rem;display:flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <strong>Docente a cargo:</strong> ${escapeHTML(docFinal)}
+        </p>
+        <p style="margin:6px 0 0 0;color:var(--text-sec);font-size:0.88rem;line-height:1.45">
+          Textos oficiales, cartillas de estudio, guías pedagógicas y módulos de aprendizaje para los participantes de Primaria (EPA) y Secundaria (ESA).
+        </p>
+      </div>
+
+      <div style="border-top:1.5px solid var(--border-col);padding-top:14px">
+        <h3 style="margin:0 0 6px 0;font-size:1.05rem;color:var(--verde-dark);display:flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Textos y Documentos Oficiales de la Materia:
+        </h3>
+        ${docsHTML}
+      </div>
+    `;
+  }
+
+  modal.classList.add('activo');
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarModalMateriaHumanistica(e) {
+  if (e && e.target !== document.getElementById('modal-materia-humanistica') && !e.target.closest('.malla-modal-close')) return;
+  const modal = document.getElementById('modal-materia-humanistica');
+  if (modal) {
+    modal.classList.remove('activo');
+    document.body.style.overflow = '';
+  }
+}

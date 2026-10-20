@@ -503,28 +503,32 @@
   body.printing-horario.print-turno-tec #horario-print-area .carreras-tec-print-card {
     width: 100% !important;
     max-width: 100% !important;
-    margin: 6px auto 0 auto !important;
+    margin: 8px auto 0 auto !important;
     border: none !important;
     background: transparent !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 
-  body.printing-horario.print-turno-tec #horario-print-area .carreras-tec-print-card .carreras-tec-row {
+  body.printing-horario.print-turno-tec #horario-print-area .carreras-tec-col-list {
     display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    justify-content: space-between !important;
-    align-items: flex-start !important;
-    gap: 8px !important;
+    flex-direction: column !important;
+    gap: 3px !important;
     width: 100% !important;
     box-sizing: border-box !important;
   }
 
-  body.printing-horario.print-turno-tec #horario-print-area .carreras-tec-print-card .carrera-item {
-    flex: 1 1 0px !important;
-    min-width: 0 !important;
+  body.printing-horario.print-turno-tec #horario-print-area .carrera-item-vertical {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 8px !important;
     text-align: left !important;
+  }
+
+  /* Ubicación inmediata bajo el último periodo en Área Técnica (sin separación excesiva) */
+  body.printing-horario.print-turno-tec #horario-print-area .horario-print-page.single-schedule-proportional .horario-impresion-tabla-wrap {
+    margin-top: 8px !important;
+    margin-bottom: 0 !important;
   }
 
   /* ─── BORDES VISIBLES Y NÍTIDOS DE LA GRILLA DEL HORARIO ─── */

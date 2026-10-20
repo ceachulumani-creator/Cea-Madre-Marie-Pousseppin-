@@ -39,15 +39,20 @@
 
   function obtenerCarrerasTecnicasConDocentesPrint() {
     const defaultCarreras = [
-      { nombre: 'SISTEMAS INFORMÁTICOS', docente: 'Lic. Gualberto Choque' },
+      { nombre: 'AGROPECUARIA', docente: 'Lic. Macario Ticonipa' },
+      { nombre: 'BELLEZA INTEGRAL', docente: 'Lic. Maritza Ojeda Conde' },
+      { nombre: 'CONFECCIÓN TEXTIL', docente: 'Lic. Maritza Ojeda Conde' },
+      { nombre: 'GASTRONOMÍA', docente: 'Lic. Lourdes Chambi' },
       { nombre: 'SECRETARIADO EJECUTIVO', docente: 'Lic. Ofelia Flores' },
-      { nombre: 'BELLEZA INTEGRAL', docente: 'Lic. Maritza Ojeda Conde' }
+      { nombre: 'SISTEMAS INFORMÁTICOS', docente: 'Lic. Gualberto Choque' }
     ];
 
     try {
       if (typeof window.obtenerCarrerasTecnicasConDocentesPrint === 'function' && window.obtenerCarrerasTecnicasConDocentesPrint !== obtenerCarrerasTecnicasConDocentesPrint) {
         const res = window.obtenerCarrerasTecnicasConDocentesPrint();
-        if (Array.isArray(res) && res.length > 0) return res;
+        if (Array.isArray(res) && res.length > 0) {
+          return res.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }));
+        }
       }
 
       const stored = localStorage.getItem('cea_areas_tec');
@@ -64,13 +69,15 @@
               docente: a.prof || a.docente || a.encargado || (matchDef ? matchDef.docente : 'Lic. Docente')
             };
           });
-          if (mapeados.length > 0) return mapeados;
+          if (mapeados.length > 0) {
+            return mapeados.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }));
+          }
         }
       }
     } catch (e) {
       console.warn('Error al leer carreras técnicas:', e);
     }
-    return defaultCarreras;
+    return defaultCarreras.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }));
   }
 
   function detectarTurnoActivo(turnoOverride) {
@@ -187,8 +194,8 @@
       let finalRowHeight = calculatedRowHeight;
 
       if (!hasBth && numTables === 1) {
-        // MODO SIN BTH: Mantener altura amplia y armónica (~52px) y tamaño de letra actual (6.5pt) solicitado por el usuario
-        const maxProportionalRowHeight = isLandscape ? 52 : 56;
+        // MODO SIN BTH: En Humanística mantener ~52px; en Técnica reducir a ~38px para mayor compacidad
+        const maxProportionalRowHeight = isLandscape ? 52 : (turno === 'tec' ? 38 : 56);
         finalRowHeight = Math.min(maxProportionalRowHeight, calculatedRowHeight);
         pageEl.classList.add('single-schedule-proportional');
         pageEl.classList.remove('page-has-bth', 'fused-single-sheet');
@@ -290,7 +297,11 @@
 
     const container = document.getElementById('tabla-horario-matriz-container');
     if (!container) {
-      alert('No se encontró la tabla de horarios para imprimir.');
+      if (typeof mostrarAlertaModal === 'function') {
+        mostrarAlertaModal('No se encontró la tabla de horarios para imprimir.', 'Impresión de Horario', 'warning');
+      } else if (typeof mostrarToastLive === 'function') {
+        mostrarToastLive('No se encontró la tabla de horarios para imprimir.');
+      }
       return;
     }
 
@@ -695,15 +706,19 @@
     if (turno === 'tec') {
       const carrerasList = obtenerCarrerasTecnicasConDocentesPrint();
       carrerasTecCardHtml = `
-        <div class="carreras-tec-print-card" style="margin-top:8px; width:100%; border:none; background:transparent; font-family:Arial, sans-serif; flex:0 0 auto;">
-          <div style="color:var(--verde-dark, #166534); font-weight:900; font-size:9.5pt; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px; border-bottom:2px solid var(--verde-dark, #166534); display:inline-block; padding-bottom:2px;">
+        <div class="carreras-tec-print-card" style="margin-top:6px; width:100%; border:none; background:transparent; font-family:Arial, sans-serif; flex:0 0 auto;">
+          <div style="color:var(--verde-dark, #166534); font-weight:900; font-size:8.8pt; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:5px; border-bottom:2px solid var(--verde-dark, #166534); display:inline-block; padding-bottom:1px;">
             CARRERAS TÉCNICAS
           </div>
-          <div class="carreras-tec-row" style="display:flex; flex-direction:row; flex-wrap:nowrap; justify-content:space-between; align-items:flex-start; gap:12px; width:100%; box-sizing:border-box;">
+          <div class="carreras-tec-col-list" style="display:flex; flex-direction:column; gap:4px; width:100%; box-sizing:border-box;">
             ${carrerasList.map(c => `
-              <div class="carrera-item" style="flex:1 1 0px; min-width:0; text-align:left;">
-                <div style="font-weight:900; font-size:8.2pt; color:var(--verde-dark, #166534); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">• ${escapeHtmlSub(c.nombre)}</div>
-                <div style="font-weight:800; font-size:7.8pt; color:#1e293b; margin-top:2px; padding-left:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtmlSub(c.docente)}</div>
+              <div class="carrera-item-gradita" style="text-align:left; line-height:1.25;">
+                <div style="margin-left:22px; font-weight:900; font-size:8.0pt; color:var(--verde-dark, #166534); text-transform:uppercase; letter-spacing:0.3px;">
+                  ▸ ${escapeHtmlSub(c.nombre)}
+                </div>
+                <div style="margin-left:44px; font-weight:600; font-size:7.5pt; color:#1e293b;">
+                  • ${escapeHtmlSub(c.docente)}
+                </div>
               </div>
             `).join('')}
           </div>
@@ -813,7 +828,7 @@
       pagesHtml += `
         <div class="horario-print-page print-page-central" data-paleta="${paletaActiva}" data-has-bth="${centralTieneBth ? '1' : '0'}" style="font-family:Arial, 'Segoe UI', sans-serif; padding:0; margin:0 auto; color:#0f172a; background:#ffffff; font-size:8.5pt; box-sizing:border-box; width:100%; min-height:calc(100vh - 2px); height:auto; display:flex; flex-direction:column; justify-content:flex-start; page-break-after:always; break-after:page; overflow:visible;">
           ${membreteCentral}
-          <div class="horario-impresion-tabla-wrap" style="flex:1 1 auto; display:flex; flex-direction:column; min-height:0; width:100%;">
+          <div class="horario-impresion-tabla-wrap" style="${turno === 'tec' ? 'flex:0 0 auto; margin-bottom:0;' : 'flex:1 1 auto;'} display:flex; flex-direction:column; min-height:0; width:100%;">
             ${centralScheduleHtml}
             ${centralBthHtml}
           </div>
@@ -903,7 +918,7 @@
       printArea.innerHTML = `
         <div class="horario-print-page horario-print-document ${tieneSubcentros ? 'fused-single-sheet' : ''}" data-paleta="${paletaActiva}" data-has-bth="${centralTieneBth ? '1' : '0'}" style="font-family:Arial, 'Segoe UI', sans-serif; padding:0; margin:0 auto; color:#0f172a; background:#ffffff; font-size:8.5pt; box-sizing:border-box; width:100%; min-height:calc(100vh - 2px); height:auto; display:flex; flex-direction:column; justify-content:flex-start; page-break-after:auto; break-after:auto; overflow:visible;">
           ${membreteUnico}
-          <div class="horario-impresion-tabla-wrap" style="flex:1 1 auto; display:flex; flex-direction:column; min-height:0; width:100%;">
+          <div class="horario-impresion-tabla-wrap" style="${turno === 'tec' ? 'flex:0 0 auto; margin-bottom:0;' : 'flex:1 1 auto;'} display:flex; flex-direction:column; min-height:0; width:100%;">
             ${cloned.innerHTML}
           </div>
           ${carrerasTecCardHtml}

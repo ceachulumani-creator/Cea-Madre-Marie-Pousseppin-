@@ -33,11 +33,16 @@
   <meta name="twitter:image" content="https://ceamadremariepoussepin.github.io/og-image.jpg" />
   <link rel="image_src" href="https://ceamadremariepoussepin.github.io/og-image.jpg" />
 
+  <!-- Favicon e Íconos Oficiales CEA -->
+  <link rel="icon" type="image/png" href="logo cea madre marie poussepin.png" />
+  <link rel="shortcut icon" type="image/png" href="logo cea madre marie poussepin.png" />
+  <link rel="apple-touch-icon" href="logo cea madre marie poussepin.png" />
+
   <!-- Google Fonts: Plus Jakarta Sans, Outfit, Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2026.138" />
+  <link rel="stylesheet" href="styles.css?v=2026.244" />
   <script>
     document.documentElement.classList.remove('dark', 'dark-mode');
     try {
@@ -1840,13 +1845,13 @@
       border-color: #1e3a27 !important;
     }
   </style>
-  <link rel="stylesheet" href="print-horario.css?v=2026.80" />
+  <link rel="stylesheet" href="print-horario.css?v=2026.190" />
   <link rel="stylesheet" href="print-kardex.css?v=2026.66" />
   <link rel="stylesheet" href="kardex-diseno1.css?v=2026.180" />
   <link rel="stylesheet" href="kardex-diseno2.css?v=2026.180" />
   <link rel="stylesheet" href="print-comprobante.css?v=2026.180" />
-  <link rel="stylesheet" href="print-reporte.css?v=2026.180" />
-  <link rel="stylesheet" href="print-preinscripciones.css?v=2026.180" />
+  <link rel="stylesheet" href="print-reporte.css?v=2026.246" />
+  <link rel="stylesheet" href="print-preinscripciones.css?v=2026.246" />
 </head>
 <body>
 
@@ -2023,7 +2028,9 @@
       <!-- BOTONES PRINCIPALES PERFECTAMENTE ALINEADOS Y DE MISMO TAMAÑO -->
       <div class="hero-btn-group">
         <a href="#inscripcion" class="btn-hero-inscribete-gold" id="hero-btn-inscribete" title="Pre-inscribirme en línea" onclick="scrollearEIniciarInscripcion(event)">
-          <svg class="hero-user-icon-anim" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          <span class="hero-icon-pulse-wrapper">
+            <svg class="hero-user-icon-anim" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          </span>
           <span>Inscríbete ahora</span>
         </a>
         <a href="#requisitos" class="btn-hero-sec-aligned" onclick="scrollearDirectoARequisitos(event)">Requisitos de inscripción</a>
@@ -2389,10 +2396,22 @@
             <table class="malla-custom-tabla malla-tabla-unificada" id="tabla-hum-epa">
               <thead>
                 <tr id="tr-head-hum-epa">
-                  <th style="width:30%">Materia</th>
-                  <th style="width:38%">Docente Asignado</th>
-                  <th style="width:32%;text-align:center">Nivel Escolar y Cobertura</th>
-                  <th class="hum-col-accion-th" style="display:none;width:5%;text-align:center">Acción</th>
+                  <th id="th-hum-materia" style="width:36%">Materia</th>
+                  <th id="th-hum-docente" style="width:34%">Docente Asignado</th>
+                  <th id="th-hum-nivel" style="width:30%">Nivel Escolar y Cobertura</th>
+                  <th class="hum-col-docs-th" style="display:none;width:20%;text-align:center">
+                    <div style="display:inline-flex;align-items:center;justify-content:center;gap:6px">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <line x1="10" y1="9" x2="8" y2="9"></line>
+                      </svg>
+                      <span>Documentos</span>
+                    </div>
+                  </th>
+                  <th class="hum-col-accion-th" style="display:none;width:6%;text-align:center">Acción</th>
                 </tr>
               </thead>
               <tbody id="tbody-hum-epa">
@@ -2776,6 +2795,20 @@
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         <span id="txt-estado-incluir-bth">Con Módulos BTH</span>
       </label>
+
+      <!-- 3.1 Toggle Nombre Completo Educación Técnica Alternativa (Exclusivo Área Técnica) -->
+      <label class="toggle-bth-switch" id="toggle-eta-nombre-label" title="Alternar entre sigla abreviada y nombre extendido" style="display:none">
+        <input type="checkbox" id="chk-mostrar-eta-completo" onchange="toggleMostrarNombreCompletoETA(this.checked)" />
+        <span class="switch-slider-track"><span class="switch-slider-thumb"></span></span>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span id="txt-estado-eta-completo">Educación Técnica Alternativa</span>
+      </label>
+
+      <!-- 3.2 Botón para Personalizar / Editar Denominación Técnica (ETA) -->
+      <button type="button" id="btn-editar-texto-eta" onclick="abrirModalEditarTextoETA()" style="display:none;font-size:0.78rem;font-weight:700;padding:5px 12px;background:#f8fafc;color:#1e293b;border:1.4px solid #94a3b8;border-radius:7px;cursor:pointer;align-items:center;gap:6px" title="Personalizar el texto de Educación Técnica Alternativa / Sigla">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <span>Editar Texto Técnico</span>
+      </button>
 
       <!-- 4. Botón de Modo Edición -->
       <button type="button" id="btn-toggle-modo-edicion-horario" class="btn-editar-horario-main" onclick="clickBotonEditarHorario()" style="display:none">
@@ -3366,7 +3399,6 @@
           <h3 class="actividad-titulo">Inauguración del Año Académico 2026 y Bienvenida a Participantes</h3>
           <div class="actividad-meta">
             <span class="actividad-badge-fecha"><svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 02/02/2026</span>
-            <span class="actividad-autor">Dirección CEA</span>
           </div>
         </div>
         <div class="actividad-desc">Iniciamos oficialmente las labores educativas en las áreas técnica y humanística en el CEA Madre Marie Poussepín en Chulumani. ¡Deseamos el mayor de los éxitos a todos nuestros estudiantes!</div>
@@ -3377,7 +3409,6 @@
           <h3 class="actividad-titulo">Feria de Emprendimiento y Exposición de Carreras Técnicas</h3>
           <div class="actividad-meta">
             <span class="actividad-badge-fecha"><svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 15/02/2026</span>
-            <span class="actividad-autor">Comisión Pedagógica</span>
           </div>
         </div>
         <div class="actividad-desc">Presentación de proyectos prácticos y demostraciones en vivo de los talleres de Sistemas Informáticos, Gastronomía, Belleza Integral, Confección Textil, Secretariado y Agropecuaria.</div>
@@ -3388,7 +3419,6 @@
           <h3 class="actividad-titulo">Acreditación y Mantenimiento de Laboratorios de Computación</h3>
           <div class="actividad-meta">
             <span class="actividad-badge-fecha"><svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 28/01/2026</span>
-            <span class="actividad-autor">Taller de Sistemas Informáticos</span>
           </div>
         </div>
         <div class="actividad-desc">Nuestros equipos y talleres han sido totalmente reacondicionados con conexión a internet y software actualizado para garantizar la formación práctica del primer semestre.</div>
@@ -3658,6 +3688,18 @@
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div class="form-group fi-select-group" id="grp-fi-sede" style="display:none">
+                <label for="fi-sede-select" id="lbl-fi-sede">Centro o Subcentro a inscribirse *</label>
+                <select id="fi-sede-select" name="sede" style="width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border-col);background:var(--bg-card);font-size:0.9rem;font-weight:700;color:var(--text-main);outline:none">
+                  <option value="Sede Central (Centro de Chulumani)">Sede Central (Centro de Chulumani)</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="grp-fi-comunidad">
+                <label for="fi-comunidad" id="lbl-fi-comunidad">¿De dónde vienes? *</label>
+                <input type="text" id="fi-comunidad" name="comunidad" required placeholder="Ej: Chulumani, Huancané, Tajma, Ocobaya..." />
               </div>
 
               <!-- AVISO DINÁMICO DE EDAD SEGÚN NORMATIVA EPJA/ETTP -->
@@ -4022,10 +4064,6 @@
                       </div>
                     </div>
                   </div>
-                      </div>
-                    </div>
-                  </div>
-
                 </div>
               </div>
             </div>
@@ -4621,12 +4659,17 @@
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 + Nuevo Docente Área Técnica
               </button>
-              <!-- Switch de Mostrar Contraseñas a la derecha en la misma fila -->
-              <label class="toggle-unificada-switch" style="cursor:pointer;margin-left:4px" title="Mostrar u ocultar contraseñas de los docentes">
-                <input type="checkbox" id="switch-mostrar-pass-docentes" onchange="toggleMostrarContrasenasDocentesSwitch(this)" />
-                <span class="switch-slider-track"><span class="switch-slider-thumb"></span></span>
-                <span id="texto-ojo-pass">Mostrar Contraseñas</span>
-              </label>
+              <!-- Switch y Botón interactivo de Mostrar Contraseñas -->
+              <div id="btn-toggle-mostrar-pass-wrapper" onclick="toggleMostrarContrasenasDocentes()" style="display:inline-flex;align-items:center;gap:10px;padding:7px 16px;background:var(--bg-body);border:1.5px solid var(--verde);border-radius:8px;cursor:pointer;user-select:none;box-shadow:0 1px 3px rgba(0,0,0,0.06);transition:all 0.2s" title="Haga clic aquí para mostrar u ocultar todas las contraseñas">
+                <span id="icono-ojo-pass" style="display:inline-flex;align-items:center;color:var(--verde-dark)">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </span>
+                <span id="texto-ojo-pass" style="font-size:0.86rem;font-weight:800;color:var(--text-main)">Mostrar Contraseñas</span>
+                <label class="toggle-unificada-switch" style="cursor:pointer;margin:0;pointer-events:none" title="Estado de visibilidad">
+                  <input type="checkbox" id="switch-mostrar-pass-docentes" />
+                  <span class="switch-slider-track"><span class="switch-slider-thumb"></span></span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -5100,25 +5143,9 @@
                       <svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                       Gestión:
                     </label>
-                    <select id="filtro-gestion-select" style="font-size:0.85rem;padding:4px 8px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-main);font-weight:700;cursor:pointer" onchange="cambiarFiltroGestion(this.value)">
-                      <option value="todas">Todas (Histórico)</option>
+                    <select id="filtro-gestion-select" onchange="cambiarFiltroGestion(this.value)">
+                      <option value="todas">Todas las Gestiones (Historial)</option>
                       <option value="2026" selected>Gestión 2026 (Actual)</option>
-                      <option value="2025">Gestión 2025</option>
-                      <option value="2024">Gestión 2024</option>
-                      <option value="2027">Gestión 2027</option>
-                      <option value="2028">Gestión 2028</option>
-                      <option value="2029">Gestión 2029</option>
-                      <option value="2030">Gestión 2030</option>
-                      <option value="2031">Gestión 2031</option>
-                      <option value="2032">Gestión 2032</option>
-                      <option value="2033">Gestión 2033</option>
-                      <option value="2034">Gestión 2034</option>
-                      <option value="2035">Gestión 2035</option>
-                      <option value="2036">Gestión 2036</option>
-                      <option value="2037">Gestión 2037</option>
-                      <option value="2038">Gestión 2038</option>
-                      <option value="2039">Gestión 2039</option>
-                      <option value="2040">Gestión 2040</option>
                     </select>
                   </div>
 
@@ -5134,30 +5161,48 @@
                       2do Semestre (<span id="count-sem-2">0</span>)
                     </button>
                   </div>
+                  <!-- Filtro Moderno por Sede / Subcentro -->
+                  <div class="filtro-sede-moderno-container">
+                    <span class="filtro-sede-badge-icon" title="Filtrar por Sede o Subcentro">
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    </span>
+                    <label for="filtro-sede-select" class="filtro-sede-label-text">
+                      Sede:
+                    </label>
+                    <select id="filtro-sede-select" class="filtro-sede-select-custom" onchange="cambiarFiltroSede(this.value)">
+                      <option value="todas">Todas las Sedes / Subcentros</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div class="insc-search-box" style="margin-left:auto">
                   <svg class="svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input type="text" id="buscar-inscripciones-input" placeholder="Buscar estudiante, CI o carrera..." oninput="buscarInscripciones(this.value)" />
+                  <input type="text" id="buscar-inscripciones-input" placeholder="Buscar estudiante, CI, carrera o lugar..." oninput="buscarInscripciones(this.value)" />
                 </div>
               </div>
 
-              <!-- Filtros por Área y Nivel -->
-              <div class="insc-filters-pills" id="insc-filter-buttons">
-                <button type="button" class="insc-pill-btn active" data-filter="todas" onclick="filtrarInscripciones('todas', this)">
-                  Todas las Áreas (<span id="count-pill-todas">0</span>)
-                </button>
-                <button type="button" class="insc-pill-btn pill-tec" data-filter="tecnica" onclick="filtrarInscripciones('tecnica', this)">
-                  Área Técnica (<span id="count-pill-tec">0</span>)
-                </button>
-                <button type="button" class="insc-pill-btn pill-hum" data-filter="humanistica" onclick="filtrarInscripciones('humanistica', this)">
-                  Área Humanística (<span id="count-pill-hum">0</span>)
-                </button>
-                <button type="button" class="insc-pill-btn pill-prim" data-filter="primaria" onclick="filtrarInscripciones('primaria', this)">
-                  Primaria (<span id="count-pill-prim">0</span>)
-                </button>
-                <button type="button" class="insc-pill-btn pill-sec" data-filter="secundaria" onclick="filtrarInscripciones('secundaria', this)">
-                  Secundaria (<span id="count-pill-sec">0</span>)
+              <!-- Filtros por Área y Nivel (Sticky siempre visible al hacer scroll) -->
+              <div style="position:sticky;top:60px;z-index:45;background:var(--bg-card);padding:10px 14px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.06);border:1px solid var(--border-col);margin-top:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                <div class="insc-filters-pills" id="insc-filter-buttons">
+                  <button type="button" class="insc-pill-btn active" data-filter="todas" onclick="filtrarInscripciones('todas', this)">
+                    Vista Global / Todas (<span id="count-pill-todas">0</span>)
+                  </button>
+                  <button type="button" class="insc-pill-btn pill-tec" data-filter="tecnica" onclick="filtrarInscripciones('tecnica', this)">
+                    Área Técnica Tecnológica (<span id="count-pill-tec">0</span>)
+                  </button>
+                  <button type="button" class="insc-pill-btn pill-hum" data-filter="humanistica" onclick="filtrarInscripciones('humanistica', this)">
+                    Área Humanística (<span id="count-pill-hum">0</span>)
+                  </button>
+                  <button type="button" class="insc-pill-btn pill-prim" data-filter="primaria" onclick="filtrarInscripciones('primaria', this)">
+                    Primaria (<span id="count-pill-prim">0</span>)
+                  </button>
+                  <button type="button" class="insc-pill-btn pill-sec" data-filter="secundaria" onclick="filtrarInscripciones('secundaria', this)">
+                    Secundaria (<span id="count-pill-sec">0</span>)
+                  </button>
+                </div>
+                <button type="button" class="btn-print-report-modern" onclick="abrirModalOpcionesImpresion()" style="padding:7px 14px;font-size:0.83rem;margin-left:auto" title="Imprimir reporte oficial según el área seleccionada">
+                  <svg class="svg-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                  <span>Imprimir Reporte</span>
                 </button>
               </div>
             </div>
@@ -5167,11 +5212,13 @@
             <table class="tabla tabla-insc-moderna" id="tabla-inscripciones">
               <thead>
                 <tr>
-                  <th style="width:40px">#</th>
+                  <th style="width:38px">#</th>
                   <th>Nombre y Apellidos</th>
                   <th>Cédula (CI)</th>
                   <th>Área</th>
-                  <th>Nivel / Carrera / Especialidad</th>
+                  <th>Nivel / Carrera</th>
+                  <th>Sede / Subcentro</th>
+                  <th>¿De dónde vienes?</th>
                   <th>Semestre</th>
                   <th>Teléfono / WhatsApp</th>
                   <th>Fecha</th>
@@ -5179,7 +5226,7 @@
                 </tr>
               </thead>
               <tbody id="inscripciones-tbody">
-                <tr><td colspan="9" style="text-align:center;color:var(--text-sec)">Sin inscripciones aún.</td></tr>
+                <tr><td colspan="11" style="text-align:center;color:var(--text-sec)">Sin inscripciones aún.</td></tr>
               </tbody>
             </table>
           </div>
@@ -5593,6 +5640,19 @@
 
   </div>
 </section>
+
+<!-- ===== MODAL VISTA DE MATERIA HUMANÍSTICA (DOCUMENTOS Y TEXTOS OFICIALES) ===== -->
+<div class="malla-modal-overlay" id="modal-materia-humanistica" onclick="cerrarModalMateriaHumanistica(event)">
+  <div class="malla-modal" style="max-width:820px">
+    <div class="malla-modal-header" style="background:var(--verde);color:#ffffff;display:flex;justify-content:space-between;align-items:center">
+      <h3 id="modal-materia-hum-titulo" style="margin:0;color:#ffffff;display:flex;align-items:center;gap:8px">Materia Humanística</h3>
+      <button class="malla-modal-close" onclick="cerrarModalMateriaHumanistica(null)" style="color:#ffffff"><svg class="svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="malla-modal-body" id="modal-materia-hum-body">
+      <!-- Generado dinámicamente por app.js -->
+    </div>
+  </div>
+</div>
 
 <!-- ===== MODAL VISTA COMPLETA DE CARRERA TÉCNICA ===== -->
 <div class="malla-modal-overlay" id="modal-carrera-detalle" onclick="cerrarModalCarrera(event)">
@@ -6085,8 +6145,8 @@
 
     <!-- Body with Scroll -->
     <div style="padding:20px 24px;overflow-y:auto;flex:1" id="dash-insc-printable-body">
-      <!-- Selector de Filtro en Dashboard -->
-      <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+      <!-- Selector de Filtro en Dashboard (Fijado / Sticky para máxima visibilidad al hacer scroll) -->
+      <div style="position:sticky;top:0;z-index:20;background:var(--bg-body, #ffffff);padding:6px 0 12px 0;display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;border-bottom:1px solid var(--border-col, #e2e8f0)">
         <button type="button" class="insc-pill-btn active" id="btn-dash-filtro-todas" onclick="filtrarDashboardVisual('todas')">Vista Global (Todas)</button>
         <button type="button" class="insc-pill-btn pill-tec" id="btn-dash-filtro-tecnica" onclick="filtrarDashboardVisual('tecnica')">Área Técnica Tecnológica</button>
         <button type="button" class="insc-pill-btn pill-hum" id="btn-dash-filtro-humanistica" onclick="filtrarDashboardVisual('humanistica')">Área Humanística (BTH)</button>
@@ -6186,6 +6246,18 @@
         <div>
           <span>Vista actual que se imprimirá: </span>
           <strong id="print-modal-area-detectada-badge">Vista Global (Toda la Institución)</strong>
+        </div>
+      </div>
+
+      <!-- Selector de Área para Impresión -->
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:0.82rem;font-weight:800;color:var(--verde-dark);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+          Área a Imprimir:
+        </label>
+        <div style="display:flex;gap:6px;">
+          <button type="button" id="btn-print-area-todas" class="btn-print-area-toggle active" onclick="if(window.cambiarAreaImpresionModal) window.cambiarAreaImpresionModal('todas')">Todas (Institucional)</button>
+          <button type="button" id="btn-print-area-tecnica" class="btn-print-area-toggle" onclick="if(window.cambiarAreaImpresionModal) window.cambiarAreaImpresionModal('tecnica')">Solo Técnica</button>
+          <button type="button" id="btn-print-area-humanistica" class="btn-print-area-toggle" onclick="if(window.cambiarAreaImpresionModal) window.cambiarAreaImpresionModal('humanistica')">Solo Humanística</button>
         </div>
       </div>
 
@@ -7623,7 +7695,7 @@
 <div id="reporte-inscritos-print-area" style="display:none"></div>
 <div id="reporte-estadistico-print-area" style="display:none"></div>
 
-<script src="app.js?v=2026.180"></script>
+<script src="app.js?v=2026.259"></script>
 <script>
 // Sobrescribir manejarFormInscripcion con respuesta instantánea y descarga de PDF garantizada
 async function manejarFormInscripcionOptimizado(e) {
@@ -7636,6 +7708,8 @@ async function manejarFormInscripcionOptimizado(e) {
   const ciVal = (form.ci?.value || document.getElementById('fi-ci')?.value || '').trim();
   let fnacVal = form.fechaNacimiento?.value || document.getElementById('fi-fnac')?.value || '';
   const telVal = (form.telefono?.value || document.getElementById('fi-tel')?.value || '').trim();
+  const comunidadVal = (form.comunidad?.value || document.getElementById('fi-comunidad')?.value || '').trim();
+  const sedeVal = (form.sede?.value || document.getElementById('fi-sede-select')?.value || 'Sede Central (Centro de Chulumani)').trim();
   const areaVal = form.area?.value || document.getElementById('fi-area')?.value || '';
   const nivelVal = form.carrera?.value || document.getElementById('fi-nivel')?.value || '';
 
@@ -7701,6 +7775,13 @@ async function manejarFormInscripcionOptimizado(e) {
     return;
   }
 
+  if (!comunidadVal) {
+    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Por favor ingresa tu comunidad o lugar de procedencia (¿Desde dónde vienes?).', 'error');
+    const el = document.getElementById('fi-comunidad');
+    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    return;
+  }
+
   if (!areaVal) {
     if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Por favor selecciona un área de interés.', 'error');
     if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('area');
@@ -7762,6 +7843,8 @@ async function manejarFormInscripcionOptimizado(e) {
     fechaNacimiento: fnacVal,
     edad: valEdad.edadCalculada,
     telefono: telVal,
+    comunidad: comunidadVal,
+    sede: sedeVal,
     area: areaVal,
     carrera: textoNivel || nivelVal,
     observaciones: (form.observaciones?.value || document.getElementById('fi-obs')?.value || '').trim(),
@@ -7781,6 +7864,7 @@ async function manejarFormInscripcionOptimizado(e) {
   ins.unshift({ ...data, fecha: new Date().toLocaleString() });
   if (typeof lsSet === 'function') lsSet('cea_inscripciones', ins);
   if (typeof cargarInscripciones === 'function') cargarInscripciones();
+  if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
 
   // 2. Guardar registro en variable global para la descarga del PDF
   window._ultimoRegistroInscripcion = data;
@@ -7828,6 +7912,7 @@ async function manejarFormInscripcionOptimizado(e) {
 
       <div style="background:var(--bg-body);padding:12px 16px;border-radius:8px;font-size:0.86rem;margin-bottom:14px;border:1px solid var(--border-col)">
         <strong>Postulante:</strong> ${escFn(data.nombre)} | <strong>CI:</strong> ${escFn(data.ci)} | <strong>Edad:</strong> <span style="color:var(--verde-dark);font-weight:700">${data.edad ? `${data.edad} años cumplidos` : '—'}</span><br>
+        <strong>Comunidad / Procedencia:</strong> ${escFn(data.comunidad)} | <strong>Sede:</strong> ${escFn(data.sede)}<br>
         <strong>Carrera/Nivel:</strong> ${escFn(data.carrera)}<br>
         <span style="display:inline-block;margin-top:6px"><strong style="color:var(--verde-dark)">Semestre Asignado:</strong> <span class="badge-semestre ${badgeClass}">${escFn(data.semestre)} (${data.gestion})</span></span>
         ${data.esCasoExcepcional ? `
@@ -8092,18 +8177,23 @@ function guardarDocumentoDinamicoModal(e) {
   }
 }
 
-function eliminarDocumentoDinamico(id) {
+async function eliminarDocumentoDinamico(id) {
   if (!esSesionDirectorActiva()) return;
 
-  if (typeof mostrarConfirmacionModal === 'function') {
-    mostrarConfirmacionModal('¿Estás seguro de eliminar este documento de la lista pública?', 'Eliminar Documento', (conf) => {
-      if (conf) {
+  let conf = false;
+  if (typeof mostrarConfirmModal === 'function') {
+    conf = await mostrarConfirmModal('¿Estás seguro de eliminar este documento de la lista pública?', 'Eliminar Documento', 'Eliminar', true);
+  } else if (typeof mostrarConfirmacionModal === 'function') {
+    mostrarConfirmacionModal('¿Estás seguro de eliminar este documento de la lista pública?', 'Eliminar Documento', (c) => {
+      if (c) {
         let docs = obtenerDocumentosDinamicos();
         docs = docs.filter(item => item.id !== id);
         guardarDocumentosDinamicos(docs);
       }
     });
-  } else if (confirm('¿Eliminar documento?')) {
+    return;
+  }
+  if (conf) {
     let docs = obtenerDocumentosDinamicos();
     docs = docs.filter(item => item.id !== id);
     guardarDocumentosDinamicos(docs);
@@ -8116,50 +8206,6 @@ function eliminarDocumentoDinamicoActual() {
     cerrarModalDocumentoDinamico();
     eliminarDocumentoDinamico(id);
   }
-}
-
-function renderizarBarraSedesHorarios() {
-  const container = document.getElementById('sedes-tabs-container');
-  if (!container) return;
-  const curArea = (typeof turnoHorarioActual !== 'undefined') ? turnoHorarioActual : 'hum';
-  const sedes = (typeof obtenerListaSedesEducativas === 'function') ? obtenerListaSedesEducativas(curArea) : [];
-  const sedeActual = (typeof getHorarioSedeActiveKey === 'function') ? getHorarioSedeActiveKey(curArea) : 'central';
-  if (typeof sedeHorarioActiva !== 'undefined') window.sedeHorarioActiva = sedeActual;
-  const isVistaUnificada = (typeof lsGet === 'function') ? lsGet('cea_vista_unificada_sedes', false) : false;
-  const puedeEditar = (typeof tienePermisoEdicionHorarios === 'function') ? tienePermisoEdicionHorarios() : false;
-
-  // Si solo hay 1 horario (Sede Central) y no se tiene permiso de edicion: Ocultar selector sutil de sedes
-  if (sedes.length <= 1 && !puedeEditar) {
-    container.innerHTML = '';
-    container.style.display = 'none';
-    if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
-    return;
-  }
-
-  container.style.display = 'inline-flex';
-
-  // Renderizar las pestañas de las sedes (Central y Subcentro/s)
-  let html = sedes.map(s => {
-    const isAct = (s.key === sedeActual && !isVistaUnificada);
-    const isCentral = (s.key === 'central');
-    const nomClean = (typeof escapeHTML === 'function') ? escapeHTML(s.nombre) : s.nombre;
-    return `
-      <button type="button" class="btn-sede-tab ${isAct ? 'activo' : ''}" onclick="switchSedeHorario('${s.key}')" title="Ver horario de ${nomClean}">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" style="display:inline-block;vertical-align:-1px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        <span>${nomClean}</span>
-        ${(!isCentral && puedeEditar) ? `
-          <span class="btn-sede-del" onclick="event.stopPropagation(); eliminarSubcentroSede('${s.key}')" title="Eliminar subcentro y su horario">&times;</span>
-        ` : ''}
-      </button>
-    `;
-  }).join('');
-
-  container.innerHTML = html;
-
-  const banner = document.getElementById('subcentro-ubicacion-banner');
-  if (banner) banner.style.display = 'none';
-
-  if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
 }
 
 function inicializarScrollSpyNavegacion() {
@@ -8240,298 +8286,6 @@ if (document.readyState === 'loading') {
 }
 setInterval(arreglarListaCarrerasTecnicasPunto, 1000);
 
-function renderLapicesDirectosDirector() {
-  const session = typeof lsGet === 'function' ? lsGet('cea_session', null) : null;
-  const esDirector = session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.role === 'docente' || session.loggedIn === true);
-  const lapicesActivos = esDirector && (typeof estadoLapicesDirectosVisibles === 'undefined' || estadoLapicesDirectosVisibles);
-
-  const fabDir = document.getElementById('fabBtnDirector');
-  if (fabDir) {
-    fabDir.style.display = esDirector ? 'flex' : 'none';
-  }
-
-  const liveBar = document.getElementById('directorLiveBar');
-  if (liveBar) {
-    liveBar.style.display = esDirector ? 'block' : 'none';
-    if (esDirector) {
-      liveBar.classList.remove('minimizada');
-    }
-  }
-
-  if (typeof renderDocumentosDinamicos === 'function') {
-    renderDocumentosDinamicos();
-  }
-  if (typeof cargarGaleriaFotos === 'function') {
-    cargarGaleriaFotos();
-  }
-  if (typeof renderFeedActividades === 'function') {
-    renderFeedActividades();
-  }
-
-  const txtStatus = document.querySelector('.director-status-txt');
-  if (txtStatus && session) {
-    txtStatus.textContent = session.role === 'director' ? (lapicesActivos ? 'Edición Activa' : 'Edición Oculta') : `Sesión: ${session.name || session.role}`;
-  }
-
-  document.querySelectorAll('.btn-admin-only').forEach(btn => {
-    const esOverlay = btn.classList.contains('photo-director-overlay');
-    btn.style.display = lapicesActivos ? (esOverlay ? 'flex' : 'inline-flex') : 'none';
-  });
-
-  if (typeof TARGETS_EDICION_DIRECTOR !== 'undefined' && Array.isArray(TARGETS_EDICION_DIRECTOR)) {
-    TARGETS_EDICION_DIRECTOR.forEach(t => {
-      const el = document.getElementById(t.id);
-      if (!el) return;
-
-      let pencilBtn = el.querySelector('.inline-edit-pencil-btn');
-      if (lapicesActivos && (typeof elementoEditandoActivo === 'undefined' || elementoEditandoActivo !== t.id)) {
-        if (!pencilBtn) {
-          pencilBtn = document.createElement('button');
-          pencilBtn.className = 'inline-edit-pencil-btn';
-          pencilBtn.type = 'button';
-          pencilBtn.title = `Editar directamente en la página: ${t.title}`;
-          pencilBtn.setAttribute('aria-label', `Editar ${t.title}`);
-          pencilBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 1 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-          pencilBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof iniciarEdicionEnVivo === 'function') {
-              iniciarEdicionEnVivo(t.id, t.key, t.title, t.type);
-            }
-          };
-          el.appendChild(pencilBtn);
-        }
-        pencilBtn.style.display = 'inline-flex';
-      } else if (pencilBtn && (typeof elementoEditandoActivo === 'undefined' || elementoEditandoActivo !== t.id)) {
-        pencilBtn.style.display = 'none';
-      }
-    });
-  }
-}
-
-function cargarGaleriaFotos() {
-  const session = typeof lsGet === 'function' ? lsGet('cea_session', null) : null;
-  const lapicesVisibles = (typeof estadoLapicesDirectosVisibles === 'undefined' || estadoLapicesDirectosVisibles);
-  const isDirector = session && session.role === 'director' && lapicesVisibles;
-  const isDocente = session && session.role === 'docente' && lapicesVisibles;
-
-  const authBtnArea = document.getElementById('galeria-auth-btn-area');
-  if (authBtnArea) {
-    authBtnArea.style.display = (isDirector || isDocente) ? 'block' : 'none';
-  }
-
-  let rawFotos = typeof lsGet === 'function' ? lsGet('cea_galeria_fotos', null) : null;
-  if (!rawFotos || !Array.isArray(rawFotos) || rawFotos.length === 0) {
-    rawFotos = typeof GALERIA_FOTOS_DEFAULT !== 'undefined' ? GALERIA_FOTOS_DEFAULT : [];
-    if (typeof lsSet === 'function') lsSet('cea_galeria_fotos', rawFotos);
-  }
-  const fotos = rawFotos;
-
-  const fotosFiltradas = fotos.filter(f => {
-    if (typeof nivelGaleriaActivo === 'undefined' || nivelGaleriaActivo === 'todos') return true;
-
-    if (nivelGaleriaActivo === 'tecnica') {
-      const k = (f.carreraKey || '').toLowerCase();
-      const nom = (f.carreraNombre || '').toLowerCase();
-      const esTec = k.startsWith('tec-') || nom.includes('sistem') || nom.includes('secretari') || nom.includes('belleza') || nom.includes('confecc') || nom.includes('gastronom') || nom.includes('agropec');
-      if (!esTec) return false;
-      if (typeof subFiltroGaleriaActivo === 'undefined' || subFiltroGaleriaActivo === 'todas') return true;
-      return k === subFiltroGaleriaActivo || nom.includes(subFiltroGaleriaActivo.replace('tec-', ''));
-    }
-
-    if (nivelGaleriaActivo === 'humanistica') {
-      const k = (f.carreraKey || '').toLowerCase();
-      const nom = (f.carreraNombre || '').toLowerCase();
-      const esHum = k.startsWith('hum-') || k.includes('bth') || nom.includes('matem') || nom.includes('social') || nom.includes('natural') || nom.includes('lengua') || nom.includes('bth') || k === 'general';
-      if (!esHum) return false;
-      if (typeof subFiltroGaleriaActivo === 'undefined' || subFiltroGaleriaActivo === 'todas') return true;
-      return k === subFiltroGaleriaActivo || nom.includes(subFiltroGaleriaActivo.replace('hum-', ''));
-    }
-
-    return true;
-  });
-
-  const grid = document.getElementById('galeria-fotos-grid');
-  if (!grid) return;
-
-  if (fotosFiltradas.length === 0) {
-    grid.innerHTML = `
-      <div class="galeria-empty" style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; background: var(--bg-card); border-radius: 12px; border: 2px dashed var(--border-col);">
-        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted); margin-bottom: 12px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        <p style="font-weight: 700; color: var(--text-main); margin-bottom: 6px;">No hay fotografías registradas en esta especialidad aún.</p>
-        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0;">${(isDirector || isDocente) ? 'Presiona el botón "Subir Fotografía" arriba para agregar una nueva.' : 'Pronto compartiremos más capturas de talleres y actividades formativas.'}</p>
-      </div>
-    `;
-    return;
-  }
-
-  grid.innerHTML = fotosFiltradas.map(foto => {
-    let puedeEditar = false;
-    let puedeEliminar = false;
-    if (isDirector) {
-      puedeEditar = true;
-      puedeEliminar = true;
-    } else if (isDocente) {
-      const docAreaKey = session.areaKey;
-      if (foto.carreraKey === docAreaKey || (foto.autor && foto.autor.includes(session.name))) {
-        puedeEditar = true;
-        puedeEliminar = true;
-      }
-    }
-
-    const editBtnHtml = puedeEditar ? `
-      <button type="button" class="galeria-edit-btn" title="Editar fotografía" onclick="event.stopPropagation(); abrirModalEditarFotoGaleria('${foto.id}')" aria-label="Editar fotografía">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </button>
-    ` : '';
-
-    const deleteBtnHtml = puedeEliminar ? `
-      <button type="button" class="galeria-del-btn" title="Eliminar fotografía" onclick="event.stopPropagation(); eliminarFotoGaleria('${foto.id}')" aria-label="Eliminar fotografía">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-      </button>
-    ` : '';
-
-    const encTitulo = (foto.titulo || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const encAutor = (foto.autor || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const encCarrera = (foto.carreraNombre || 'General / Institucional').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const fechaFormateada = typeof formatearFechaGaleria === 'function' ? formatearFechaGaleria(foto.fecha || '') : (foto.fecha || '');
-    const carreraTexto = foto.carreraNombre || foto.autor || 'General / Institucional';
-
-    return `
-      <div class="galeria-card" onclick="abrirLightboxFoto('${foto.urlFoto}', '${encTitulo}', '${encAutor}', '${fechaFormateada}', '${encCarrera}')">
-        <div class="galeria-img-wrap">
-          <img src="${foto.urlFoto}" alt="${foto.titulo}" loading="lazy" onerror="this.onerror=null;this.src='FOTOGRAFIA DEL CEA .jpeg';" />
-          <div class="galeria-card-badge">${carreraTexto}</div>
-          ${editBtnHtml}
-          ${deleteBtnHtml}
-        </div>
-        <div class="galeria-card-body">
-          <h4 class="galeria-card-title">${foto.titulo}</h4>
-          <div class="galeria-card-footer">
-            <span class="galeria-card-autor">${foto.autor || 'CEA Madre Marie Poussepín'}</span>
-            <span class="galeria-card-fecha">${fechaFormateada}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function renderFeedActividades() {
-  const container = document.getElementById('actividades-feed-display');
-  if (!container) return;
-
-  let rawActividades = typeof lsGet === 'function' ? lsGet('cea_actividades', null) : null;
-  if (!rawActividades || !Array.isArray(rawActividades) || rawActividades.length === 0) {
-    rawActividades = typeof ACTIVIDADES_DEFAULT !== 'undefined' ? ACTIVIDADES_DEFAULT : [];
-    if (typeof lsSet === 'function') lsSet('cea_actividades', rawActividades);
-  }
-  const actividades = rawActividades;
-  const filtroSel = document.getElementById('filtro-act-gestion');
-  const gestionFiltro = filtroSel ? filtroSel.value : '2026';
-
-  let filtradas = actividades;
-  if (gestionFiltro !== 'todos') {
-    filtradas = actividades.filter(a => String(a.gestion) === String(gestionFiltro));
-  }
-
-  filtradas = filtradas.filter(act => {
-    if (typeof nivelGaleriaActivo === 'undefined' || nivelGaleriaActivo === 'todos') return true;
-
-    const texto = `${act.titulo || ''} ${act.descripcion || ''} ${act.autor || ''} ${act.areaKey || ''} ${act.carreraKey || ''}`.toLowerCase();
-
-    if (nivelGaleriaActivo === 'tecnica') {
-      const k = (act.areaKey || act.carreraKey || '').toLowerCase();
-      const esTec = k.startsWith('tec-') || texto.includes('sistem') || texto.includes('secretari') || texto.includes('belleza') || texto.includes('confecc') || texto.includes('gastronom') || texto.includes('agropec') || texto.includes('técnica') || texto.includes('tecnica');
-      if (!esTec) return false;
-      if (typeof subFiltroGaleriaActivo === 'undefined' || subFiltroGaleriaActivo === 'todas') return true;
-      const targetSub = subFiltroGaleriaActivo.replace('tec-', '').toLowerCase();
-      return k === subFiltroGaleriaActivo.toLowerCase() || texto.includes(targetSub);
-    }
-
-    if (nivelGaleriaActivo === 'humanistica') {
-      const k = (act.areaKey || act.carreraKey || '').toLowerCase();
-      const esHum = k.startsWith('hum-') || k.includes('bth') || texto.includes('matem') || texto.includes('social') || texto.includes('natural') || texto.includes('lengua') || texto.includes('bth') || texto.includes('humaníst') || texto.includes('humanist') || texto.includes('dirección') || texto.includes('direccion');
-      if (!esHum) return false;
-      if (typeof subFiltroGaleriaActivo === 'undefined' || subFiltroGaleriaActivo === 'todas') return true;
-      const targetSub = subFiltroGaleriaActivo.replace('hum-', '').toLowerCase();
-      return k === subFiltroGaleriaActivo.toLowerCase() || texto.includes(targetSub);
-    }
-
-    return true;
-  });
-
-  if (!filtradas.length) {
-    container.innerHTML = `
-      <div class="actividad-card" style="text-align:center">
-        <p style="color:var(--text-sec)">No hay publicaciones registradas para el filtro seleccionado.</p>
-      </div>`;
-    return;
-  }
-
-  container.innerHTML = filtradas.map(act => {
-    let mediaHTML = '';
-    if (act.tipoMedia === 'imagen' && act.urlMedia) {
-      mediaHTML = `<div class="actividad-media"><img src="${act.urlMedia}" alt="${act.titulo}" loading="lazy" /></div>`;
-    } else if (act.tipoMedia === 'youtube' && act.urlMedia) {
-      const embedUrl = typeof obtenerYoutubeEmbedUrl === 'function' ? obtenerYoutubeEmbedUrl(act.urlMedia) : '';
-      const iconYt = `<svg class="svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 0 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`;
-      mediaHTML = `
-        <div class="actividad-media">
-          ${embedUrl ? `<div class="actividad-media-video"><iframe src="${embedUrl}" title="${act.titulo || 'Video YouTube'}" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe></div>` : ''}
-          <div style="margin-top:8px">
-            <a href="${act.urlMedia}" target="_blank" rel="noopener" class="btn-download" style="background:#cc0000;color:#fff;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:0.85rem">${iconYt} Abrir y Ver Video directamente en YouTube</a>
-          </div>
-        </div>`;
-    } else if (act.tipoMedia === 'tiktok' && act.urlMedia) {
-      const iconTt = `<svg class="svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.96v8.4c.02 1.68-.45 3.39-1.41 4.77-1.42 2.05-3.83 3.29-6.33 3.23-2.58-.02-5.01-1.39-6.36-3.58-1.37-2.22-1.4-5.06-.06-7.3 1.3-2.2 3.67-3.6 6.22-3.62.46.01.92.06 1.37.16v4.11c-.42-.12-.87-.16-1.31-.13-1.2.06-2.34.69-2.97 1.73-.64 1.05-.63 2.41.01 3.46.65 1.03 1.83 1.62 3.06 1.52 1.25-.07 2.37-.8 2.87-1.95.27-.6.39-1.26.38-1.92V.02z"/></svg>`;
-      mediaHTML = `
-        <div class="actividad-media">
-          <a href="${act.urlMedia}" target="_blank" rel="noopener" class="btn-tiktok-link" style="display:inline-flex;align-items:center;gap:6px">
-            ${iconTt} Ver Video en TikTok
-          </a>
-        </div>`;
-    }
-
-    const iconCal = `<svg class="svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-
-    const session = typeof lsGet === 'function' ? lsGet('cea_session', null) : null;
-    const lapicesVisibles = (typeof estadoLapicesDirectosVisibles === 'undefined' || estadoLapicesDirectosVisibles);
-    const esAuth = session && (session.role === 'director' || session.role === 'admin' || session.role === 'docente' || session.role === 'comision' || session.loggedIn === true) && lapicesVisibles;
-    let authActionsHTML = '';
-    if (esAuth) {
-      authActionsHTML = `
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;border-top:1px dashed var(--border-col);padding-top:10px">
-          <button type="button" onclick="abrirModalEditarActividad('${act.id}')" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#ffffff;border:none;padding:6px 12px;border-radius:6px;font-size:0.80rem;font-weight:700;cursor:pointer;transition:background 0.2s" title="Editar publicación">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 1 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            <span>Editar</span>
-          </button>
-          <button type="button" onclick="eliminarActividad('${act.id}')" style="display:inline-flex;align-items:center;gap:6px;background:#dc2626;color:#ffffff;border:none;padding:6px 12px;border-radius:6px;font-size:0.80rem;font-weight:700;cursor:pointer;transition:background 0.2s" title="Eliminar publicación">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            <span>Eliminar</span>
-          </button>
-        </div>`;
-    }
-
-    return `
-      <div class="actividad-card">
-        <div class="actividad-header">
-          <h3 class="actividad-titulo">${act.titulo}</h3>
-          <div class="actividad-meta">
-            <span class="actividad-badge-fecha">${iconCal} ${act.fecha || (act.mes + ' ' + act.gestion)}</span>
-            <span class="actividad-autor">Por: ${act.autor || 'CEA Madre Marie Poussepín'}</span>
-          </div>
-        </div>
-        <p class="actividad-desc">${act.descripcion || ''}</p>
-        ${mediaHTML}
-        ${authActionsHTML}
-      </div>`;
-  }).join('');
-}
-
-window.renderLapicesDirectosDirector = renderLapicesDirectosDirector;
-window.cargarGaleriaFotos = cargarGaleriaFotos;
-window.renderFeedActividades = renderFeedActividades;
 window.manejarFormInscripcion = manejarFormInscripcionOptimizado;
 window.ejecutarAccionEnviarPreInscripcion = ejecutarAccionEnviarPreInscripcion;
 window.renderDocumentosDinamicos = renderDocumentosDinamicos;
@@ -8548,13 +8302,13 @@ window.abrirModalLimpiarInscripciones = abrirModalLimpiarInscripciones;
 window.cerrarModalLimpiarInscripciones = cerrarModalLimpiarInscripciones;
 window.ejecutarEliminacionInscripciones = ejecutarEliminacionInscripciones;
 </script>
-<script src="print-horario.js?v=2026.105"></script>
+<script src="print-horario.js?v=2026.243"></script>
 <script src="kardex-diseno1.js?v=2026.1"></script>
 <script src="kardex-diseno2.js?v=2026.1"></script>
 <script src="print-kardex.js?v=2026.66"></script>
-<script src="print-comprobante.js?v=2026.180"></script>
-<script src="print-estadisticas.js?v=2026.1"></script>
-<script src="print-reporte.js?v=2026.66"></script>
-<script src="print-preinscripciones.js?v=2026.1"></script>
+<script src="print-comprobante.js?v=2026.243"></script>
+<script src="print-estadisticas.js?v=2026.248"></script>
+<script src="print-reporte.js?v=2026.244"></script>
+<script src="print-preinscripciones.js?v=2026.244"></script>
 </body>
 </html>

@@ -145,7 +145,11 @@
     }
 
     if (listaDocentes.length === 0) {
-      alert('No hay registros de Kardex disponibles para imprimir.');
+      if (typeof mostrarAlertaModal === 'function') {
+        mostrarAlertaModal('No hay registros de Kardex disponibles para imprimir.', 'Kardex Docente', 'warning');
+      } else if (typeof mostrarToastLive === 'function') {
+        mostrarToastLive('No hay registros de Kardex disponibles para imprimir.');
+      }
       return;
     }
 

@@ -18,19 +18,21 @@
       styleTag.innerHTML = `
         @page {
           size: letter portrait !important;
-          margin: 8mm 14mm 8mm 14mm !important;
+          margin: 8mm 10mm 8mm 20mm !important;
         }
       `;
     } else {
-      // Hoja 1: margen superior normal (6mm). A partir de la hoja 2: 1.5 cm (15mm). Laterales: 2 cm (20mm). Inferior: 1 cm (10mm) en todas las hojas
+      // Hoja 1: margen superior normal (8mm). A partir de la hoja 2: 1.5 cm (15mm). Borde izquierdo: 2 cm (20mm). Borde derecho: 1 cm (10mm). Inferior: 1 cm (10mm)
       styleTag.innerHTML = `
         @page {
           size: letter portrait !important;
-          margin: 15mm 20mm 10mm 20mm !important;
+          margin: 15mm 10mm 10mm 20mm !important;
         }
         @page :first {
-          margin-top: 6mm !important;
+          margin-top: 8mm !important;
+          margin-right: 10mm !important;
           margin-bottom: 10mm !important;
+          margin-left: 20mm !important;
         }
       `;
     }
@@ -41,11 +43,12 @@
   function detectarAreaActiva() {
     const dashModal = document.getElementById('modalDashboardInscripciones');
     if (dashModal && dashModal.style.display !== 'none') {
-      return window.filtroDashboardActivo || 'todas';
+      return window.filtroDashboardActivo || window.areaImpresionReporte || 'todas';
     }
     const estado = window.estadoFiltroInscripciones || 'todas';
     if (estado === 'tecnica') return 'tecnica';
     if (estado === 'humanistica' || estado === 'primaria' || estado === 'secundaria') return 'humanistica';
+    if (window.areaImpresionReporte) return window.areaImpresionReporte;
     return 'todas';
   }
 
@@ -57,12 +60,7 @@
 
   function abrirModalOpcionesImpresion() {
     const area = detectarAreaActiva();
-    window.areaImpresionReporte = area;
-
-    const badge = document.getElementById('print-modal-area-detectada-badge');
-    if (badge) {
-      badge.textContent = getNombreArea(area);
-    }
+    seleccionarAreaImpresion(area);
 
     const modal = document.getElementById('modalOpcionesImpresionReporte') || document.getElementById('modal-opciones-impresion-reporte');
     if (modal) {
@@ -92,14 +90,20 @@
 
   function seleccionarAreaImpresion(area) {
     window.areaImpresionReporte = area;
+    const badge = document.getElementById('print-modal-area-detectada-badge');
+    if (badge) {
+      badge.textContent = getNombreArea(area);
+    }
     ['todas', 'tecnica', 'humanistica'].forEach(a => {
       const btn = document.getElementById('btn-print-area-' + a);
       if (btn) {
         if (a === area) {
+          btn.classList.add('active');
           btn.style.borderColor = 'var(--verde, #16a34a)';
           btn.style.background = 'var(--verde-light, #dcfce7)';
           btn.style.color = 'var(--verde-dark, #166534)';
         } else {
+          btn.classList.remove('active');
           btn.style.borderColor = 'var(--border-col, #e2e8f0)';
           btn.style.background = 'var(--bg-body, #f8fafc)';
           btn.style.color = 'var(--text-main, #0f172a)';
@@ -107,6 +111,7 @@
       }
     });
   }
+  window.cambiarAreaImpresionModal = seleccionarAreaImpresion;
 
   function actualizarEstiloTipoReporte() {
     const radioNom = document.getElementById('opt-rep-nominal');

@@ -75,6 +75,51 @@ function verificarRateLimit(clave, maxPeticiones, ventanaSegundos) {
   }
 }
 
+function sincronizarUsuariosDocentesSheet(ss, usuariosObj) {
+  if (!usuariosObj || typeof usuariosObj !== 'object') return;
+  let sheetU = ss.getSheetByName("Usuarios_Docentes") || ss.insertSheet("Usuarios_Docentes");
+  let dataU = [];
+  if (sheetU.getLastRow() === 0) {
+    sheetU.appendRow(["AreaKey", "Usuario", "Contrasena", "Comision"]);
+    aplicarEstiloEncabezado(sheetU, 4);
+  } else {
+    dataU = sheetU.getDataRange().getValues();
+  }
+
+  const mapaExistente = {};
+  for (let i = 1; i < dataU.length; i++) {
+    const k = String(dataU[i][0] || '').trim();
+    if (k) {
+      mapaExistente[k] = {
+        row: i + 1,
+        user: String(dataU[i][1] || '').trim(),
+        pass: String(dataU[i][2] || '').trim(),
+        comision: String(dataU[i][3] || '').trim()
+      };
+    }
+  }
+
+  for (let key in usuariosObj) {
+    const item = usuariosObj[key];
+    if (!item) continue;
+    const newUser = String(item.user || '').trim();
+    let newPass = String(item.pass || '').trim();
+    // Si viene vacía la contraseña en el formulario, preservar la contraseña actual de la hoja
+    if (!newPass && mapaExistente[key] && mapaExistente[key].pass) {
+      newPass = mapaExistente[key].pass;
+    }
+    const comVal = (item.comision === true || String(item.comision).toUpperCase() === 'SI' || String(item.comision) === 'true') ? 'SI' : 'NO';
+
+    if (mapaExistente[key]) {
+      if (newUser) sheetU.getRange(mapaExistente[key].row, 2).setValue(newUser);
+      if (newPass) sheetU.getRange(mapaExistente[key].row, 3).setValue(newPass);
+      sheetU.getRange(mapaExistente[key].row, 4).setValue(comVal);
+    } else {
+      sheetU.appendRow([key, newUser, newPass, comVal]);
+    }
+  }
+}
+
 // ─── RESOLUCIÓN RESILIENTE DE HOJA DE CÁLCULO PRINCIPAL ───
 const NOMBRE_HOJA_CALCULO = "BD_OFICIAL_CEA_MADRE_MARIE_POUSSEPIN";
 const SPREADSHEET_ID_MANUAL = ""; // Opcional: ID de la hoja de Google Sheets si se desea fijar manualmente
@@ -337,11 +382,16 @@ function doGet(e) {
     if (sheetUsuarios) {
       const dataUsuarios = sheetUsuarios.getDataRange().getValues();
       for (let i = 1; i < dataUsuarios.length; i++) {
-        const key = dataUsuarios[i][0];
-        const user = dataUsuarios[i][1];
+        const key = String(dataUsuarios[i][0] || '').trim();
+        const user = String(dataUsuarios[i][1] || '').trim();
+        const comisionVal = String(dataUsuarios[i][3] || '').trim().toUpperCase();
+        const esComision = (comisionVal === 'SI' || dataUsuarios[i][3] === true);
         // SEGURIDAD: Nunca enviar contraseñas de docentes al navegador público
         if (key) {
-          usuariosDocentesObj[key] = { user: user || "" };
+          usuariosDocentesObj[key] = { 
+            user: user || "",
+            comision: esComision
+          };
         }
       }
     }
@@ -383,18 +433,32 @@ function doGet(e) {
       }
     }
 
-    // 11. Documentos por Nivel
+    // 11. Documentos por Nivel (Soporte dinámico para múltiples documentos, módulos y niveles)
     const docNivelesObj = {};
     const sheetDocNiv = ss.getSheetByName("Documentos_Niveles");
     if (sheetDocNiv) {
       const dataDocNiv = sheetDocNiv.getDataRange().getValues();
       for (let i = 1; i < dataDocNiv.length; i++) {
-        const carreraKey = dataDocNiv[i][0];
-        const nivel = dataDocNiv[i][1];
-        const enlace = dataDocNiv[i][2];
-        if (carreraKey && nivel) {
-          if (!docNivelesObj[carreraKey]) docNivelesObj[carreraKey] = {};
-          docNivelesObj[carreraKey][nivel] = enlace || "#";
+        const carreraKey = String(dataDocNiv[i][0] || '').trim();
+        const nivel = String(dataDocNiv[i][1] || '').trim();
+        const col2 = String(dataDocNiv[i][2] || '').trim();
+        const col3 = String(dataDocNiv[i][3] || '').trim();
+        if (carreraKey && (nivel || col2 || col3)) {
+          if (!docNivelesObj[carreraKey]) docNivelesObj[carreraKey] = [];
+          let docTitulo = col2;
+          let docEnlace = col3;
+          if (!col3 && (col2.startsWith('http') || col2.startsWith('drive') || col2 === '#')) {
+            docTitulo = nivel || 'Documento PDF';
+            docEnlace = col2;
+          }
+          if (Array.isArray(docNivelesObj[carreraKey])) {
+            docNivelesObj[carreraKey].push({
+              id: 'doc_' + i,
+              nivel: nivel || 'General',
+              titulo: docTitulo || nivel || 'Documento Oficial',
+              enlace: docEnlace || '#'
+            });
+          }
         }
       }
     }
@@ -420,7 +484,9 @@ function doGet(e) {
             semestre: String(dataIns[i][10] || ""),
             casoExcepcional: String(dataIns[i][11] || ""),
             detalleExcepcion: String(dataIns[i][12] || ""),
-            esCasoExcepcional: Boolean(dataIns[i][11] && dataIns[i][11] !== "No" && dataIns[i][11] !== "")
+            esCasoExcepcional: Boolean(dataIns[i][11] && dataIns[i][11] !== "No" && dataIns[i][11] !== ""),
+            sede: String(dataIns[i][13] || "Sede Central (Centro de Chulumani)"),
+            comunidad: String(dataIns[i][14] || "")
           });
         }
       }
@@ -645,12 +711,27 @@ function doPost(e) {
           const areaKey = String(rowsU[i][0] || '').trim();
           const docUser = String(rowsU[i][1] || '').trim().toLowerCase();
           const docPass = String(rowsU[i][2] || '').trim();
+          const comisionCell = String(rowsU[i][3] || '').trim().toUpperCase();
+          const esComision = (comisionCell === 'SI' || rowsU[i][3] === true);
           if (areaKey && docUser === userInp && docPass === passInp) {
+            let nombreDocente = String(rowsU[i][1] || '');
+            const sheetD = ss.getSheetByName("Docentes");
+            if (sheetD) {
+              const dataD = sheetD.getDataRange().getValues();
+              for (let d = 1; d < dataD.length; d++) {
+                if (String(dataD[d][0] || '').trim().toLowerCase() === areaKey.toLowerCase()) {
+                  const n = String(dataD[d][1] || '').trim();
+                  if (n) nombreDocente = n;
+                  break;
+                }
+              }
+            }
             return responseJSON({
               status: "success",
               role: "docente",
               areaKey: areaKey,
-              name: rowsU[i][1],
+              name: nombreDocente,
+              comision: esComision,
               token: generarTokenSeguro(docUser, "docente")
             });
           }
@@ -687,7 +768,9 @@ function doPost(e) {
               semestre: dataIns[i][10] || "",
               casoExcepcional: dataIns[i][11] || "",
               detalleExcepcion: dataIns[i][12] || "",
-              esCasoExcepcional: Boolean(dataIns[i][11] && dataIns[i][11] !== "No" && dataIns[i][11] !== "")
+              esCasoExcepcional: Boolean(dataIns[i][11] && dataIns[i][11] !== "No" && dataIns[i][11] !== ""),
+              sede: String(dataIns[i][13] || "Sede Central (Centro de Chulumani)"),
+              comunidad: String(dataIns[i][14] || "")
             });
           }
         }
@@ -704,7 +787,8 @@ function doPost(e) {
 
       let sheetIns = ss.getSheetByName("Inscripciones") || ss.insertSheet("Inscripciones");
       if (sheetIns.getLastRow() === 0) {
-        sheetIns.appendRow(["Gestión", "Mes", "Fecha", "Nombre Completo", "CI", "Fecha Nacimiento", "Teléfono", "Área", "Carrera/Nivel", "Observaciones", "Semestre", "Caso Excepcional", "Detalle Excepción"]);
+        sheetIns.appendRow(["Gestión", "Mes", "Fecha", "Nombre Completo", "CI", "Fecha Nacimiento", "Teléfono", "Área", "Carrera/Nivel", "Observaciones", "Semestre", "Caso Excepcional", "Detalle Excepción", "Sede / Subcentro", "De dónde vienes"]);
+        aplicarEstiloEncabezado(sheetIns, 15);
       }
       sheetIns.appendRow([
         gestion, mes, fecha,
@@ -717,7 +801,9 @@ function doPost(e) {
         sanitizarEntradaTexto(postData.observaciones || ""),
         sanitizarEntradaTexto(postData.semestre || ""),
         sanitizarEntradaTexto(postData.casoExcepcional || (postData.esCasoExcepcional ? "Sí" : "No")),
-        sanitizarEntradaTexto(postData.detalleExcepcion || "")
+        sanitizarEntradaTexto(postData.detalleExcepcion || ""),
+        sanitizarEntradaTexto(postData.sede || "Sede Central (Centro de Chulumani)"),
+        sanitizarEntradaTexto(postData.comunidad || "")
       ]);
       return responseJSON({ status: "success", message: "Pre-inscripción registrada con éxito." });
     } 
@@ -743,29 +829,80 @@ function doPost(e) {
       return responseJSON({ status: "success", message: "Visita registrada." });
     }
 
-    else if (action === "guardar-docentes") {
-      let sheetDocentes = ss.getSheetByName("Docentes") || ss.insertSheet("Docentes");
-      if (sheetDocentes.getLastRow() === 0) {
-        sheetDocentes.appendRow(["Codigo", "Nombre", "Materia_Carrera", "Area"]);
-      }
-      if (postData.docentes) {
-        const data = sheetDocentes.getDataRange().getValues();
-        const docentesMap = postData.docentes;
-        for (let codigo in docentesMap) {
-          const nuevoNombre = docentesMap[codigo];
-          let encontrado = false;
-          for (let i = 1; i < data.length; i++) {
-            if (String(data[i][0]).trim().toLowerCase() === String(codigo).trim().toLowerCase()) {
-              sheetDocentes.getRange(i + 1, 2).setValue(nuevoNombre);
-              encontrado = true;
-              break;
+    else if (action === "guardar-docentes" || action === "guardar-docentes-completo") {
+      let lock = null;
+      try {
+        lock = LockService.getScriptLock();
+        lock.tryLock(25000);
+      } catch (eL) {}
+
+      try {
+        let sheetDocentes = ss.getSheetByName("Docentes") || ss.insertSheet("Docentes");
+        if (sheetDocentes.getLastRow() === 0) {
+          sheetDocentes.appendRow(["Codigo", "Nombre", "Materia_Carrera", "Area"]);
+        }
+        if (postData.docentes) {
+          const data = sheetDocentes.getDataRange().getValues();
+          const docentesMap = postData.docentes;
+          for (let codigo in docentesMap) {
+            const nuevoNombre = docentesMap[codigo] !== undefined ? String(docentesMap[codigo]) : "";
+            let encontrado = false;
+            for (let i = 1; i < data.length; i++) {
+              if (String(data[i][0]).trim().toLowerCase() === String(codigo).trim().toLowerCase()) {
+                sheetDocentes.getRange(i + 1, 2).setValue(nuevoNombre);
+                encontrado = true;
+                break;
+              }
+            }
+            if (!encontrado) {
+              sheetDocentes.appendRow([codigo, nuevoNombre, "", ""]);
             }
           }
-          if (!encontrado) {
-            sheetDocentes.appendRow([codigo, nuevoNombre, "", ""]);
+
+          // Sincronizar también con la pestaña Materias_Humanistica
+          let sheetMaterias = ss.getSheetByName("Materias_Humanistica");
+          if (sheetMaterias) {
+            const dataMat = sheetMaterias.getDataRange().getValues();
+            const mapHum = {
+              'hum-cn': 'ciencias naturales',
+              'hum-mat': 'matemática',
+              'hum-cs': 'ciencias sociales',
+              'hum-len': 'lenguaje'
+            };
+            for (let hKey in mapHum) {
+              if (docentesMap[hKey] !== undefined) {
+                const nom = String(docentesMap[hKey] || '');
+                const searchSub = mapHum[hKey];
+                for (let m = 1; m < dataMat.length; m++) {
+                  if (String(dataMat[m][0]).toLowerCase().indexOf(searchSub) !== -1) {
+                    sheetMaterias.getRange(m + 1, 2).setValue(nom);
+                  }
+                }
+              }
+            }
           }
         }
-        return responseJSON({ status: "success", message: "Docentes actualizados en Google Sheets." });
+
+        // Si vienen carreras en el mismo envío, sincronizarlas
+        if (postData.carreras && Array.isArray(postData.carreras)) {
+          let sheetCarreras = ss.getSheetByName("Carreras_Tecnicas") || ss.insertSheet("Carreras_Tecnicas");
+          sheetCarreras.clearContents();
+          sheetCarreras.appendRow(["Codigo", "Nombre", "DocenteCodigo", "Color", "Resumen"]);
+          postData.carreras.forEach(carr => {
+            sheetCarreras.appendRow([carr.key || "tec-gen", carr.nombre || "", carr.docente || carr.key || "", carr.color || "#1a6b2e", carr.resumen || ""]);
+          });
+        }
+
+        // Si vienen usuarios docentes en el mismo envío, guardarlos preservando contraseñas
+        if (postData.usuarios && typeof postData.usuarios === 'object') {
+          sincronizarUsuariosDocentesSheet(ss, postData.usuarios);
+        }
+
+        return responseJSON({ status: "success", message: "Docentes, asignaciones y credenciales actualizados en Google Sheets." });
+      } finally {
+        if (lock) {
+          try { lock.releaseLock(); } catch(eRL) {}
+        }
       }
     }
 
@@ -1015,16 +1152,47 @@ function doPost(e) {
     }
 
     else if (action === "guardar-usuarios-docentes") {
-      let sheetUsuarios = ss.getSheetByName("Usuarios_Docentes") || ss.insertSheet("Usuarios_Docentes");
-      if (postData.usuarios) {
-        sheetUsuarios.clearContents();
-        sheetUsuarios.appendRow(["AreaKey", "Usuario", "Contrasena"]);
-        const uObj = postData.usuarios;
-        for (let key in uObj) {
-          sheetUsuarios.appendRow([key, uObj[key].user || "", uObj[key].pass || ""]);
+      let lock = null;
+      try {
+        lock = LockService.getScriptLock();
+        lock.tryLock(25000);
+      } catch (eL) {}
+
+      try {
+        if (postData.usuarios && typeof postData.usuarios === 'object') {
+          sincronizarUsuariosDocentesSheet(ss, postData.usuarios);
+          return responseJSON({ status: "success", message: "Usuarios y contraseñas de docentes actualizados en Google Sheets." });
         }
-        return responseJSON({ status: "success", message: "Usuarios docentes actualizados en Google Sheets." });
+        return responseJSON({ status: "error", message: "No se proporcionaron datos de usuarios docentes." });
+      } finally {
+        if (lock) {
+          try { lock.releaseLock(); } catch(eRL) {}
+        }
       }
+    }
+
+    else if (action === "obtener-usuarios-docentes-admin") {
+      const auth = validarTokenSeguro(postData.token, "director");
+      if (!auth) {
+        return responseJSON({ status: "error", message: "Acceso no autorizado. Se requiere token de Director." });
+      }
+      const sheetU = ss.getSheetByName("Usuarios_Docentes");
+      const resObj = {};
+      if (sheetU) {
+        const rows = sheetU.getDataRange().getValues();
+        for (let i = 1; i < rows.length; i++) {
+          const k = String(rows[i][0] || '').trim();
+          if (k) {
+            const comisionVal = String(rows[i][3] || '').trim().toUpperCase();
+            resObj[k] = {
+              user: String(rows[i][1] || '').trim(),
+              pass: String(rows[i][2] || '').trim(),
+              comision: (comisionVal === 'SI' || rows[i][3] === true)
+            };
+          }
+        }
+      }
+      return responseJSON({ status: "success", usuarios: resObj });
     }
 
     else if (action === "guardar-credenciales-director") {
@@ -1283,7 +1451,8 @@ function doPost(e) {
     else if (action === "guardar-todas-inscripciones") {
       let sheetIns = ss.getSheetByName("Inscripciones") || ss.insertSheet("Inscripciones");
       sheetIns.clearContents();
-      sheetIns.appendRow(["Gestión", "Mes", "Fecha", "Nombre Completo", "CI", "Fecha Nacimiento", "Teléfono", "Área", "Carrera/Nivel", "Observaciones", "Semestre", "Caso Excepcional", "Detalle Excepción"]);
+      sheetIns.appendRow(["Gestión", "Mes", "Fecha", "Nombre Completo", "CI", "Fecha Nacimiento", "Teléfono", "Área", "Carrera/Nivel", "Observaciones", "Semestre", "Caso Excepcional", "Detalle Excepción", "Sede / Subcentro", "De dónde vienes"]);
+      aplicarEstiloEncabezado(sheetIns, 15);
       const lista = postData.inscripciones || [];
       lista.forEach(ins => {
         sheetIns.appendRow([
@@ -1299,7 +1468,9 @@ function doPost(e) {
           ins.observaciones || "",
           ins.semestre || "",
           ins.casoExcepcional || (ins.esCasoExcepcional ? "Sí" : "No"),
-          ins.detalleExcepcion || ""
+          ins.detalleExcepcion || "",
+          ins.sede || "Sede Central (Centro de Chulumani)",
+          ins.comunidad || ""
         ]);
       });
       return responseJSON({ status: "success", count: lista.length, message: "Lista completa de pre-inscripciones sincronizada en Google Sheets." });
@@ -1326,8 +1497,8 @@ function doPost(e) {
           });
         } else {
           sheetIns.clearContents();
-          sheetIns.appendRow(["Gestión", "Mes", "Fecha", "Nombre Completo", "CI", "Fecha Nacimiento", "Teléfono", "Área", "Carrera/Nivel", "Observaciones", "Semestre", "Caso Excepcional", "Detalle Excepción"]);
-          aplicarEstiloEncabezado(sheetIns, 13);
+          sheetIns.appendRow(["Gestión", "Mes", "Fecha", "Nombre Completo", "CI", "Fecha Nacimiento", "Teléfono", "Área", "Carrera/Nivel", "Observaciones", "Semestre", "Caso Excepcional", "Detalle Excepción", "Sede / Subcentro", "De dónde vienes"]);
+          aplicarEstiloEncabezado(sheetIns, 15);
           return responseJSON({
             status: "success",
             message: "Todas las pre-inscripciones de todas las gestiones fueron eliminadas de Google Sheets."
@@ -1360,27 +1531,32 @@ function doPost(e) {
     else if (action === "guardar-doc-niveles") {
       let sheetDocNiv = ss.getSheetByName("Documentos_Niveles") || ss.insertSheet("Documentos_Niveles");
       if (sheetDocNiv.getLastRow() === 0) {
-        sheetDocNiv.appendRow(["CarreraKey", "Nivel", "Enlace"]);
+        sheetDocNiv.appendRow(["CarreraKey", "Nivel", "Titulo", "Enlace"]);
+        aplicarEstiloEncabezado(sheetDocNiv, 4);
       }
-      if (postData.carreraKey && postData.drive) {
-        const carreraKey = postData.carreraKey;
-        const driveMap = postData.drive;
+      const carreraKey = String(postData.carreraKey || "").trim();
+      if (carreraKey) {
         const dataDocNiv = sheetDocNiv.getDataRange().getValues();
-        for (let nivel in driveMap) {
-          const val = driveMap[nivel];
-          let enc = false;
-          for (let i = 1; i < dataDocNiv.length; i++) {
-            if (String(dataDocNiv[i][0]).trim() === String(carreraKey).trim() && String(dataDocNiv[i][1]).trim() === String(nivel).trim()) {
-              sheetDocNiv.getRange(i + 1, 3).setValue(val);
-              enc = true;
-              break;
-            }
-          }
-          if (!enc) {
-            sheetDocNiv.appendRow([carreraKey, nivel, val]);
+        // Borrar filas existentes para esta carrera para sobreescribir limpiamente con la nueva lista
+        for (let i = dataDocNiv.length - 1; i >= 1; i--) {
+          if (String(dataDocNiv[i][0]).trim().toLowerCase() === carreraKey.toLowerCase()) {
+            sheetDocNiv.deleteRow(i + 1);
           }
         }
-        return responseJSON({ status: "success", message: "Documentos por nivel guardados en Google Sheets." });
+        // Insertar los nuevos documentos
+        const docs = postData.docs || postData.documentos || [];
+        if (Array.isArray(docs) && docs.length > 0) {
+          docs.forEach(d => {
+            if (d && (d.titulo || d.enlace || d.nivel)) {
+              sheetDocNiv.appendRow([carreraKey, d.nivel || "General", d.titulo || d.nivel || "Documento PDF", d.enlace || "#"]);
+            }
+          });
+        } else if (postData.drive && typeof postData.drive === 'object') {
+          for (let niv in postData.drive) {
+            sheetDocNiv.appendRow([carreraKey, niv, `PDF ${niv}`, postData.drive[niv] || "#"]);
+          }
+        }
+        return responseJSON({ status: "success", message: "Documentos de " + carreraKey + " actualizados en Google Sheets." });
       }
     }
 
@@ -1826,15 +2002,18 @@ function inicializarHojas() {
   // 7. Usuarios_Docentes
   let sheetU = ss.getSheetByName("Usuarios_Docentes") || ss.insertSheet("Usuarios_Docentes");
   if (sheetU.getLastRow() === 0) {
-    sheetU.appendRow(["AreaKey", "Usuario", "Contrasena"]);
-    aplicarEstiloEncabezado(sheetU, 3);
-    sheetU.appendRow(["tec-sis", "profe.sistemas", "docente123"]);
-    sheetU.appendRow(["tec-sec", "profe.secretariado", "docente123"]);
-    sheetU.appendRow(["tec-bel", "profe.belleza", "docente123"]);
-    sheetU.appendRow(["tec-tex", "profe.textil", "docente123"]);
-    sheetU.appendRow(["tec-gas", "profe.gastronomia", "docente123"]);
-    sheetU.appendRow(["tec-agr", "profe.agropecuaria", "docente123"]);
-    sheetU.appendRow(["hum-general", "profe.humanistica", "docente123"]);
+    sheetU.appendRow(["AreaKey", "Usuario", "Contrasena", "Comision"]);
+    aplicarEstiloEncabezado(sheetU, 4);
+    sheetU.appendRow(["tec-sis", "profe.sistemas", "docente123", "NO"]);
+    sheetU.appendRow(["tec-sec", "profe.secretariado", "docente123", "NO"]);
+    sheetU.appendRow(["tec-bel", "profe.belleza", "docente123", "NO"]);
+    sheetU.appendRow(["tec-tex", "profe.textil", "docente123", "NO"]);
+    sheetU.appendRow(["tec-gas", "profe.gastronomia", "docente123", "NO"]);
+    sheetU.appendRow(["tec-agr", "profe.agropecuaria", "docente123", "NO"]);
+    sheetU.appendRow(["hum-cn", "profe.naturales", "docente123", "SI"]);
+    sheetU.appendRow(["hum-mat", "profe.matematica", "docente123", "NO"]);
+    sheetU.appendRow(["hum-cs", "profe.sociales", "docente123", "NO"]);
+    sheetU.appendRow(["hum-len", "profe.lenguaje", "docente123", "NO"]);
   }
 
   // 8. Documentos
@@ -1851,13 +2030,18 @@ function inicializarHojas() {
   // 9. Documentos_Niveles
   let sheetDocNiv = ss.getSheetByName("Documentos_Niveles") || ss.insertSheet("Documentos_Niveles");
   if (sheetDocNiv.getLastRow() === 0) {
-    sheetDocNiv.appendRow(["CarreraKey", "Nivel", "Enlace"]);
-    aplicarEstiloEncabezado(sheetDocNiv, 3);
+    sheetDocNiv.appendRow(["CarreraKey", "Nivel", "Titulo", "Enlace"]);
+    aplicarEstiloEncabezado(sheetDocNiv, 4);
     const carrs = ["tec-sis", "tec-sec", "tec-bel", "tec-tex", "tec-gas", "tec-agr"];
-    const nivs = ["Técnico Básico", "Técnico Auxiliar", "Técnico Medio"];
+    const nivs = [
+      { n: "Técnico Básico", t: "Plan Modular - Técnico Básico" },
+      { n: "Técnico Auxiliar", t: "Plan Modular - Técnico Auxiliar" },
+      { n: "Técnico Medio I", t: "Plan Modular - Técnico Medio I" },
+      { n: "Técnico Medio II", t: "Plan Modular - Técnico Medio II" }
+    ];
     carrs.forEach(c => {
-      nivs.forEach(n => {
-        sheetDocNiv.appendRow([c, n, "#"]);
+      nivs.forEach(item => {
+        sheetDocNiv.appendRow([c, item.n, item.t, "#"]);
       });
     });
   }
@@ -1893,8 +2077,8 @@ function inicializarHojas() {
   // 12. Inscripciones
   let sheetIns = ss.getSheetByName("Inscripciones") || ss.insertSheet("Inscripciones");
   if (sheetIns.getLastRow() === 0) {
-    sheetIns.appendRow(["Gestión", "Mes", "Fecha", "Nombre Completo", "CI", "Fecha Nacimiento", "Teléfono", "Área", "Carrera/Nivel", "Observaciones", "Semestre", "Caso Excepcional", "Detalle Excepción"]);
-    aplicarEstiloEncabezado(sheetIns, 13);
+    sheetIns.appendRow(["Gestión", "Mes", "Fecha", "Nombre Completo", "CI", "Fecha Nacimiento", "Teléfono", "Área", "Carrera/Nivel", "Observaciones", "Semestre", "Caso Excepcional", "Detalle Excepción", "Sede / Subcentro", "De dónde vienes"]);
+    aplicarEstiloEncabezado(sheetIns, 15);
   }
 
   // 13. Contacto

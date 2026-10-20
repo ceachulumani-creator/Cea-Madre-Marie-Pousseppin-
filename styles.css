@@ -606,9 +606,36 @@ body:has(#admin:target) .btn-hamburger,
   box-shadow: 0 10px 28px rgba(234, 179, 8, 0.65), 0 4px 10px rgba(0, 0, 0, 0.2) !important;
 }
 
+@keyframes personitaPlusPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.hero-icon-pulse-wrapper {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  transform-box: fill-box;
+  transform-origin: center center;
+  animation: personitaPlusPulse 4.5s ease-in-out infinite !important;
+  will-change: transform;
+}
+
+.hero-user-icon-anim,
 .btn-hero-inscribete-gold svg {
   color: #063b17 !important;
   flex-shrink: 0;
+  display: inline-block !important;
+  transform-box: fill-box;
+  transform-origin: center center;
+  will-change: transform;
 }
 
 /* ==========================================================
@@ -3854,18 +3881,94 @@ html.dark .word-help-text {
   color: var(--text-main);
 }
 
+/* FILTRO MODERNO DE SEDE / SUBCENTRO (CENTRO DE CONTROL) */
+.filtro-sede-moderno-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.05) 0%, rgba(22, 163, 74, 0.12) 100%);
+  border: 1.5px solid var(--verde, #16a34a);
+  border-radius: 12px;
+  padding: 5px 12px 5px 10px;
+  box-shadow: 0 2px 10px rgba(22, 163, 74, 0.08);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.filtro-sede-moderno-container:hover {
+  border-color: var(--verde-dark, #166534);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.16);
+  transform: translateY(-1px);
+}
+
+.filtro-sede-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--verde, #16a34a);
+  color: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+}
+
+.filtro-sede-label-text {
+  font-size: 0.80rem;
+  font-weight: 800;
+  color: var(--verde-dark, #166534);
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.filtro-sede-select-custom {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: var(--bg-card, #ffffff);
+  border: 1.5px solid rgba(22, 163, 74, 0.4);
+  border-radius: 8px;
+  padding: 6px 30px 6px 12px;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 750;
+  color: var(--text-main, #0f172a);
+  cursor: pointer;
+  outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.filtro-sede-select-custom:hover {
+  border-color: var(--verde, #16a34a);
+  background-color: #ffffff;
+}
+
+.filtro-sede-select-custom:focus {
+  border-color: var(--verde-dark, #166534);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+}
+
 /* TOOLBAR Y FILTROS */
 .insc-toolbar {
+  position: sticky;
+  top: 70px;
+  z-index: 95;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
-  background: var(--bg-body);
+  background: var(--bg-card, #ffffff);
   padding: 12px 16px;
   border-radius: 10px;
   border: 1px solid var(--border-col);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07);
 }
 
 .insc-filters-pills {
@@ -7729,7 +7832,7 @@ html.dark .ttp-th-day.clickable-day:hover .gestor-th-day-box {
   max-width: 90px !important;
 }
 
-/* Filas TTP Minimalistas (Sin relleno, diseño limpio y sobrio) */
+/* Filas TTP: Altura balanceada y óptima para periodos en pantalla web */
 .ttp-table tbody tr td,
 .ttp-table .ttp-row-white td,
 .ttp-table .ttp-row-zebra td,
@@ -7738,6 +7841,10 @@ html.dark .ttp-th-day.clickable-day:hover .gestor-th-day-box {
   background: transparent !important;
   color: #1e293b !important;
   border: 1px solid #cbd5e1 !important;
+  min-height: 44px;
+  height: 44px;
+  padding: 4px 6px !important;
+  vertical-align: middle;
 }
 html.dark .ttp-table tbody tr td,
 html.dark .ttp-table .ttp-row-white td,
@@ -7755,6 +7862,8 @@ html.dark .ttp-table .ttp-row-minimal td {
   border: 1px solid #cbd5e1 !important;
   font-weight: 800 !important;
   box-shadow: none !important;
+  padding: 2px 5px !important;
+  font-size: 0.80rem !important;
 }
 html.dark .ttp-table .gestor-periodo-badge {
   background: transparent !important;
@@ -7766,11 +7875,102 @@ html.dark .ttp-table .gestor-periodo-badge {
   background: transparent !important;
   color: #0f172a !important;
   font-weight: 800 !important;
-  font-size: 0.86rem !important;
+  font-size: 0.84rem !important;
+  line-height: 1.25 !important;
   box-shadow: none !important;
+  padding: 4px 6px !important;
 }
 html.dark .ttp-table .ttp-eta-badge {
   color: #f1f5f9 !important;
+}
+
+/* ==========================================================
+   ESTILO MODERNO PARA SELECTOR DE GESTIONES Y FILTROS ADMIN
+   ========================================================== */
+.filtro-gestion-group {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: var(--bg-card, #ffffff) !important;
+  border: 1.5px solid var(--border-col, #cbd5e1) !important;
+  border-radius: 10px !important;
+  padding: 4px 10px 4px 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s ease !important;
+}
+
+.filtro-gestion-group:hover,
+.filtro-gestion-group:focus-within {
+  border-color: var(--verde, #16a34a) !important;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.15) !important;
+}
+
+.filtro-gestion-group label {
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  color: var(--verde-dark, #166534) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.3px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  cursor: pointer;
+}
+
+#filtro-gestion-select {
+  font-size: 0.86rem !important;
+  font-weight: 800 !important;
+  padding: 6px 28px 6px 12px !important;
+  border-radius: 8px !important;
+  border: 1.5px solid var(--verde, #16a34a) !important;
+  background: #f0fdf4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23166534' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 9px center !important;
+  color: #166534 !important;
+  cursor: pointer !important;
+  outline: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  transition: all 0.2s ease !important;
+}
+
+#filtro-gestion-select:hover,
+#filtro-gestion-select:focus {
+  background-color: #dcfce7 !important;
+  border-color: #15803d !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2) !important;
+}
+
+html.dark #filtro-gestion-select {
+  background-color: rgba(22, 163, 74, 0.15) !important;
+  color: #86efac !important;
+  border-color: #16a34a !important;
+}
+
+/* Botones selectores de área dentro del modal de impresión */
+.btn-print-area-toggle {
+  padding: 8px 10px !important;
+  border-radius: 8px !important;
+  border: 1.5px solid var(--border-col, #cbd5e1) !important;
+  background: var(--bg-card, #ffffff) !important;
+  color: var(--text-main, #334155) !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  text-align: center !important;
+}
+
+.btn-print-area-toggle:hover {
+  border-color: var(--verde, #16a34a) !important;
+  color: var(--verde-dark, #166534) !important;
+  background: var(--verde-light, #f0fdf4) !important;
+}
+
+.btn-print-area-toggle.active {
+  border-color: var(--verde, #16a34a) !important;
+  background: var(--verde-light, #dcfce7) !important;
+  color: var(--verde-dark, #166534) !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2) !important;
 }
 
 .ttp-table .gestor-time-start,
@@ -9080,13 +9280,13 @@ html.dark .eta-badge-cert.medio {
   #reporte-inscritos-print-area .report-firma-unica .report-firma-box {
     width: 340px !important;
     max-width: 80% !important;
-    border-top: 1.8px solid #0f4a1e !important;
-    padding-top: 4px !important;
+    border-top: none !important;
+    padding-top: 0 !important;
     line-height: 1.15 !important;
   }
   #reporte-inscritos-print-area .report-firma-box {
-    border-top: 1.5px solid #334155 !important;
-    padding-top: 4px !important;
+    border-top: none !important;
+    padding-top: 0 !important;
     line-height: 1.15 !important;
   }
   #reporte-inscritos-print-area .report-firma-box strong {
