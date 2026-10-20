@@ -14666,8 +14666,11 @@ async function manejarFormInscripcion(e) {
   cargarInscripciones();
   if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
 
-  // 2. Guardar datos para los botones de acción (PDF y WhatsApp)
+  // 2. Guardar datos para los botones de acción (PDF y WhatsApp) y pre-generar el PDF automáticamente
   window._ultimoRegistroInscripcion = data;
+  if (typeof window.pregenerarComprobantePDF === 'function') {
+    window.pregenerarComprobantePDF(data);
+  }
 
   const habilitarPdf = lsGet('cea_cfg_pdf', true);
   const habilitarWp = lsGet('cea_cfg_whatsapp', true);
@@ -14828,6 +14831,9 @@ function consultarInscripcionPorCI() {
   }
 
   window._ultimoRegistroInscripcion = encontrada;
+  if (typeof window.pregenerarComprobantePDF === 'function') {
+    window.pregenerarComprobantePDF(encontrada);
+  }
   const semStr = String(encontrada.semestre || '');
   const badgeClass = semStr.includes('2') ? 'badge-semestre-2' : (semStr.includes('1') ? 'badge-semestre-1' : 'badge-semestre-siguiente');
 
@@ -15140,6 +15146,9 @@ async function ejecutarVerificacionQR(ci, reg) {
   if (encontrada) {
     _qrVerificacionPendiente = null;
     window._ultimoRegistroInscripcion = encontrada;
+    if (typeof window.pregenerarComprobantePDF === 'function') {
+      window.pregenerarComprobantePDF(encontrada);
+    }
     renderizarFichaVerificacionExitosa(encontrada, reg);
     // Sincronizar también la caja de consulta en la sección de inscripciones si está en pantalla
     if (typeof consultarInscripcionPorCI === 'function') {

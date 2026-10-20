@@ -8706,7 +8706,7 @@
 <div id="reporte-inscritos-print-area" style="display:none"></div>
 <div id="reporte-estadistico-print-area" style="display:none"></div>
 
-<script src="app.js?v=2026.266"></script>
+<script src="app.js?v=2026.267"></script>
 <script>
 // Sobrescribir manejarFormInscripcion con respuesta instantánea y descarga de PDF garantizada
 async function manejarFormInscripcionOptimizado(e) {
@@ -8877,8 +8877,11 @@ async function manejarFormInscripcionOptimizado(e) {
   if (typeof cargarInscripciones === 'function') cargarInscripciones();
   if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
 
-  // 2. Guardar registro en variable global para la descarga del PDF
+  // 2. Guardar registro en variable global y pre-generar automáticamente el PDF para descarga instantánea al hacer clic
   window._ultimoRegistroInscripcion = data;
+  if (typeof window.pregenerarComprobantePDF === 'function') {
+    window.pregenerarComprobantePDF(data);
+  }
 
   const habilitarPdf = typeof lsGet === 'function' ? lsGet('cea_cfg_pdf', true) : true;
   const habilitarWp = typeof lsGet === 'function' ? lsGet('cea_cfg_whatsapp', true) : true;
@@ -9313,11 +9316,12 @@ window.abrirModalLimpiarInscripciones = abrirModalLimpiarInscripciones;
 window.cerrarModalLimpiarInscripciones = cerrarModalLimpiarInscripciones;
 window.ejecutarEliminacionInscripciones = ejecutarEliminacionInscripciones;
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="print-horario.js?v=2026.266"></script>
 <script src="kardex-diseno1.js?v=2026.1"></script>
 <script src="kardex-diseno2.js?v=2026.1"></script>
 <script src="print-kardex.js?v=2026.66"></script>
-<script src="print-comprobante.js?v=2026.243"></script>
+<script src="print-comprobante.js?v=2026.266"></script>
 <script src="print-estadisticas.js?v=2026.248"></script>
 <script src="print-reporte.js?v=2026.244"></script>
 <script src="print-preinscripciones.js?v=2026.244"></script>

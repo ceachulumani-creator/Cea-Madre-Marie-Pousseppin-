@@ -106,12 +106,12 @@
     }
 
     return `
-      <div class="comprobante-ficha-letter" style="font-family:Arial, Helvetica, sans-serif; width:100%; max-width:100%; height:250mm; max-height:252mm; min-height:248mm; margin:0 auto; padding:10px 14px; border:1.8px solid #166534; border-radius:6px; color:#0f172a; background:#ffffff; box-sizing:border-box; overflow:hidden; page-break-inside:avoid; display:flex; flex-direction:column; justify-content:space-between;">
+      <div class="comprobante-ficha-letter" style="font-family:Arial, Helvetica, sans-serif; width:702px; max-width:702px; height:945px; max-height:945px; min-height:945px; margin:0 auto; padding:10px 14px; border:1.8px solid #166534; border-radius:6px; color:#0f172a; background:#ffffff; box-sizing:border-box; overflow:hidden; page-break-inside:avoid; display:flex; flex-direction:column; justify-content:space-between;">
         
         <!-- ENCABEZADO INSTITUCIONAL OFICIAL -->
         <div style="border-bottom:2px solid #166534; padding-bottom:5px; margin-bottom:5px; flex:0 0 auto;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <img src="logo cea madre marie poussepin.png" alt="Logo CEA" style="width:55px; height:auto; max-height:55px;" />
+            <img src="logo cea madre marie poussepin.png" alt="Logo CEA" crossorigin="anonymous" style="width:55px; height:auto; max-height:55px;" />
             <div style="flex:1; padding:0 10px; line-height:1.15; text-align:center;">
               <div style="font-size:7.2pt; font-weight:800; letter-spacing:0.5px; color:#1e293b; text-transform:uppercase; margin:0;">Estado Plurinacional de Bolivia • Ministerio de Educación</div>
               <div style="font-size:6.8pt; font-weight:700; color:#475569; margin:1px 0 0 0;">Viceministerio de Educación Alternativa y Especial • DDE La Paz • DDE Chulumani</div>
@@ -236,7 +236,7 @@
               <div style="margin-top:2px;">• Código Único de Registro Electrónico: <strong style="font-family:monospace; font-size:7.5pt; color:#166534;">CEA-${codigoReg}-${new Date().getFullYear()}</strong></div>
             </div>
             <div style="text-align:center;">
-              <img src="${qrUrl}" alt="QR Verificación" style="width:72px; height:72px; border:1px solid #cbd5e1; padding:2px; border-radius:4px; display:inline-block; background:#ffffff;" />
+              <img src="${qrUrl}" alt="QR Verificación" crossorigin="anonymous" style="width:72px; height:72px; border:1px solid #cbd5e1; padding:2px; border-radius:4px; display:inline-block; background:#ffffff;" />
               <span style="display:block; font-size:5.8pt; color:#64748b; margin-top:2px; font-weight:800; text-transform:uppercase;">Validación Digital</span>
             </div>
           </div>
@@ -328,9 +328,206 @@
     }, 250);
   }
 
-  function imprimirComprobante(dataOverride) {
-    aplicarOrientacionComprobante();
+  let _html2pdfLoadPromise = null;
+  function asegurarHtml2PdfCargado() {
+    if (typeof window.html2pdf !== 'undefined') {
+      return Promise.resolve(window.html2pdf);
+    }
+    if (_html2pdfLoadPromise) return _html2pdfLoadPromise;
+    _html2pdfLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.async = true;
+      script.onload = () => resolve(window.html2pdf);
+      script.onerror = (err) => {
+        _html2pdfLoadPromise = null;
+        reject(err);
+      };
+      document.head.appendChild(script);
+    });
+    return _html2pdfLoadPromise;
+  }
 
+  async function convertirImagenesComprobanteABase64(container) {
+    const imgs = Array.from(container.querySelectorAll('img'));
+    await Promise.all(imgs.map(async (img) => {
+      const src = img.getAttribute('src') || img.src;
+      if (!src || src.startsWith('data:')) return;
+
+      // 1. Intentar vía fetch + FileReader (ideal para QR con CORS y assets locales en servidor)
+      try {
+        const res = await fetch(src, { mode: 'cors', cache: 'force-cache' });
+        if (res.ok) {
+          const blob = await res.blob();
+          const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+          if (dataUrl) {
+            await new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve;
+              img.src = dataUrl;
+              if (img.complete) resolve();
+            });
+            return;
+          }
+        }
+      } catch (e) {}
+
+      // 2. Respaldo vía Canvas Image
+      await new Promise((resolve) => {
+        const tempImg = new Image();
+        tempImg.crossOrigin = 'anonymous';
+        tempImg.onload = () => {
+          try {
+            const cvs = document.createElement('canvas');
+            cvs.width = tempImg.naturalWidth || tempImg.width || 160;
+            cvs.height = tempImg.naturalHeight || tempImg.height || 160;
+            const ctx = cvs.getContext('2d');
+            ctx.drawImage(tempImg, 0, 0);
+            img.src = cvs.toDataURL('image/png');
+          } catch (e) {}
+          resolve();
+        };
+        tempImg.onerror = () => resolve();
+        tempImg.src = src;
+      });
+    }));
+  }
+
+  function obtenerMetadatosFicha(data) {
+    if (!data._codigoReg) {
+      data._codigoReg = 'CEA-2026-' + Math.floor(100000 + Math.random() * 900000);
+    }
+    if (!data._fechaEmisionTexto) {
+      data._fechaEmisionTexto = new Date().toLocaleDateString('es-BO', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    let directorNom = 'Lic. José Luis Alanoca Mamani';
+    try {
+      const stored = localStorage.getItem('cea_textos_director');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.director_nombre) directorNom = parsed.director_nombre;
+      }
+    } catch (e) {}
+
+    const ciLimpio = String(data.ci || 'CEA').replace(/[^a-zA-Z0-9_-]/g, '');
+    const nomLimpio = String(data.nombre || 'Participante')
+      .trim()
+      .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s_-]/g, '')
+      .replace(/\s+/g, '_')
+      .substring(0, 36);
+    const nombreArchivo = `Ficha_Inscripcion_CEA_${ciLimpio}_${nomLimpio}.pdf`;
+
+    return {
+      codigoReg: data._codigoReg,
+      fechaHoy: data._fechaEmisionTexto,
+      directorNom,
+      nombreArchivo
+    };
+  }
+
+  function descargarBlobArchivoPDF(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename || 'Ficha_Inscripcion_CEA_2026.pdf';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      try {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {}
+    }, 4000);
+  }
+
+  async function construirBlobComprobantePDF(data) {
+    if (!data) return null;
+    if (data._pdfBlob && data._pdfFilename) {
+      return { blob: data._pdfBlob, filename: data._pdfFilename };
+    }
+    if (data._pdfGeneratingPromise) {
+      return data._pdfGeneratingPromise;
+    }
+
+    data._pdfGeneratingPromise = (async () => {
+      await asegurarHtml2PdfCargado();
+      const { codigoReg, fechaHoy, directorNom, nombreArchivo } = obtenerMetadatosFicha(data);
+      const fichaHtml = generarHtmlFichaOficial(data, codigoReg, fechaHoy, directorNom);
+
+      // Crear contenedor invisible en dimensiones exactas de hoja Carta (702px × 945px = 185.9mm × 250mm)
+      // para que tanto en celular como en PC el PDF se genere idéntico y en 1 sola página
+      const outerWrap = document.createElement('div');
+      outerWrap.style.cssText = 'position:fixed;left:0;top:0;width:702px;height:945px;z-index:-9999;opacity:0.01;pointer-events:none;overflow:hidden;background:#ffffff;';
+      const targetEl = document.createElement('div');
+      targetEl.style.cssText = 'width:702px;height:945px;background:#ffffff;margin:0;padding:0;box-sizing:border-box;';
+      targetEl.innerHTML = fichaHtml;
+      outerWrap.appendChild(targetEl);
+      document.body.appendChild(outerWrap);
+
+      try {
+        await convertirImagenesComprobanteABase64(targetEl);
+        await new Promise(r => setTimeout(r, 80));
+
+        const opt = {
+          margin: [10, 10, 10, 20], // 1cm arriba, 1cm derecha, 1cm abajo, 2cm izquierda
+          filename: nombreArchivo,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2.5,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            width: 702,
+            height: 945,
+            windowWidth: 1024,
+            scrollX: 0,
+            scrollY: 0,
+            logging: false
+          },
+          jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait', compress: true }
+        };
+
+        const worker = window.html2pdf().set(opt).from(targetEl).toPdf();
+        const pdf = await worker.get('pdf');
+        while (pdf.internal.getNumberOfPages() > 1) {
+          pdf.deletePage(pdf.internal.getNumberOfPages());
+        }
+        const blob = pdf.output('blob');
+        data._pdfBlob = blob;
+        data._pdfFilename = nombreArchivo;
+        return { blob, filename: nombreArchivo };
+      } finally {
+        if (outerWrap && outerWrap.parentNode) {
+          outerWrap.parentNode.removeChild(outerWrap);
+        }
+        data._pdfGeneratingPromise = null;
+      }
+    })();
+
+    return data._pdfGeneratingPromise;
+  }
+
+  function pregenerarComprobantePDF(dataOverride) {
+    const data = dataOverride || window._ultimoRegistroInscripcion;
+    if (!data) return;
+    construirBlobComprobantePDF(data).catch((err) => {
+      console.warn('Pre-generación de PDF en segundo plano:', err);
+    });
+  }
+
+  async function descargarComprobanteDirectoPDF(dataOverride) {
     const data = dataOverride || window._ultimoRegistroInscripcion;
     if (!data) {
       if (typeof mostrarAlertaModal === 'function') {
@@ -341,35 +538,41 @@
       return;
     }
 
-    const codigoReg = 'CEA-2026-' + Math.floor(100000 + Math.random() * 900000);
-    const fechaHoy = new Date().toLocaleDateString('es-BO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    
-    let directorNom = 'Lic. José Luis Alanoca Mamani';
-    try {
-      const stored = localStorage.getItem('cea_textos_director');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.director_nombre) directorNom = parsed.director_nombre;
+    // Si ya fue pre-generado al enviar la inscripción, descargarlo de inmediato al hacer clic
+    if (data._pdfBlob && data._pdfFilename) {
+      descargarBlobArchivoPDF(data._pdfBlob, data._pdfFilename);
+      if (typeof mostrarToastLive === 'function') {
+        mostrarToastLive('¡Ficha Oficial de Inscripción descargada en PDF!');
       }
-    } catch (e) {}
-
-    const fichaHtml = generarHtmlFichaOficial(data, codigoReg, fechaHoy, directorNom);
-
-    // Preparar el área para respaldo en la ventana principal
-    let printArea = document.getElementById('comprobante-print-area');
-    if (!printArea) {
-      printArea = document.createElement('div');
-      printArea.id = 'comprobante-print-area';
-      document.body.appendChild(printArea);
+      return;
     }
-    printArea.innerHTML = fichaHtml;
 
-    // Ejecutar impresión aislada en documento independiente (garantiza márgenes de 2cm izq, 1cm demás y 1 sola hoja)
+    if (typeof mostrarToastLive === 'function') {
+      mostrarToastLive('Descargando Ficha Oficial de Inscripción en PDF...');
+    }
+
+    try {
+      const result = await construirBlobComprobantePDF(data);
+      if (result && result.blob) {
+        descargarBlobArchivoPDF(result.blob, result.filename);
+        if (typeof mostrarToastLive === 'function') {
+          mostrarToastLive('¡Ficha Oficial de Inscripción descargada en PDF!');
+        }
+        return;
+      }
+    } catch (err) {
+      console.error('Error generando PDF directo, usando respaldo:', err);
+    }
+
+    // Respaldo de emergencia solo si fallara la librería PDF
+    const { codigoReg, fechaHoy, directorNom } = obtenerMetadatosFicha(data);
+    const fichaHtml = generarHtmlFichaOficial(data, codigoReg, fechaHoy, directorNom);
     imprimirDocumentoComprobanteAislado(fichaHtml, `Ficha_Preinscripcion_${data.ci || 'CEA'}`);
   }
 
   // Exportar al ámbito global
-  window.imprimirComprobante = imprimirComprobante;
-  window.descargarComprobanteInscripcionPDF = imprimirComprobante;
+  window.pregenerarComprobantePDF = pregenerarComprobantePDF;
+  window.imprimirComprobante = descargarComprobanteDirectoPDF;
+  window.descargarComprobanteInscripcionPDF = descargarComprobanteDirectoPDF;
   window.aplicarOrientacionComprobante = aplicarOrientacionComprobante;
 })();
