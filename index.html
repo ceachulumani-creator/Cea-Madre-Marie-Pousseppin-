@@ -43,7 +43,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2026.244" />
+  <link rel="stylesheet" href="styles.css?v=2026.265" />
   <script>
     document.documentElement.classList.remove('dark', 'dark-mode');
     try {
@@ -433,11 +433,6 @@
       justify-content: center !important;
       text-align: center !important;
       margin: 14px auto 20px auto !important;
-    }
-      background: #063c17 !important;
-      color: #ffffff !important;
-      border-color: #86efac !important;
-      box-shadow: 0 4px 12px rgba(6, 60, 23, 0.4) !important;
     }
 
     /* COMPACTACIÓN DE ALTURA EN SECCIÓN DE REQUISITOS DE INSCRIPCIÓN */
@@ -1933,6 +1928,837 @@
     html.dark .actividad-media {
       border-color: #1e3a27 !important;
     }
+
+    /* =========================================================================
+       OPTIMIZACIÓN INTEGRAL PARA DISPOSITIVOS MÓVILES (SIN TOCAR ESCRITORIO/PC)
+       ========================================================================= */
+    @media (max-width: 768px) {
+      /* 1. PREVENCIÓN TOTAL DE DESBORDAMIENTO HORIZONTAL */
+      html, body {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+      }
+      .page-section,
+      .container {
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+      }
+      .container {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+      }
+
+      /* 2. HEADER MÓVIL PERFECTAMENTE ALINEADO (SIN SUPERPOSICIÓN EN EL TÍTULO DEL CEA) */
+      .header {
+        width: 100% !important;
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+      }
+      .header-inner {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 7px 10px !important;
+        gap: 6px !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+      }
+      .logo-area {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        max-width: calc(100% - 162px) !important;
+        overflow: hidden !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+      .logo-area > div {
+        display: flex !important;
+        align-items: center !important;
+        gap: 7px !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        overflow: hidden !important;
+      }
+      .logo-img {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        flex-shrink: 0 !important;
+      }
+      .header-text {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+      }
+      .header-text h1,
+      #header-cea-nombre {
+        font-size: clamp(0.76rem, 3.2vw, 0.92rem) !important;
+        line-height: 1.18 !important;
+        max-width: 100% !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: block !important;
+        margin: 0 !important;
+      }
+      .header-text .subtitulo,
+      #header-cea-subtexto {
+        font-size: clamp(0.60rem, 2.5vw, 0.69rem) !important;
+        line-height: 1.15 !important;
+        max-width: 100% !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: block !important;
+        margin: 0 !important;
+      }
+      .header .inline-edit-pencil-btn {
+        width: 22px !important;
+        height: 22px !important;
+        margin-left: 3px !important;
+        vertical-align: middle !important;
+      }
+      .header-right {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 5px !important;
+      }
+      .mobile-header-actions {
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        flex-shrink: 0 !important;
+      }
+      .btn-mobile-quick-inscribete {
+        padding: 6px 9px !important;
+        font-size: 0.72rem !important;
+        gap: 4px !important;
+        border-radius: 16px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+      }
+      .btn-mobile-quick-inscribete svg {
+        width: 12px !important;
+        height: 12px !important;
+        flex-shrink: 0 !important;
+      }
+      .btn-hamburger-toggle {
+        padding: 6px 8px !important;
+        font-size: 0.72rem !important;
+        gap: 5px !important;
+        border-radius: 10px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+      }
+      .hamburger-lines {
+        width: 15px !important;
+        height: 12px !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* 3. BARRA FLOTANTE DE CONTROL DIRECTOR / DOCENTE (#directorLiveBar) Y BOTONES FLOTANTES (#fabContainer) */
+      #directorLiveBar.director-live-bar {
+        position: fixed !important;
+        left: 8px !important;
+        right: 8px !important;
+        bottom: 8px !important;
+        top: auto !important;
+        transform: none !important;
+        width: calc(100vw - 16px) !important;
+        max-width: calc(100vw - 16px) !important;
+        padding: 6px !important;
+        border-radius: 14px !important;
+        box-sizing: border-box !important;
+        z-index: 99999 !important;
+      }
+      .director-live-bar-inner {
+        width: 100% !important;
+        display: block !important;
+      }
+      .director-live-actions {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 4px !important;
+        width: 100% !important;
+        align-items: stretch !important;
+      }
+      .btn-director-live {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 6px 3px !important;
+        border-radius: 10px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 3px !important;
+        font-size: 0.65rem !important;
+        line-height: 1.1 !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+      }
+      .btn-director-live svg {
+        width: 15px !important;
+        height: 15px !important;
+        flex-shrink: 0 !important;
+      }
+      .btn-director-live span {
+        font-size: 0.64rem !important;
+        font-weight: 700 !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        display: block !important;
+        line-height: 1.1 !important;
+      }
+
+      /* Botones flotantes (FAB): que nunca choquen ni se superpongan con la barra de control ni con el panel admin */
+      #fabContainer.fab-container {
+        right: 10px !important;
+        bottom: 14px !important;
+        gap: 8px !important;
+        z-index: 9990 !important;
+      }
+      #fabContainer .fab-btn {
+        width: 44px !important;
+        height: 44px !important;
+      }
+      #fabContainer .fab-badge {
+        font-size: 0.55rem !important;
+        padding: 1px 5px !important;
+        top: -4px !important;
+        right: -2px !important;
+      }
+      /* Cuando la barra flotante de Director/Docente está activa, subir los FABs para que no se superpongan con Inscripciones 2026 */
+      #directorLiveBar:not([style*="display: none"]):not([style*="display:none"]) ~ #fabContainer,
+      body.director-live-mode #fabContainer {
+        bottom: 76px !important;
+      }
+      /* Cuando el usuario está dentro de #admin (Panel Director o Docente), ocultar los FABs para no tapar tablas ni controles */
+      body:has(#admin:target) #fabContainer {
+        display: none !important;
+      }
+
+      /* 4. PANEL DE CONTROL DE DIRECTOR Y DOCENTE (#admin, #admin-panel, #docente-panel) */
+      #admin {
+        padding-bottom: 90px !important;
+        overflow-x: hidden !important;
+      }
+      #admin > .container {
+        padding-top: 12px !important;
+        padding-bottom: 90px !important;
+        overflow-x: hidden !important;
+      }
+      .admin-dashboard-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        text-align: center !important;
+        padding: 14px 12px !important;
+        gap: 12px !important;
+        border-radius: 14px !important;
+        margin-bottom: 16px !important;
+      }
+      .admin-welcome-area h2 {
+        font-size: 1.22rem !important;
+        line-height: 1.25 !important;
+      }
+      .admin-welcome-area p {
+        font-size: 0.80rem !important;
+      }
+      .admin-user-bar {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        border-radius: 12px !important;
+        padding: 8px 10px !important;
+        gap: 6px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .admin-user-bar .admin-status-indicator {
+        width: 100% !important;
+        justify-content: center !important;
+        padding-bottom: 4px !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+      }
+      .admin-user-bar button {
+        flex: 1 1 calc(50% - 6px) !important;
+        justify-content: center !important;
+        font-size: 0.76rem !important;
+        padding: 7px 8px !important;
+        white-space: nowrap !important;
+      }
+
+      /* Tarjetas de estadísticas en 2 columnas compactas */
+      .admin-stats-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        margin-bottom: 16px !important;
+      }
+      .admin-stat-card {
+        padding: 10px !important;
+        gap: 8px !important;
+        border-radius: 12px !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+      }
+      .stat-icon {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 8px !important;
+      }
+      .stat-info h4 {
+        font-size: 1.18rem !important;
+      }
+      .stat-info span {
+        font-size: 0.72rem !important;
+        line-height: 1.2 !important;
+      }
+
+      /* Pestañas del Centro de Control en cuadrícula de 2 columnas sin desborde */
+      .admin-tabs-nav {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+        padding: 6px !important;
+        border-radius: 12px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .admin-tab {
+        padding: 9px 6px !important;
+        font-size: 0.76rem !important;
+        justify-content: center !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        border-radius: 8px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .admin-tab svg {
+        width: 14px !important;
+        height: 14px !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* Contenedores de cada panel administrativo */
+      .admin-panel {
+        padding: 12px 10px !important;
+        border-radius: 12px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+      }
+      .admin-panel-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+      }
+
+      /* Desactivar sticky en barra de filtros de Inscripciones para que NUNCA se superponga encima de la tabla */
+      #panel-inscripciones div[style*="position:sticky"],
+      #panel-inscripciones div[style*="position: sticky"],
+      .insc-toolbar {
+        position: static !important;
+        top: auto !important;
+        z-index: 1 !important;
+        padding: 10px !important;
+        margin-top: 8px !important;
+        margin-bottom: 10px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      #insc-filter-buttons.insc-filters-pills {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+        width: 100% !important;
+      }
+      #insc-filter-buttons .insc-pill-btn {
+        width: 100% !important;
+        justify-content: center !important;
+        text-align: center !important;
+        padding: 7px 6px !important;
+        font-size: 0.73rem !important;
+        white-space: normal !important;
+        line-height: 1.2 !important;
+        box-sizing: border-box !important;
+      }
+      #insc-filter-buttons .insc-pill-btn:first-child {
+        grid-column: 1 / -1 !important;
+      }
+      .btn-print-report-modern {
+        width: 100% !important;
+        margin-left: 0 !important;
+        justify-content: center !important;
+        padding: 9px 12px !important;
+        box-sizing: border-box !important;
+      }
+      .filtro-sede-bar-modern {
+        width: 100% !important;
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
+        box-sizing: border-box !important;
+        gap: 6px !important;
+      }
+      .filtro-sede-select-custom {
+        flex: 1 1 160px !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .insc-search-box {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin-left: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Plantel Docente y Mallas en Modo Director */
+      .docente-column-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 12px !important;
+      }
+      .docente-column-header > div {
+        flex-wrap: wrap !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+      }
+      .docente-column-header button {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+      #columna-docentes-hum,
+      #columna-docentes-tec {
+        grid-template-columns: 1fr !important;
+        padding: 10px !important;
+        gap: 10px !important;
+        max-height: none !important;
+      }
+      .doc-cred-box {
+        flex-wrap: wrap !important;
+      }
+      #contenedor-admin-documentos-dinamicos {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
+      #admin .form-grid,
+      #panel-config .form-grid,
+      #panel-documentos .form-grid,
+      #panel-galeria .form-grid,
+      #panel-actividades .form-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+      }
+      .doc-item-row > div:first-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 6px !important;
+      }
+      .doc-item-row > div:first-child > * {
+        min-width: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Panel de Docente (#docente-panel) */
+      #docente-panel > div:first-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        text-align: center !important;
+        gap: 10px !important;
+        background: var(--bg-card) !important;
+        padding: 12px !important;
+        border-radius: 12px !important;
+        border: 1.5px solid var(--border-col) !important;
+        margin-bottom: 16px !important;
+      }
+      #docente-panel > div:first-child p {
+        margin: 0 !important;
+        font-size: 0.90rem !important;
+        line-height: 1.35 !important;
+      }
+      #docente-panel > div:first-child button {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+      #docente-panel-body .admin-card {
+        padding: 14px 10px !important;
+        border-radius: 12px !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+      }
+      #docente-panel-body .admin-card > div:first-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+      }
+      #docente-panel-body .admin-card > div:first-child > div {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+      }
+      #docente-panel-body .admin-card > div:first-child button {
+        flex: 1 1 auto !important;
+        justify-content: center !important;
+      }
+      #docente-malla-editor .malla-grid-4cols,
+      .malla-grid-4cols {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+      }
+      #docente-comision-horarios-card {
+        padding: 12px 10px !important;
+      }
+      #docente-comision-horarios-card > div:first-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+      }
+      #docente-comision-horarios-card > div:first-child button {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+
+      /* Tablas administrativas y públicas con scroll táctil fluido */
+      .tabla-wrapper,
+      .table-responsive {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        border-radius: 10px !important;
+        box-sizing: border-box !important;
+      }
+
+      /* 5. SECCIÓN HERO E INICIO EN MÓVILES */
+      .hero {
+        min-height: 420px !important;
+      }
+      .visitas-hero-badge {
+        top: 10px !important;
+        right: 10px !important;
+        padding: 5px 10px !important;
+        font-size: 0.72rem !important;
+        gap: 5px !important;
+      }
+      .hero-overlay {
+        padding: 46px 14px 108px 14px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .hero-overlay h2 {
+        font-size: clamp(1.40rem, 6vw, 1.85rem) !important;
+        line-height: 1.2 !important;
+        margin-bottom: 10px !important;
+      }
+      .hero-overlay p {
+        font-size: clamp(0.86rem, 3.6vw, 0.98rem) !important;
+        line-height: 1.42 !important;
+        margin-bottom: 14px !important;
+      }
+      .hero-btn-group {
+        position: relative !important;
+        z-index: 3 !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        width: 100% !important;
+        padding: 0 8px !important;
+        margin-top: 10px !important;
+        box-sizing: border-box !important;
+      }
+      .btn-hero-inscribete-gold,
+      .btn-hero-sec-aligned {
+        width: 100% !important;
+        max-width: 300px !important;
+        min-width: 0 !important;
+        height: 46px !important;
+        font-size: 0.92rem !important;
+        padding: 0 18px !important;
+      }
+      .hero-anime-dock-bottom-left {
+        width: 140px !important;
+        max-width: 38vw !important;
+        left: 4px !important;
+        bottom: 0 !important;
+        z-index: 1 !important;
+      }
+
+      /* Títulos de sección en móvil */
+      .section-title {
+        font-size: clamp(1.38rem, 5.8vw, 1.75rem) !important;
+        line-height: 1.22 !important;
+      }
+      .section-title-inline {
+        font-size: clamp(1.32rem, 5.5vw, 1.68rem) !important;
+        line-height: 1.2 !important;
+      }
+      .req-header-title-row {
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+      }
+      .req-icon-title-badge {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+      }
+
+      /* 6. SELECTORES PÍLDORA (OFERTA ACADÉMICA Y REQUISITOS) */
+      .oferta-pill-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+      }
+      .oferta-pill-box {
+        display: flex !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 4px !important;
+        border-radius: 14px !important;
+        box-sizing: border-box !important;
+        gap: 4px !important;
+      }
+      .oferta-pill-btn {
+        flex: 1 1 50% !important;
+        min-width: 0 !important;
+        padding: 9px 6px !important;
+        font-size: 0.78rem !important;
+        border-radius: 10px !important;
+        white-space: normal !important;
+        line-height: 1.2 !important;
+        text-align: center !important;
+        justify-content: center !important;
+        gap: 5px !important;
+      }
+      .oferta-pill-btn svg {
+        width: 15px !important;
+        height: 15px !important;
+        flex-shrink: 0 !important;
+      }
+      .malla-card-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        padding: 12px 14px !important;
+      }
+      .malla-card-title {
+        font-size: 1.05rem !important;
+        line-height: 1.25 !important;
+      }
+
+      /* 7. SECCIÓN HORARIOS EN MÓVILES */
+      .horario-unified-filter-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        padding: 12px !important;
+        border-radius: 14px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .horario-filter-group {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        gap: 6px !important;
+      }
+      .horario-ubicacion-chip-bar {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+        width: 100% !important;
+      }
+      .ubicacion-filter-chip {
+        width: 100% !important;
+        justify-content: center !important;
+        text-align: center !important;
+        padding: 8px 6px !important;
+        font-size: 0.76rem !important;
+        box-sizing: border-box !important;
+      }
+      .area-card-header {
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+        padding: 12px 14px !important;
+      }
+      .area-info-row {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 4px !important;
+        padding: 10px 12px !important;
+      }
+      .area-info-val {
+        text-align: left !important;
+        font-size: 0.88rem !important;
+      }
+
+      /* 8. INSCRIPCIONES Y REQUISITOS EN MÓVILES */
+      .fechas-header-relleno-compacto {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        padding: 10px 12px !important;
+      }
+      .fecha-compact-row {
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+      }
+      .card-accion-relleno-inner {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        text-align: center !important;
+        padding: 14px 12px !important;
+        gap: 12px !important;
+      }
+      .card-accion-relleno-left {
+        min-width: 0 !important;
+        width: 100% !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        gap: 8px !important;
+      }
+      .card-accion-relleno-titles {
+        justify-content: center !important;
+      }
+      .card-accion-relleno-right {
+        width: 100% !important;
+      }
+      .btn-inscribirme-blanco-compact {
+        width: 100% !important;
+        justify-content: center !important;
+        box-sizing: border-box !important;
+      }
+      .certificacion-bloque-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+      }
+      .certificacion-subtitulo-line {
+        text-align: left !important;
+        margin-left: 0 !important;
+        max-width: 100% !important;
+      }
+      .req-master-body {
+        padding: 12px !important;
+      }
+
+      /* 9. GALERÍA Y MURO DE ACTIVIDADES EN MÓVILES */
+      .galeria-subtabs-bar {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 14px !important;
+        padding: 6px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+      }
+      .gal-subtab-btn {
+        flex: 1 1 calc(50% - 6px) !important;
+        justify-content: center !important;
+        padding: 9px 8px !important;
+        font-size: 0.78rem !important;
+        text-align: center !important;
+      }
+      .galeria-subfiltros-dinamicos {
+        padding: 10px 12px !important;
+        gap: 6px !important;
+      }
+      .galeria-seccion-header-row {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+      }
+      .galeria-sec-pill-badge {
+        font-size: 0.78rem !important;
+        padding: 6px 12px !important;
+        white-space: normal !important;
+        text-align: center !important;
+      }
+      .actividad-card {
+        padding: 14px !important;
+      }
+
+      /* 10. MODALES ADAPTABLES A MÓVIL */
+      .malla-modal,
+      .modal-edit-live-content,
+      .modal-celda-card {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        margin: 10px auto !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+        box-sizing: border-box !important;
+      }
+      .kardex-modal-top-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        padding: 12px !important;
+      }
+      .kardex-top-actions {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 6px !important;
+      }
+      .kardex-stats-banner {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        padding: 10px !important;
+      }
+    }
+
+    /* AJUSTE EXTRA PARA PANTALLAS MUY ANGOSTAS (<= 400px) */
+    @media (max-width: 400px) {
+      .logo-area {
+        max-width: calc(100% - 140px) !important;
+      }
+      .logo-img {
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px !important;
+      }
+      .header-text h1,
+      #header-cea-nombre {
+        font-size: 0.74rem !important;
+      }
+      .header-text .subtitulo,
+      #header-cea-subtexto {
+        font-size: 0.58rem !important;
+      }
+      .btn-mobile-quick-inscribete {
+        padding: 5px 7px !important;
+        font-size: 0.67rem !important;
+      }
+      .btn-hamburger-toggle {
+        padding: 5px 7px !important;
+        font-size: 0.67rem !important;
+        gap: 4px !important;
+      }
+      .btn-director-live span {
+        font-size: 0.59rem !important;
+      }
+    }
   </style>
   <link rel="stylesheet" href="print-horario.css?v=2026.190" />
   <link rel="stylesheet" href="print-kardex.css?v=2026.66" />
@@ -2089,7 +2915,7 @@
         </a>
 
         <div style="text-align:center; margin-top:8px;">
-          <a href="#admin" class="btn-drawer-cta-admin" onclick="cerrarMenuMovil()">
+          <a href="#admin" class="btn-drawer-cta-admin" onclick="cerrarMenuMovil(); abrirAdmin()">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <span>Acceso Administrativo</span>
           </a>
