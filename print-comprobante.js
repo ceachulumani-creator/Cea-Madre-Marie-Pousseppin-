@@ -8,6 +8,32 @@
 (function () {
   'use strict';
 
+  let _cachedLogoDataUrl = null;
+  function precargarLogoInstitucional() {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const cvs = document.createElement('canvas');
+          cvs.width = img.naturalWidth || img.width || 120;
+          cvs.height = img.naturalHeight || img.height || 120;
+          const ctx = cvs.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          _cachedLogoDataUrl = cvs.toDataURL('image/png');
+        } catch (e) {}
+      };
+      img.src = 'logo cea madre marie poussepin.png';
+    } catch (e) {}
+  }
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', precargarLogoInstitucional);
+    } else {
+      precargarLogoInstitucional();
+    }
+  }
+
   function aplicarOrientacionComprobante() {
     let styleTag = document.getElementById('cea-dynamic-page-orientation');
     if (!styleTag) {
@@ -113,7 +139,7 @@
           <!-- ENCABEZADO INSTITUCIONAL OFICIAL -->
           <div style="border-bottom:2px solid #166534; padding-bottom:4px; margin-bottom:5px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <img src="logo cea madre marie poussepin.png" alt="Logo CEA" crossorigin="anonymous" style="width:52px; height:auto; max-height:52px;" />
+              <img src="${_cachedLogoDataUrl || 'logo cea madre marie poussepin.png'}" alt="Logo CEA" crossorigin="anonymous" style="width:52px; height:auto; max-height:52px;" />
               <div style="flex:1; padding:0 8px; line-height:1.15; text-align:center;">
                 <div style="font-size:7.2pt; font-weight:800; letter-spacing:0.5px; color:#1e293b; text-transform:uppercase; margin:0;">Estado Plurinacional de Bolivia • Ministerio de Educación</div>
                 <div style="font-size:6.8pt; font-weight:700; color:#475569; margin:1px 0 0 0;">Viceministerio de Educación Alternativa y Especial • DDE La Paz • DDE Chulumani</div>
@@ -364,6 +390,14 @@
         from { transform: scale(0.92); opacity: 0; }
         to { transform: scale(1); opacity: 1; }
       }
+      @keyframes pulseProgresoIcon {
+        0%, 100% { transform: scale(1); box-shadow: 0 8px 22px rgba(22,163,74,0.38); }
+        50% { transform: scale(1.08); box-shadow: 0 12px 30px rgba(22,163,74,0.58); }
+      }
+      @keyframes shimmerBar {
+        0% { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
+      }
     `;
     document.head.appendChild(st);
   }
@@ -375,7 +409,7 @@
       if (!src || src.startsWith('data:')) return;
 
       const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-      const timeoutId = setTimeout(() => { if (controller) controller.abort(); }, 3500);
+      const timeoutId = setTimeout(() => { if (controller) controller.abort(); }, 1500);
 
       // 1. Intentar vía fetch + FileReader
       try {
@@ -400,7 +434,7 @@
         clearTimeout(timeoutId);
       }
 
-      // 2. Respaldo vía Canvas Image con timeout
+      // 2. Respaldo vía Canvas Image con timeout rápido
       await new Promise((resolve) => {
         const tempImg = new Image();
         tempImg.crossOrigin = 'anonymous';
@@ -411,13 +445,13 @@
             resolve();
           }
         };
-        const timer = setTimeout(finish, 2000);
+        const timer = setTimeout(finish, 800);
         tempImg.onload = () => {
           clearTimeout(timer);
           try {
             const cvs = document.createElement('canvas');
-            cvs.width = tempImg.naturalWidth || tempImg.width || 160;
-            cvs.height = tempImg.naturalHeight || tempImg.height || 160;
+            cvs.width = tempImg.naturalWidth || tempImg.width || 85;
+            cvs.height = tempImg.naturalHeight || tempImg.height || 85;
             const ctx = cvs.getContext('2d');
             ctx.drawImage(tempImg, 0, 0);
             img.src = cvs.toDataURL('image/png');
@@ -593,7 +627,138 @@
     modal.style.display = 'block';
   }
 
-  async function construirBlobComprobantePDF(data, autoDownload = false) {
+  function asegurarModalProgresoEnDOM() {
+    let modal = document.getElementById('modal-progreso-descarga-pdf');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'modal-progreso-descarga-pdf';
+    modal.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(4,26,11,0.76);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:9999999;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+
+    modal.innerHTML = `
+      <div class="card-progreso-pdf" style="background:#ffffff;border:2px solid #16a34a;border-radius:18px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.40);padding:26px 24px;text-align:center;box-sizing:border-box;animation:zoomInAvisoPdf 0.22s ease-out;position:relative;">
+        
+        <!-- Icono animado vectorial exclusivo sin emojis -->
+        <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg, #16a34a 0%, #15803d 100%);color:#ffffff;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 14px auto;box-shadow:0 8px 22px rgba(22,163,74,0.38);animation:pulseProgresoIcon 1.6s ease-in-out infinite;">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <polyline points="9 15 12 18 15 15"/>
+          </svg>
+        </div>
+
+        <h3 id="progreso-pdf-titulo" style="margin:0 0 6px 0;font-size:1.20rem;font-weight:900;color:#063c17;letter-spacing:-0.2px;">
+          Generando Ficha Oficial
+        </h3>
+
+        <p id="progreso-pdf-mensaje" style="margin:0 0 18px 0;font-size:0.88rem;color:#475569;line-height:1.45;min-height:36px;display:flex;align-items:center;justify-content:center;">
+          Iniciando preparación del documento...
+        </p>
+
+        <!-- Barra de progreso con gradiente continuo y efecto shimmer -->
+        <div style="background:#e2e8f0;border-radius:50px;height:12px;overflow:hidden;position:relative;margin-bottom:12px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.12);border:1px solid #cbd5e1;">
+          <div id="progreso-pdf-barra" style="height:100%;width:10%;background:linear-gradient(90deg, #16a34a 0%, #22c55e 50%, #15803d 100%);background-size:200% 100%;border-radius:50px;transition:width 0.28s ease-out;animation:shimmerBar 2s linear infinite;"></div>
+        </div>
+
+        <!-- Fila inferior: Estado del paso y porcentaje numérico -->
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.84rem;font-weight:800;color:#166534;padding:0 2px;">
+          <span id="progreso-pdf-paso" style="color:#64748b;font-weight:700;font-size:0.80rem;display:inline-flex;align-items:center;gap:5px;">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Paso 1 de 4</span>
+          </span>
+          <span id="progreso-pdf-pct" style="font-size:1.15rem;font-weight:900;color:#15803d;font-family:monospace;letter-spacing:0.5px;">10%</span>
+        </div>
+
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f1f5f9;font-size:0.75rem;color:#94a3b8;font-weight:600;">
+          Centro de Educación Alternativa "Madre Marie Poussepín" • Gestión 2026
+        </div>
+
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  const ProgresoPDF = {
+    _pctActual: 0,
+    _timerTicker: null,
+
+    iniciar(titulo, mensajeInicial) {
+      this._pctActual = 12;
+      this._limpiarTicker();
+      asegurarEstilosAnimacionComprobante();
+      const modal = asegurarModalProgresoEnDOM();
+      if (!modal) return;
+
+      const elTit = document.getElementById('progreso-pdf-titulo');
+      const elMsg = document.getElementById('progreso-pdf-mensaje');
+      const elBar = document.getElementById('progreso-pdf-barra');
+      const elPct = document.getElementById('progreso-pdf-pct');
+      const elPaso = document.getElementById('progreso-pdf-paso');
+
+      if (elTit) elTit.textContent = titulo || 'Generando Ficha Oficial';
+      if (elMsg) elMsg.textContent = mensajeInicial || 'Iniciando proceso...';
+      if (elPaso) {
+        const span = elPaso.querySelector('span') || elPaso;
+        span.textContent = 'Paso 1 de 4';
+      }
+      if (elBar) elBar.style.width = '12%';
+      if (elPct) elPct.textContent = '12%';
+
+      modal.style.display = 'flex';
+    },
+
+    actualizar(porcentaje, mensaje, pasoTexto) {
+      const p = Math.min(100, Math.max(0, Math.round(porcentaje)));
+      this._pctActual = p;
+      const elMsg = document.getElementById('progreso-pdf-mensaje');
+      const elBar = document.getElementById('progreso-pdf-barra');
+      const elPct = document.getElementById('progreso-pdf-pct');
+      const elPaso = document.getElementById('progreso-pdf-paso');
+
+      if (elMsg && mensaje) elMsg.textContent = mensaje;
+      if (elPaso && pasoTexto) {
+        const span = elPaso.querySelector('span') || elPaso;
+        span.textContent = pasoTexto;
+      }
+      if (elBar) elBar.style.width = `${p}%`;
+      if (elPct) elPct.textContent = `${p}%`;
+    },
+
+    iniciarTickerIntermedio(minPct = 65, maxPct = 88, intervalMs = 220) {
+      this._limpiarTicker();
+      this._timerTicker = setInterval(() => {
+        if (this._pctActual >= minPct && this._pctActual < maxPct) {
+          this._pctActual += 2;
+          const elBar = document.getElementById('progreso-pdf-barra');
+          const elPct = document.getElementById('progreso-pdf-pct');
+          if (elBar) elBar.style.width = `${this._pctActual}%`;
+          if (elPct) elPct.textContent = `${this._pctActual}%`;
+        }
+      }, intervalMs);
+    },
+
+    _limpiarTicker() {
+      if (this._timerTicker) {
+        clearInterval(this._timerTicker);
+        this._timerTicker = null;
+      }
+    },
+
+    obtenerPctActual() {
+      return this._pctActual;
+    },
+
+    cerrar() {
+      this._limpiarTicker();
+      const modal = document.getElementById('modal-progreso-descarga-pdf');
+      if (modal) modal.style.display = 'none';
+    }
+  };
+
+  async function construirBlobComprobantePDF(data, autoDownload = false, onProgress = null) {
     if (!data) return null;
     if (data._pdfBlob && data._pdfFilename) {
       if (autoDownload) {
@@ -601,13 +766,25 @@
       }
       return { blob: data._pdfBlob, filename: data._pdfFilename };
     }
+
     if (data._pdfGeneratingPromise) {
-      return data._pdfGeneratingPromise;
+      if (onProgress) {
+        onProgress(45, 'Renderizando documento oficial...', 'Paso 2 de 4');
+        ProgresoPDF.iniciarTickerIntermedio(45, 88, 200);
+      }
+      const res = await data._pdfGeneratingPromise;
+      if (autoDownload && res && res.blob) {
+        descargarBlobArchivoPDF(res.blob, res.filename);
+      }
+      return res;
     }
 
     data._pdfGeneratingPromise = (async () => {
       asegurarEstilosAnimacionComprobante();
+      if (onProgress) onProgress(20, 'Cargando motor de generación PDF...', 'Paso 1 de 4');
       await asegurarHtml2PdfCargado();
+
+      if (onProgress) onProgress(35, 'Estructurando datos oficiales y códigos SIE...', 'Paso 2 de 4');
       const { codigoReg, fechaHoy, directorNom, nombreArchivo } = obtenerMetadatosFicha(data);
       const fichaHtml = generarHtmlFichaOficial(data, codigoReg, fechaHoy, directorNom);
 
@@ -621,15 +798,24 @@
       document.body.appendChild(outerWrap);
 
       try {
+        if (onProgress) onProgress(50, 'Optimizando sellos institucionales y códigos SIE...', 'Paso 2 de 4');
         await convertirImagenesComprobanteABase64(targetEl);
-        await new Promise(r => setTimeout(r, 60));
+        await new Promise(r => setTimeout(r, 40));
+
+        if (onProgress) {
+          onProgress(68, 'Renderizando documento en alta definición (Formato Carta)...', 'Paso 3 de 4');
+          ProgresoPDF.iniciarTickerIntermedio(68, 88, 180);
+        }
+
+        const esMovil = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
+        const canvasScale = esMovil ? 2.8 : 3.0;
 
         const opt = {
           margin: [10, 20, 10, 10], // [Superior: 10mm (1cm), Izquierdo: 20mm (2cm), Inferior: 10mm (1cm), Derecho: 10mm (1cm)]
           filename: nombreArchivo,
           image: { type: 'jpeg', quality: 1.0 },
           html2canvas: {
-            scale: 3.5, // Ultra Alta Definición (~330 DPI) nítido como impresión profesional
+            scale: canvasScale, // Alta Definición nítido sin pixelación y óptimo en velocidad móvil
             letterRendering: true,
             useCORS: true,
             allowTaint: true,
@@ -646,6 +832,7 @@
 
         let blob = null;
         try {
+          if (onProgress) onProgress(89, 'Compilando archivo PDF oficial...', 'Paso 4 de 4');
           const pdf = await worker.toPdf().get('pdf');
           if (pdf && typeof pdf.output === 'function') {
             blob = pdf.output('blob');
@@ -654,20 +841,13 @@
           console.warn('Extrayendo blob de html2pdf:', errBlob);
         }
 
-        if (autoDownload) {
-          try {
-            await worker.save();
-          } catch (saveErr) {
-            console.warn('worker.save falló, ejecutando descarga vía Blob:', saveErr);
-            if (blob) {
-              descargarBlobArchivoPDF(blob, nombreArchivo);
-            }
-          }
-        }
-
         if (blob) {
           data._pdfBlob = blob;
           data._pdfFilename = nombreArchivo;
+        }
+
+        if (autoDownload && blob) {
+          descargarBlobArchivoPDF(blob, nombreArchivo);
         }
 
         return { blob, filename: nombreArchivo };
@@ -701,17 +881,18 @@
       return;
     }
 
-    // Reacción inmediata en la interfaz: indicar que se está procesando la descarga
+    // 1. REACCIÓN INMEDIATA EN LA INTERFAZ (0ms):
+    // El usuario percibe al instante que su clic funcionó
     asegurarEstilosAnimacionComprobante();
     const btns = document.querySelectorAll('.btn-voucher-pdf');
     btns.forEach(b => {
       if (!b.dataset.origHtml) b.dataset.origHtml = b.innerHTML;
       b.innerHTML = `
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spinVoucherBtn 0.8s linear infinite">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spinVoucherBtn 0.8s linear infinite;flex-shrink:0;">
           <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
           <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
         </svg>
-        <span>Descargando PDF...</span>
+        <span>Procesando descarga...</span>
       `;
       b.style.pointerEvents = 'none';
       b.style.opacity = '0.85';
@@ -728,22 +909,50 @@
       });
     };
 
-    // Si ya fue pre-generado, descargarlo de inmediato (0ms de espera)
+    // CASO A: El PDF ya está listo en memoria (pre-generado) -> Animación fluida instantánea y descarga inmediata
     if (data._pdfBlob && data._pdfFilename) {
-      descargarBlobArchivoPDF(data._pdfBlob, data._pdfFilename);
-      restaurarBotones();
-      mostrarModalAvisoDescargaPdf(data._pdfFilename, data._pdfBlob);
+      ProgresoPDF.iniciar('Descargando Ficha Oficial', 'Verificando archivo PDF generado...');
+      ProgresoPDF.actualizar(35, 'Documento verificado con éxito...', 'Paso 1 de 2');
+      setTimeout(() => {
+        ProgresoPDF.actualizar(80, 'Iniciando descarga en tu dispositivo...', 'Paso 2 de 2');
+        setTimeout(() => {
+          ProgresoPDF.actualizar(100, '¡Documento listo! Descargando archivo...', 'Paso 2 de 2');
+          // DESCARGA EN EL PRIMER CLIC GARANTIZADA
+          descargarBlobArchivoPDF(data._pdfBlob, data._pdfFilename);
+          restaurarBotones();
+          setTimeout(() => {
+            ProgresoPDF.cerrar();
+            mostrarModalAvisoDescargaPdf(data._pdfFilename, data._pdfBlob);
+          }, 350);
+        }, 140);
+      }, 100);
       return;
     }
 
+    // CASO B: Generación en progreso o primera vez -> Barra interactiva con pasos y porcentaje en vivo
+    ProgresoPDF.iniciar('Generando Ficha Oficial de Pre-Inscripción', 'Iniciando preparación del documento...');
+    ProgresoPDF.actualizar(15, 'Preparando datos oficiales y validaciones...', 'Paso 1 de 4');
+
     try {
-      const result = await construirBlobComprobantePDF(data, true);
-      restaurarBotones();
-      if (result) {
-        mostrarModalAvisoDescargaPdf(result.filename, result.blob);
+      const result = await construirBlobComprobantePDF(data, false, (progreso, mensaje, paso) => {
+        ProgresoPDF.actualizar(progreso, mensaje, paso);
+      });
+
+      if (result && result.blob) {
+        ProgresoPDF.actualizar(100, '¡Documento listo! Descargando archivo...', 'Paso 4 de 4');
+        // DESCARGA EN EL PRIMER CLIC GARANTIZADA DIRECTA VÍA BLOB
+        descargarBlobArchivoPDF(result.blob, result.filename);
+        restaurarBotones();
+        setTimeout(() => {
+          ProgresoPDF.cerrar();
+          mostrarModalAvisoDescargaPdf(result.filename, result.blob);
+        }, 400);
+      } else {
+        throw new Error('No se generó el blob del PDF.');
       }
     } catch (err) {
       console.error('Error generando y descargando PDF directo:', err);
+      ProgresoPDF.cerrar();
       restaurarBotones();
       if (typeof mostrarAlertaModal === 'function') {
         mostrarAlertaModal('Hubo un inconveniente al generar el archivo PDF. Por favor, intenta nuevamente.', 'Descarga de Ficha', 'error');
