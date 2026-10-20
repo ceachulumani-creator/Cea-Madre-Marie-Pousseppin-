@@ -1777,13 +1777,25 @@ function obtenerVisitasExclusivoGSheet() {
 }
 
 function registrarVisita() {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const bolivia = new Date(utc - 4 * 3600000);
+  const mesKey = `${bolivia.getFullYear()}_${bolivia.getMonth()}`;
+
+  // 1. Incremento inmediato en la interfaz: respuesta instantánea al recargar o ingresar
+  const visitas = obtenerVisitasExclusivoGSheet();
+  visitas[mesKey] = (Number(visitas[mesKey]) || 0) + 1;
+  try {
+    localStorage.setItem('cea_visitas_gsheet', JSON.stringify(visitas));
+  } catch (e) {}
   actualizarContadorVisitasMinimal();
+
+  // 2. Registro y consolidación en Google Sheets en segundo plano
   enviarGoogleSheet({ action: 'visita', userAgent: navigator.userAgent }).then(() => {
     if (typeof cargarDatosGoogleSheets === 'function') {
-      cargarDatosGoogleSheets(true);
-      setTimeout(() => cargarDatosGoogleSheets(true), 2200);
+      setTimeout(() => cargarDatosGoogleSheets(true), 1200);
     }
-  });
+  }).catch(() => {});
 }
 
 function actualizarContadorVisitasMinimal() {
