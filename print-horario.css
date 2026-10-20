@@ -3,8 +3,10 @@
    CEA "MADRE MARIE POUSSEPIN" - GESTIÓN 2026
    ========================================================================== */
 
-#horario-print-area {
-  display: none !important;
+@media screen {
+  #horario-print-area {
+    display: none !important;
+  }
 }
 
 @media print {

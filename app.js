@@ -780,7 +780,9 @@ async function enviarGoogleSheet(datos) {
   const url = obtenerGoogleSheetURL();
   if (!url) return false;
   try {
-    _ultimaEdicionLocalTimestamp = Date.now();
+    if (!datos || datos.action !== 'visita') {
+      _ultimaEdicionLocalTimestamp = Date.now();
+    }
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 segundos máximo
 
@@ -1301,11 +1303,11 @@ function aplicarDatosGoogleSheets(data) {
       }
     }
 
-    // 9. Visitas Globales
+    // 9. Visitas Globales (EXCLUSIVAMENTE desde Google Sheets para consistencia multi-dispositivo)
     if (data.visitas && typeof data.visitas === 'object') {
-      const visitasLocales = lsGet('cea_visitas', {});
-      Object.assign(visitasLocales, data.visitas);
-      lsSet('cea_visitas', visitasLocales);
+      lsSet('cea_visitas_gsheet', data.visitas);
+      lsSet('cea_visitas', data.visitas);
+      actualizarContadorVisitasMinimal();
       renderTablaVisitas();
     }
 
@@ -1765,22 +1767,27 @@ function inicializarDragAndDrop(zoneId, inputId, urlTargetId, tipoTargetId, prev
   }, false);
 }
 
-/* ─── CONTADOR DE VISITAS ─── */
-function registrarVisita() {
-  const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  const bolivia = new Date(utc - 4 * 3600000);
-  const key = `${bolivia.getFullYear()}_${bolivia.getMonth()}`;
-  const visitas = lsGet('cea_visitas', {});
-  visitas[key] = (visitas[key] || 0) + 1;
-  lsSet('cea_visitas', visitas);
+/* ─── CONTADOR DE VISITAS (EXCLUSIVAMENTE DESDE GOOGLE SHEETS) ─── */
+function obtenerVisitasExclusivoGSheet() {
+  const gsheetVisitas = lsGet('cea_visitas_gsheet', null);
+  if (gsheetVisitas && typeof gsheetVisitas === 'object') {
+    return gsheetVisitas;
+  }
+  return {};
+}
 
+function registrarVisita() {
   actualizarContadorVisitasMinimal();
-  enviarGoogleSheet({ action: 'visita', userAgent: navigator.userAgent });
+  enviarGoogleSheet({ action: 'visita', userAgent: navigator.userAgent }).then(() => {
+    if (typeof cargarDatosGoogleSheets === 'function') {
+      cargarDatosGoogleSheets(true);
+      setTimeout(() => cargarDatosGoogleSheets(true), 2200);
+    }
+  });
 }
 
 function actualizarContadorVisitasMinimal() {
-  const visitas = lsGet('cea_visitas', {});
+  const visitas = obtenerVisitasExclusivoGSheet();
   const total = Object.values(visitas).reduce((acc, val) => acc + (Number(val) || 0), 0);
 
   const now = new Date();
@@ -1789,7 +1796,7 @@ function actualizarContadorVisitasMinimal() {
   const mesKey = `${bolivia.getFullYear()}_${bolivia.getMonth()}`;
   const mesVisitas = Number(visitas[mesKey]) || 0;
   const diaDelMes = bolivia.getDate() || 1;
-  const promedioDiario = Math.max(1, Math.round(mesVisitas / diaDelMes));
+  const promedioDiario = mesVisitas > 0 ? Math.max(1, Math.round(mesVisitas / diaDelMes)) : 0;
 
   // Actualizar contador flotante superior derecho
   const topNum = document.getElementById('visitas-top-num');
@@ -1835,7 +1842,7 @@ function abrirDashboardVisitasCompleto() {
   if (modal) {
     modal.style.display = 'flex';
     actualizarContadorVisitasMinimal();
-    const visitas = lsGet('cea_visitas', {});
+    const visitas = obtenerVisitasExclusivoGSheet();
     renderGraficoVisitasSVG(visitas);
     renderTablaVisitas();
   }
@@ -1941,7 +1948,7 @@ function renderGraficoVisitasSVG(visitasObj) {
 function renderTablaVisitas() {
   const tbody = document.getElementById('visitas-tbody');
   if (!tbody) return;
-  const visitas = lsGet('cea_visitas', {});
+  const visitas = obtenerVisitasExclusivoGSheet();
   const keys = Object.keys(visitas).sort().reverse();
   if (!keys.length) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-sec);padding:14px">Sin visitas registradas aún.</td></tr>';
@@ -1973,7 +1980,7 @@ function renderTablaVisitas() {
 }
 
 function seleccionarDetalleMesVisitas(mesKey, trElement) {
-  const visitas = lsGet('cea_visitas', {});
+  const visitas = obtenerVisitasExclusivoGSheet();
   const cnt = Number(visitas[mesKey]) || 0;
   const [a, m] = mesKey.split('_');
   const nombreMes = MESES[+m] || m;
@@ -3214,15 +3221,8 @@ function renderizarBarraSedesHorarios() {
 
   const parentWrap = container.parentElement;
 
-  // Si solo hay 1 horario (Sede Central) y no se tiene permiso de edicion: Ocultar la barra si solo hay 1
-  if (sedes.length <= 1 && !puedeEditar) {
-    container.innerHTML = '';
-    if (parentWrap) parentWrap.style.display = 'none';
-    actualizarBotonModoEdicion();
-    return;
-  }
-
-  // Mostrar la barra de selección (Fila 1: Pestañas de Sedes)
+  // Mostrar siempre la barra de selección de Sedes (Sede Central seleccionada por defecto)
+  container.style.display = 'flex';
   if (parentWrap) parentWrap.style.display = 'flex';
 
   // Renderizar ÚNICAMENTE las pestañas de las sedes (Central y Subcentro/s)
@@ -3358,7 +3358,14 @@ async function eliminarSubcentroSede(sedeKey) {
 function switchTurnoHorario(turno) {
   turnoHorarioActual = turno;
   window.turnoHorarioActual = turno;
-  document.querySelectorAll('.oferta-pill-btn, .btn-turno-tab').forEach(b => {
+  // Por defecto al cambiar o iniciar en Bachillerato Humanístico o Técnica Tecnológica, seleccionar Sede Central
+  sedeHorarioActiva = 'central';
+  setHorarioSedeActiveKey('central', turno);
+  lsSet('cea_vista_unificada_sedes', false);
+  const chkUni = document.getElementById('chk-vista-unificada-sedes');
+  if (chkUni) chkUni.checked = false;
+
+  document.querySelectorAll('#btn-turno-hum, #btn-turno-tec, .btn-turno-tab').forEach(b => {
     const tVal = b.getAttribute('data-turno') || b.id.replace('btn-turno-', '');
     b.classList.toggle('active', tVal === turno);
     b.classList.toggle('activo', tVal === turno);
@@ -8561,22 +8568,9 @@ function imprimirHorarioActual(turno = turnoHorarioActual) {
 
   printArea.style.display = 'block';
 
-  let printCleaned = false;
-  const limpiarHorarioPrint = () => {
-    if (printCleaned) return;
-    printCleaned = true;
-    document.body.classList.remove('printing-horario', 'print-turno-hum', 'print-turno-tec');
-    if (printArea) {
-      printArea.innerHTML = '';
-      printArea.style.display = 'none';
-    }
-    window.removeEventListener('afterprint', limpiarHorarioPrint);
-  };
-  window.addEventListener('afterprint', limpiarHorarioPrint, { once: true });
-
   setTimeout(() => {
     window.print();
-  }, 150);
+  }, 200);
 }
 
 function cargarEditorHorariosMatriz(turno = 'hum', targetContainerId = 'editor-horarios-matriz-container') {
@@ -23540,6 +23534,19 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTablaVisitas();
   actualizarContadorVisitasMinimal();
 
+  // Al ingresar o recargar la página, establecer estados activos por defecto:
+  // 1) Oferta Académica -> Bachillerato Humanístico seleccionado
+  // 2) Horarios -> Bachillerato Humanístico + Sede Central seleccionados (y Sede Central por defecto en Técnica)
+  // 3) Inscripciones y Requisitos -> Bachillerato Humanístico seleccionado
+  // 4) Galería y Muro de Actividades -> Todo el Contenido seleccionado
+  turnoHorarioActual = 'hum';
+  window.turnoHorarioActual = 'hum';
+  sedeHorarioActiva = 'central';
+  lsSet('cea_sede_activa', 'central');
+  lsSet('cea_sede_activa_hum', 'central');
+  lsSet('cea_sede_activa_tec', 'central');
+  lsSet('cea_vista_unificada_sedes', false);
+
   aplicarEstilosGestorHorario();
   cargarDocentes();
   cargarHorarios();
@@ -23547,6 +23554,10 @@ document.addEventListener('DOMContentLoaded', () => {
   cargarContenido();
   cargarMaterias();
   cargarAreasTec();
+  if (typeof switchOfertaTab === 'function') switchOfertaTab('hum');
+  if (typeof switchTurnoHorario === 'function') switchTurnoHorario('hum');
+  if (typeof switchRequisitosTab === 'function') switchRequisitosTab('hum');
+  if (typeof cambiarNivelGaleria === 'function') cambiarNivelGaleria('todos');
   const anioActual = new Date().getFullYear();
   actualizarVistaCalendario(anioActual);
   renderTablaEpjaNiveles();

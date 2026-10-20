@@ -934,22 +934,14 @@
     printArea.setAttribute('data-paleta', paletaActiva);
     printArea.style.display = 'block';
 
-    let printCleaned = false;
-    const limpiarHorarioPrint = () => {
-      if (printCleaned) return;
-      printCleaned = true;
-      document.body.classList.remove('printing-horario', 'print-turno-hum', 'print-turno-tec');
-      if (printArea) {
-        printArea.innerHTML = '';
-        printArea.style.display = 'none';
-      }
-      window.removeEventListener('afterprint', limpiarHorarioPrint);
-    };
-    window.addEventListener('afterprint', limpiarHorarioPrint, { once: true });
-
+    // En dispositivos móviles (Android Chrome / iOS Safari), window.print() no bloquea el hilo principal
+    // y el evento 'afterprint' se dispara en <50ms antes de que el visor nativo del celular capture el DOM.
+    // Por ello NO vaciamos printArea ni quitamos 'printing-horario' prematuramente: en pantalla normal
+    // #horario-print-area permanece 100% oculto por CSS (@media screen { display: none !important }) y
+    // las reglas body.printing-horario solo existen dentro de @media print.
     setTimeout(() => {
       window.print();
-    }, 150);
+    }, 200);
   }
 
   // Exportar al ámbito global
