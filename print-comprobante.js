@@ -106,35 +106,35 @@
     }
 
     return `
-      <div class="comprobante-ficha-letter" style="font-family:Arial, Helvetica, sans-serif; width:760px; max-width:760px; height:955px; max-height:955px; min-height:955px; margin:0 auto; padding:10px 14px; border:2px solid #166534; border-radius:6px; color:#0f172a; background:#ffffff; box-sizing:border-box; overflow:hidden; page-break-inside:avoid; display:flex; flex-direction:column; justify-content:space-between; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:geometricPrecision;">
+      <div class="comprobante-ficha-letter" style="font-family:Arial, Helvetica, sans-serif; width:702px; max-width:702px; margin:0 auto; padding:8px 12px; border:2px solid #166534; border-radius:6px; color:#0f172a; background:#ffffff; box-sizing:border-box; overflow:hidden; page-break-inside:avoid; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:geometricPrecision;">
         
         <!-- ENCABEZADO INSTITUCIONAL OFICIAL -->
-        <div style="border-bottom:2px solid #166534; padding-bottom:5px; margin-bottom:5px; flex:0 0 auto;">
+        <div style="border-bottom:2px solid #166534; padding-bottom:4px; margin-bottom:5px; flex:0 0 auto;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <img src="logo cea madre marie poussepin.png" alt="Logo CEA" crossorigin="anonymous" style="width:55px; height:auto; max-height:55px;" />
-            <div style="flex:1; padding:0 10px; line-height:1.15; text-align:center;">
+            <img src="logo cea madre marie poussepin.png" alt="Logo CEA" crossorigin="anonymous" style="width:52px; height:auto; max-height:52px;" />
+            <div style="flex:1; padding:0 8px; line-height:1.15; text-align:center;">
               <div style="font-size:7.2pt; font-weight:800; letter-spacing:0.5px; color:#1e293b; text-transform:uppercase; margin:0;">Estado Plurinacional de Bolivia • Ministerio de Educación</div>
               <div style="font-size:6.8pt; font-weight:700; color:#475569; margin:1px 0 0 0;">Viceministerio de Educación Alternativa y Especial • DDE La Paz • DDE Chulumani</div>
-              <h2 style="margin:2px 0 1px; font-size:1.18rem; font-weight:900; color:#166534; letter-spacing:0.5px;">CEA MADRE MARIE POUSSEPÍN</h2>
+              <h2 style="margin:2px 0 1px; font-size:1.15rem; font-weight:900; color:#166534; letter-spacing:0.5px;">CEA MADRE MARIE POUSSEPÍN</h2>
               <div style="font-size:6.8pt; color:#64748b; margin:0; font-weight:600;">R.A. 176/2013 • Código SIE: 80630044 • Chulumani, Sud Yungas, La Paz - Bolivia</div>
             </div>
             <div style="text-align:right;">
-              <span style="display:inline-block; padding:4px 9px; background:#dcfce7; border:1.4px solid #16a34a; border-radius:5px; font-weight:900; font-size:8pt; color:#166534;">GESTIÓN ${data.gestion || '2026'}</span>
-              <div style="margin-top:3px; font-size:7.2pt; color:#64748b; font-weight:700;">FOLIO REGISTRO:</div>
-              <div style="font-size:8.5pt; font-weight:900; color:#0f172a; letter-spacing:0.5px;">${codigoReg}</div>
+              <span style="display:inline-block; padding:3px 8px; background:#dcfce7; border:1.4px solid #16a34a; border-radius:5px; font-weight:900; font-size:7.8pt; color:#166534;">GESTIÓN ${data.gestion || '2026'}</span>
+              <div style="margin-top:2px; font-size:7pt; color:#64748b; font-weight:700;">FOLIO REGISTRO:</div>
+              <div style="font-size:8.2pt; font-weight:900; color:#0f172a; letter-spacing:0.5px;">${codigoReg}</div>
             </div>
           </div>
-          <div style="text-align:center; margin-top:4px; background:#f0fdf4; padding:3px 6px; border-radius:4px; border:1px solid #bbf7d0;">
-            <h3 style="margin:0; font-size:0.92rem; font-weight:900; text-transform:uppercase; letter-spacing:0.6px; color:#166534;">FORMULARIO OFICIAL DE PRE-INSCRIPCIÓN Y REGISTRO ÚNICO DE MATRÍCULA</h3>
+          <div style="text-align:center; margin-top:3px; background:#f0fdf4; padding:3px 6px; border-radius:4px; border:1px solid #bbf7d0;">
+            <h3 style="margin:0; font-size:0.90rem; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; color:#166534;">FORMULARIO OFICIAL DE PRE-INSCRIPCIÓN Y REGISTRO ÚNICO DE MATRÍCULA</h3>
             <span style="font-size:6.6pt; color:#475569; font-weight:600;">Documento válido para ratificación presencial de matrícula en Secretaría Académica • Emisión: ${fechaHoy}</span>
           </div>
         </div>
 
-        <!-- CUERPO PRINCIPAL DEL FORMULARIO -->
-        <div style="flex:1 1 auto; display:flex; flex-direction:column; justify-content:space-between; gap:5px;">
+        <!-- CUERPO PRINCIPAL DEL FORMULARIO (Secciones compactas y continuas una debajo de otra) -->
+        <div style="display:flex; flex-direction:column; gap:5px; margin:0; padding:0;">
           
           <!-- TABLA 1: DATOS PERSONALES DEL PARTICIPANTE (+1 punto de tamaño de texto) -->
-          <table style="width:100%; border-collapse:collapse; font-size:8.8pt; border:1px solid #cbd5e1;">
+          <table style="width:100%; border-collapse:collapse; font-size:8.8pt; border:1px solid #cbd5e1; margin:0;">
             <thead>
               <tr style="background:#f1f5f9;">
                 <th colspan="4" style="padding:4px 8px; text-align:left; font-size:8.4pt; color:#0f172a; text-transform:uppercase; border-bottom:1px solid #cbd5e1; font-weight:900;">
@@ -163,7 +163,7 @@
           </table>
 
           <!-- TABLA 2: ASIGNACIÓN ACADÉMICA Y CARRERA (+1 punto de tamaño de texto) -->
-          <table style="width:100%; border-collapse:collapse; font-size:8.8pt; border:1px solid #cbd5e1;">
+          <table style="width:100%; border-collapse:collapse; font-size:8.8pt; border:1px solid #cbd5e1; margin:0;">
             <thead>
               <tr style="background:#f1f5f9;">
                 <th colspan="4" style="padding:4px 8px; text-align:left; font-size:8.4pt; color:#0f172a; text-transform:uppercase; border-bottom:1px solid #cbd5e1; font-weight:900;">
@@ -208,17 +208,17 @@
           </table>
 
           <!-- SECCIÓN 3: REQUISITOS Y DOCUMENTACIÓN DE RESPALDO (+1 punto de tamaño de texto) -->
-          <div style="border:1px solid #cbd5e1; border-radius:5px; padding:6px 10px; background:#f8fafc; font-size:8.3pt; line-height:1.35;">
-            <strong style="color:#0f172a; display:block; margin-bottom:4px; text-transform:uppercase; font-size:8.3pt; border-bottom:1px solid #cbd5e1; padding-bottom:2px;">
+          <div style="border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#f8fafc; font-size:8.3pt; line-height:1.3; margin:0;">
+            <strong style="color:#0f172a; display:block; margin-bottom:3px; text-transform:uppercase; font-size:8.3pt; border-bottom:1px solid #cbd5e1; padding-bottom:2px;">
               ${tituloCotejo}
             </strong>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; color:#334155;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; color:#334155;">
               ${docItems.map((doc, idx) => `<div>[ &nbsp; ] ${idx + 1}. ${doc}</div>`).join('')}
             </div>
           </div>
 
           <!-- SECCIÓN 4: DECLARACIÓN JURADA Y COMPROMISO DEL PARTICIPANTE (+1 punto de tamaño de texto) -->
-          <div style="border:1px solid #cbd5e1; border-radius:5px; padding:6px 10px; background:#ffffff; font-size:7.9pt; line-height:1.35; color:#334155;">
+          <div style="border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#ffffff; font-size:7.9pt; line-height:1.3; color:#334155; margin:0;">
             <strong style="color:#0f172a; text-transform:uppercase; font-size:8.1pt; display:block; margin-bottom:2px;">
               4. DECLARACIÓN JURADA Y COMPROMISO INSTITUCIONAL:
             </strong>
@@ -226,8 +226,8 @@
           </div>
 
           <!-- SECCIÓN 5: CONTROL DE RECEPCIÓN Y QR DE VALIDACIÓN DIGITAL (+1 punto de tamaño de texto) -->
-          <div style="display:grid; grid-template-columns:1fr 90px; gap:10px; align-items:center; border:1px solid #cbd5e1; border-radius:5px; padding:6px 10px; background:#f8fafc;">
-            <div style="font-size:8.0pt; line-height:1.4; color:#334155;">
+          <div style="display:grid; grid-template-columns:1fr 85px; gap:8px; align-items:center; border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#f8fafc; margin:0;">
+            <div style="font-size:8.0pt; line-height:1.35; color:#334155;">
               <strong style="color:#0f172a; text-transform:uppercase; display:block; margin-bottom:2px; font-size:8.2pt;">
                 5. CONTROL DE RECEPCIÓN Y OBSERVACIONES DE KARDEX:
               </strong>
@@ -236,16 +236,16 @@
               <div style="margin-top:2px;">• Código Único de Registro Electrónico: <strong style="font-family:monospace; font-size:8.5pt; color:#166534;">CEA-${codigoReg}-${new Date().getFullYear()}</strong></div>
             </div>
             <div style="text-align:center;">
-              <img src="${qrUrl}" alt="QR Verificación" crossorigin="anonymous" style="width:72px; height:72px; border:1px solid #cbd5e1; padding:2px; border-radius:4px; display:inline-block; background:#ffffff;" />
-              <span style="display:block; font-size:6.8pt; color:#64748b; margin-top:2px; font-weight:800; text-transform:uppercase;">Validación Digital</span>
+              <img src="${qrUrl}" alt="QR Verificación" crossorigin="anonymous" style="width:68px; height:68px; border:1px solid #cbd5e1; padding:2px; border-radius:4px; display:inline-block; background:#ffffff;" />
+              <span style="display:block; font-size:6.8pt; color:#64748b; margin-top:1px; font-weight:800; text-transform:uppercase;">Validación Digital</span>
             </div>
           </div>
 
         </div>
 
         <!-- SECCIÓN 6: CONFORMIDAD Y FIRMA EXCLUSIVA DEL PARTICIPANTE (+1 punto de tamaño de texto) -->
-        <div style="display:flex; justify-content:center; align-items:center; padding-top:8px; margin-top:4px; flex:0 0 auto;">
-          <div style="width:280px; text-align:center; border-top:1.8px solid #334155; padding-top:4px;">
+        <div style="display:flex; justify-content:center; align-items:center; padding-top:12px; margin-top:6px; flex:0 0 auto;">
+          <div style="width:260px; text-align:center; border-top:1.8px solid #334155; padding-top:4px;">
             <strong style="font-size:9.2pt; display:block; color:#0f172a; text-transform:uppercase; letter-spacing:0.4px;">Firma del Participante</strong>
             <span style="font-size:8.2pt; color:#475569; display:block; font-weight:600; margin-top:2px;">C.I.: ${data.ci || '_____________________'}</span>
           </div>
@@ -531,7 +531,10 @@
     const esIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const esMovil = esAndroid || esIOS || /webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
 
-    const badgeTexto = esAndroid ? '📱 CELULAR ANDROID' : (esMovil ? '📱 DISPOSITIVO MÓVIL' : '💻 COMPUTADORA / PC');
+    const badgeIconSvg = esMovil
+      ? `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" style="flex-shrink:0;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`
+      : `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" style="flex-shrink:0;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+    const badgeTexto = esAndroid ? 'CELULAR ANDROID' : (esMovil ? 'DISPOSITIVO MÓVIL' : 'COMPUTADORA / PC');
     const badgeColor = esMovil ? '#166534' : '#1d4ed8';
     const badgeBg = esMovil ? '#dcfce7' : '#eff6ff';
     const badgeBorder = esMovil ? '#86efac' : '#93c5fd';
@@ -547,6 +550,7 @@
         <div class="modal-aviso-pdf-card" onclick="event.stopPropagation()" style="background:#ffffff;border:2px solid #16a34a;border-radius:16px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.35);padding:24px 22px;text-align:center;box-sizing:border-box;animation:zoomInAvisoPdf 0.22s ease-out;">
           
           <div style="display:inline-flex;align-items:center;gap:6px;background:${badgeBg};color:${badgeColor};border:1.5px solid ${badgeBorder};border-radius:50px;padding:4px 12px;font-size:0.75rem;font-weight:800;letter-spacing:0.5px;margin-bottom:12px;text-transform:uppercase;">
+            ${badgeIconSvg}
             <span>${badgeTexto}</span>
           </div>
 
@@ -555,11 +559,12 @@
           </div>
 
           <h3 style="margin:0 0 8px 0;font-size:1.25rem;font-weight:900;color:#063c17;letter-spacing:-0.3px;">
-            ¡Se descargó tu Ficha Oficial!
+            Se descargó tu Ficha Oficial
           </h3>
 
-          <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:0.80rem;color:#334155;font-weight:700;word-break:break-all;">
-            📄 ${escNom || 'Ficha_Inscripcion_CEA_2026.pdf'}
+          <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:0.80rem;color:#334155;font-weight:700;word-break:break-all;display:flex;align-items:center;justify-content:center;gap:7px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#16a34a" stroke-width="2.2" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>${escNom || 'Ficha_Inscripcion_CEA_2026.pdf'}</span>
           </div>
 
           <p style="margin:0 0 20px 0;font-size:0.88rem;color:#475569;line-height:1.45;">
@@ -568,12 +573,13 @@
 
           <div style="display:flex;flex-direction:column;gap:10px;">
             <button type="button" onclick="abrirPdfGeneradoComprobante()" style="background:linear-gradient(135deg, #16a34a 0%, #15803d 100%);color:#ffffff;border:none;border-radius:50px;padding:12px 24px;font-size:0.96rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 6px 20px rgba(22,163,74,0.40);transition:all 0.2s ease;">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               <span>Abrir</span>
             </button>
 
-            <button type="button" onclick="cerrarModalAvisoDescargaPdf()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:50px;padding:9px 18px;font-size:0.86rem;font-weight:700;cursor:pointer;transition:all 0.2s ease;">
-              Cerrar
+            <button type="button" onclick="cerrarModalAvisoDescargaPdf()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:50px;padding:9px 18px;font-size:0.86rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s ease;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <span>Cerrar</span>
             </button>
           </div>
 
@@ -602,11 +608,11 @@
       const { codigoReg, fechaHoy, directorNom, nombreArchivo } = obtenerMetadatosFicha(data);
       const fichaHtml = generarHtmlFichaOficial(data, codigoReg, fechaHoy, directorNom);
 
-      // Contenedor temporal de proporción Letter (760px x 955px) nítido, centrado y sin cortes
+      // Contenedor temporal exacto para formato Carta (702px ancho) con márgenes 1cm sup/der/inf y 2cm izq
       const outerWrap = document.createElement('div');
-      outerWrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:760px;height:955px;z-index:-99999;background:#ffffff;overflow:hidden;';
+      outerWrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:702px;z-index:-99999;background:#ffffff;overflow:hidden;';
       const targetEl = document.createElement('div');
-      targetEl.style.cssText = 'width:760px;height:955px;background:#ffffff;margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:geometricPrecision;';
+      targetEl.style.cssText = 'width:702px;background:#ffffff;margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:geometricPrecision;';
       targetEl.innerHTML = fichaHtml;
       outerWrap.appendChild(targetEl);
       document.body.appendChild(outerWrap);
@@ -616,7 +622,7 @@
         await new Promise(r => setTimeout(r, 60));
 
         const opt = {
-          margin: [5, 6, 5, 6],
+          margin: [10, 20, 10, 10], // [Superior: 10mm (1cm), Izquierdo: 20mm (2cm), Inferior: 10mm (1cm), Derecho: 10mm (1cm)]
           filename: nombreArchivo,
           image: { type: 'jpeg', quality: 1.0 },
           html2canvas: {
