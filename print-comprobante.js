@@ -1022,6 +1022,7 @@
 
   // Exportar al ámbito global
   window.pregenerarComprobantePDF = pregenerarComprobantePDF;
+  window.descargarComprobanteDirectoPDF = descargarComprobanteDirectoPDF;
   window.imprimirComprobante = descargarComprobanteDirectoPDF;
   window.descargarComprobanteInscripcionPDF = descargarComprobanteDirectoPDF;
   window.aplicarOrientacionComprobante = aplicarOrientacionComprobante;

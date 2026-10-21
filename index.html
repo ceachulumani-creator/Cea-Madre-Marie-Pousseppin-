@@ -46,7 +46,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2026.267" />
+  <link rel="stylesheet" href="styles.css?v=2026.270" />
   <script>
     document.documentElement.classList.remove('dark', 'dark-mode');
     try {
@@ -4784,10 +4784,23 @@
               </div>
 
               <div class="form-group fi-select-group" id="grp-fi-sede" style="display:none">
-                <label for="fi-sede-select" id="lbl-fi-sede">Centro o Subcentro a inscribirse *</label>
-                <select id="fi-sede-select" name="sede" style="width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border-col);background:var(--bg-card);font-size:0.9rem;font-weight:700;color:var(--text-main);outline:none">
-                  <option value="Sede Central (Centro de Chulumani)">Sede Central (Centro de Chulumani)</option>
-                </select>
+                <label for="fi-sede-trigger" id="lbl-fi-sede">Centro o Subcentro a inscribirse *</label>
+                <div class="custom-select-container" id="container-select-sede">
+                  <div class="custom-select-trigger" id="fi-sede-trigger" tabindex="0" onclick="toggleDropdownSelect('sede')">
+                    <span class="custom-select-text" id="fi-sede-text">Sede Central (Centro de Chulumani)</span>
+                    <svg class="custom-select-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </div>
+
+                  <select id="fi-sede-select" name="sede" style="display:none">
+                    <option value="Sede Central (Centro de Chulumani)">Sede Central (Centro de Chulumani)</option>
+                  </select>
+
+                  <div class="custom-select-menu" id="menu-select-sede" style="display:none">
+                    <!-- Opciones de sede y subcentro generadas dinámicamente -->
+                  </div>
+                </div>
               </div>
 
               <div class="form-group" id="grp-fi-comunidad">
@@ -4921,7 +4934,7 @@
               </div>
 
               <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <input type="text" id="ci-consulta-inp" placeholder="Ingresa tu CI (Ej: 8345129 LP)" style="flex:1;min-width:200px;padding:11px 16px;border:2px solid #16a34a;border-radius:10px;background:var(--bg-card);color:var(--text-main);font-family:inherit;font-size:0.96rem;font-weight:600" onkeydown="if(event.key==='Enter')consultarInscripcionPorCI()" />
+                <input type="text" id="ci-consulta-inp" inputmode="numeric" placeholder="Ingresa tu CI (Ej: 8345129 LP)" style="flex:1;min-width:200px;padding:11px 16px;border:2px solid #16a34a;border-radius:10px;background:var(--bg-card);color:var(--text-main);font-family:inherit;font-size:0.96rem;font-weight:600" onkeydown="if(event.key==='Enter')consultarInscripcionPorCI()" />
                 <button type="button" class="btn-submit" onclick="consultarInscripcionPorCI()" style="padding:11px 22px;font-size:0.92rem;border-radius:10px;display:inline-flex;align-items:center;gap:8px;font-weight:800;background:var(--verde-dark)">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   Consultar
@@ -7437,11 +7450,11 @@
       </p>
       <div style="display:flex;flex-direction:column;gap:10px;text-align:left">
         <button type="button" class="btn-submit" id="btn-limpiar-gestion-actual" style="background:#e67e22;padding:12px 16px;border-radius:8px;font-weight:700;display:flex;align-items:center;justify-content:space-between;width:100%;cursor:pointer">
-          <span>🗑️ Eliminar solo Gestión <strong id="lbl-gestion-a-eliminar">2026</strong></span>
+          <span><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Eliminar solo Gestión <strong id="lbl-gestion-a-eliminar">2026</strong></span>
           <small style="opacity:0.85;font-weight:400">Conserva otros años</small>
         </button>
         <button type="button" class="btn-submit" id="btn-limpiar-todas-gestiones" style="background:#dc2626;padding:12px 16px;border-radius:8px;font-weight:700;display:flex;align-items:center;justify-content:space-between;width:100%;cursor:pointer">
-          <span>⚠️ Eliminar TODO el Historial (Todas las Gestiones)</span>
+          <span><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Eliminar TODO el Historial (Todas las Gestiones)</span>
           <small style="opacity:0.85;font-weight:400">Vaciar completamente</small>
         </button>
       </div>
@@ -7497,7 +7510,7 @@
         Esta acción eliminará y vaciará permanentemente <strong>todos los expedientes y registros de kárdex del personal docente</strong> en el sistema. Todos los formularios volverán a su estado inicial.
       </p>
       <div style="margin-top:14px;padding:8px 12px;background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;font-size:0.78rem;color:#e11d48;font-weight:700">
-        ⚠️ Esta operación no se puede deshacer.
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align:-2px;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Esta operación no se puede deshacer.
       </div>
     </div>
     <div style="padding:14px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:12px">
@@ -8176,7 +8189,7 @@
       <!-- EDITOR PERSONALIZADO -->
       <div id="modal-cfg-dia-editor-wrap" style="display:none;background:var(--bg-card);border:1.5px solid var(--border-col);border-radius:10px;padding:14px 16px;margin-bottom:14px">
         <div style="margin-bottom:14px">
-          <label style="display:block;font-size:0.82rem;font-weight:800;color:var(--verde-dark);margin-bottom:6px">⚡ Posición del Recreo para este día (Nº de periodo):</label>
+          <label style="display:block;font-size:0.82rem;font-weight:800;color:var(--verde-dark);margin-bottom:6px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align:-2px;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Posición del Recreo para este día (Nº de periodo):</label>
           <select id="modal-cfg-dia-receso-pos" style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--verde);background:#ffffff;color:var(--text-main);font-size:0.88rem;font-weight:800">
             <option value="1">Recreo después del 1º periodo</option>
             <option value="2">Recreo después del 2º periodo</option>
@@ -8790,6 +8803,46 @@
   </div>
 </div>
 
+<!-- MODAL DE VALIDACIÓN DE DATO FALTANTE (PROFESIONAL, SIN EMOJIS, AUTO-CIERRA EN 5s) -->
+<div id="modal-validacion-campo-faltante" class="modal-campo-faltante-overlay" style="display:none" onclick="cerrarVentanaDatoFaltante()">
+  <div class="modal-campo-faltante-card" onclick="event.stopPropagation()">
+    <div class="modal-campo-faltante-header">
+      <div class="modal-campo-faltante-icon">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.3">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/>
+          <line x1="12" y1="9" x2="12.01" y2="9"/>
+        </svg>
+      </div>
+      <div>
+        <h4 style="margin:0;font-size:1.02rem;color:var(--verde-dark);font-weight:800">Dato Obligatorio Requerido</h4>
+        <span style="font-size:0.78rem;color:var(--text-sec);font-weight:600">Formulario Oficial de Pre-Inscripción CEA</span>
+      </div>
+    </div>
+    <div class="modal-campo-faltante-body">
+      <p id="modal-campo-faltante-texto" style="margin:0;font-size:0.92rem;color:var(--text-main);line-height:1.5">
+        Te falta llenar este dato: <strong id="modal-campo-faltante-nombre" style="color:var(--verde-dark)"></strong>
+      </p>
+      <div class="modal-campo-faltante-bar-wrap">
+        <div id="modal-campo-faltante-bar" class="modal-campo-faltante-bar"></div>
+      </div>
+    </div>
+    <div class="modal-campo-faltante-footer">
+      <button type="button" class="btn-campo-faltante-completar" onclick="cerrarVentanaDatoFaltante(true)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Completar Dato</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- BACKDROP DIFUMINADO PARA SELECTORES EN DISPOSITIVOS MÓVILES -->
+<div id="custom-select-backdrop-mobile" class="custom-select-backdrop-mobile" onclick="cerrarDropdownsSelect()"></div>
+
+<!-- CANVAS DE CELEBRACIÓN DE PREINSCRIPCIÓN (MIXTURA / CONFETI) -->
+<canvas id="canvas-celebracion-mixtura" class="canvas-celebracion-mixtura"></canvas>
+
 <!-- =====================================================
      ÁREAS DE IMPRESIÓN OFICIALES (AISLADAS Y PROTEGIDAS)
      ===================================================== -->
@@ -8811,10 +8864,152 @@
 <div id="reporte-inscritos-print-area" style="display:none"></div>
 <div id="reporte-estadistico-print-area" style="display:none"></div>
 
-<script src="app.js?v=2026.269"></script>
+<script src="app.js?v=2026.270"></script>
 <script>
 // Sobrescribir manejarFormInscripcion con respuesta instantánea y descarga de PDF garantizada
-async function manejarFormInscripcionOptimizado(e) {
+async /* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (PROFESIONAL, SIN EMOJIS, AUTO-CIERRA EN 5s) ─── */
+let _timerVentanaDatoFaltante = null;
+let _campoFaltantePendienteId = null;
+
+function mostrarVentanaDatoFaltante(nombreCampo, elementoId) {
+  _campoFaltantePendienteId = elementoId;
+  const modal = document.getElementById('modal-validacion-campo-faltante');
+  const txtNombre = document.getElementById('modal-campo-faltante-nombre');
+  const barra = document.getElementById('modal-campo-faltante-bar');
+  if (!modal) {
+    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Te falta llenar este dato: ' + nombreCampo, 'error');
+    return;
+  }
+
+  if (txtNombre) txtNombre.textContent = nombreCampo;
+
+  // Reiniciar barra de progreso animada de 5 segundos
+  if (barra) {
+    barra.classList.remove('animando');
+    void barra.offsetWidth; // Forzar reflow
+    barra.classList.add('animando');
+  }
+
+  modal.style.display = 'flex';
+
+  if (_timerVentanaDatoFaltante) clearTimeout(_timerVentanaDatoFaltante);
+  _timerVentanaDatoFaltante = setTimeout(() => {
+    cerrarVentanaDatoFaltante(true);
+  }, 5000);
+}
+window.mostrarVentanaDatoFaltante = mostrarVentanaDatoFaltante;
+
+function cerrarVentanaDatoFaltante(enfocar = true) {
+  if (_timerVentanaDatoFaltante) {
+    clearTimeout(_timerVentanaDatoFaltante);
+    _timerVentanaDatoFaltante = null;
+  }
+  const modal = document.getElementById('modal-validacion-campo-faltante');
+  if (modal) modal.style.display = 'none';
+
+  if (enfocar && _campoFaltantePendienteId) {
+    const el = document.getElementById(_campoFaltantePendienteId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try { el.focus(); } catch (e) {}
+      el.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+      el.style.borderColor = '#16a34a';
+      el.style.boxShadow = '0 0 0 4px rgba(22, 163, 74, 0.4)';
+      setTimeout(() => {
+        el.style.boxShadow = '';
+      }, 2000);
+    }
+  }
+}
+window.cerrarVentanaDatoFaltante = cerrarVentanaDatoFaltante;
+
+/* ─── CELEBRACIÓN DE PRE-INSCRIPCIÓN: ANIMACIÓN DE CHECK Y MIXTURA (CONFETI) ─── */
+function lanzarCelebracionPreinscripcion() {
+  const canvas = document.getElementById('canvas-celebracion-mixtura');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.display = 'block';
+
+  const colores = ['#15803d', '#22c55e', '#4ade80', '#f59e0b', '#fbbf24', '#ffffff', '#10b981', '#064e3b'];
+  const particulas = [];
+  const cantidad = window.innerWidth <= 768 ? 70 : 120;
+
+  for (let i = 0; i < cantidad; i++) {
+    particulas.push({
+      x: window.innerWidth * 0.5 + (Math.random() - 0.5) * 260,
+      y: window.innerHeight * 0.30 + (Math.random() - 0.5) * 100,
+      vx: (Math.random() - 0.5) * 15,
+      vy: (Math.random() * -13) - 4,
+      color: colores[Math.floor(Math.random() * colores.length)],
+      tam: Math.random() * 8 + 5,
+      rotacion: Math.random() * 360,
+      vRot: (Math.random() - 0.5) * 14,
+      forma: Math.random() > 0.4 ? 'rect' : 'circ',
+      opacidad: 1
+    });
+  }
+
+  let animFrameId = null;
+  const tInicio = Date.now();
+  const duracion = 3400; // 3.4 segundos
+
+  function bucle() {
+    const tTranscurrido = Date.now() - tInicio;
+    if (tTranscurrido > duracion) {
+      cancelAnimationFrame(animFrameId);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = 'none';
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < particulas.length; i++) {
+      const p = particulas[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.38; // Gravedad suave
+      p.vx *= 0.985; // Resistencia
+      p.rotacion += p.vRot;
+
+      const fade = Math.max(0, 1 - (tTranscurrido / duracion));
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotacion * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+
+      if (p.forma === 'rect') {
+        ctx.fillRect(-p.tam / 2, -p.tam / 4, p.tam, p.tam / 2);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.tam / 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    animFrameId = requestAnimationFrame(bucle);
+  }
+
+  animFrameId = requestAnimationFrame(bucle);
+
+  // Redirigir la pantalla directamente hacia abajo donde está el botón de descargar ficha
+  setTimeout(() => {
+    const voucher = document.getElementById('resultado-inscripcion-voucher');
+    if (voucher) {
+      voucher.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 180);
+}
+window.lanzarCelebracionPreinscripcion = lanzarCelebracionPreinscripcion;
+
+function manejarFormInscripcionOptimizado(e) {
   if (e && typeof e.preventDefault === 'function') e.preventDefault();
   if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
   const form = document.getElementById('form-inscripcion') || (e ? e.target : null);
@@ -8861,51 +9056,41 @@ async function manejarFormInscripcionOptimizado(e) {
       ? selNivel.options[selNivel.selectedIndex].text
       : (nivelVal || ''));
 
-  // Validaciones de campos obligatorios
+  // Validaciones de campos obligatorios con ventana emergente interactiva
   if (!nombreVal) {
-    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Por favor ingresa tu nombre completo.', 'error');
-    const el = document.getElementById('fi-nombre');
-    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    mostrarVentanaDatoFaltante('Nombre completo', 'fi-nombre');
     return;
   }
 
   if (!ciVal) {
-    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Por favor ingresa tu Cédula de Identidad (CI).', 'error');
-    const el = document.getElementById('fi-ci');
-    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    mostrarVentanaDatoFaltante('Cédula de Identidad (CI)', 'fi-ci');
     return;
   }
 
   if (!fnacVal) {
-    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Por favor selecciona tu fecha de nacimiento en el selector.', 'error');
+    mostrarVentanaDatoFaltante('Fecha de Nacimiento', 'fi-fnac-display');
     if (typeof abrirCustomDatePicker === 'function') abrirCustomDatePicker();
-    const grp = document.getElementById('grp-fi-fnac');
-    if (grp) grp.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
   if (!telVal) {
-    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Por favor ingresa tu número de teléfono / WhatsApp.', 'error');
-    const el = document.getElementById('fi-tel');
-    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    mostrarVentanaDatoFaltante('Teléfono / WhatsApp', 'fi-tel');
     return;
   }
 
   if (!comunidadVal) {
-    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Por favor ingresa tu comunidad o lugar de procedencia (¿Desde dónde vienes?).', 'error');
-    const el = document.getElementById('fi-comunidad');
-    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    mostrarVentanaDatoFaltante('¿De dónde vienes? (Comunidad)', 'fi-comunidad');
     return;
   }
 
   if (!areaVal) {
-    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Por favor selecciona un área de interés.', 'error');
+    mostrarVentanaDatoFaltante('Área de interés', 'fi-area-trigger');
     if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('area');
     return;
   }
 
   if (!nivelVal) {
-    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Por favor selecciona un nivel o carrera técnica.', 'error');
+    mostrarVentanaDatoFaltante('Nivel o Carrera técnica', 'fi-nivel-trigger');
     if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('nivel');
     return;
   }
@@ -8991,13 +9176,18 @@ async function manejarFormInscripcionOptimizado(e) {
   const habilitarPdf = typeof lsGet === 'function' ? lsGet('cea_cfg_pdf', true) : true;
   const habilitarWp = typeof lsGet === 'function' ? lsGet('cea_cfg_whatsapp', true) : true;
 
+  // Celebración con animación de check y mixtura (confeti) + scroll suave directo
+  if (typeof window.lanzarCelebracionPreinscripcion === 'function') {
+    window.lanzarCelebracionPreinscripcion();
+  }
+
   // 3. Renderizar y mostrar el comprobante / voucher INMEDIATAMENTE
   const voucherWrap = document.getElementById('resultado-inscripcion-voucher');
   if (voucherWrap) {
     let extraBtns = '';
     if (habilitarPdf) {
       extraBtns += `
-        <button type="button" class="btn-voucher-pdf" onclick="descargarComprobanteInscripcionPDF()">
+        <button type="button" class="btn-voucher-pdf" onclick="descargarComprobanteDirectoPDF(window._ultimoRegistroInscripcion)">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Descargar Ficha Oficial (PDF)
         </button>`;
@@ -9427,7 +9617,7 @@ window.ejecutarEliminacionInscripciones = ejecutarEliminacionInscripciones;
 <script src="kardex-diseno2.js?v=2026.1"></script>
 <script src="print-kardex.js?v=2026.66"></script>
 <script src="qrcode.min.js"></script>
-<script src="print-comprobante.js?v=2026.273"></script>
+<script src="print-comprobante.js?v=2026.275"></script>
 <script src="print-estadisticas.js?v=2026.248"></script>
 <script src="print-reporte.js?v=2026.244"></script>
 <script src="print-preinscripciones.js?v=2026.244"></script>

@@ -2457,7 +2457,7 @@ function autoGuardarCredencialDocente(inp) {
     try {
       const msgEl = document.getElementById('msg-docentes-unificados');
       if (msgEl) {
-        msgEl.innerHTML = `<span style="color:#16a34a;font-size:0.82rem;font-weight:700">💾 Guardado automático: ${escapeHTML(nombre || asigKey)} actualizado</span>`;
+        msgEl.innerHTML = `<span style="color:#16a34a;font-size:0.82rem;font-weight:700"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardado automático: ${escapeHTML(nombre || asigKey)} actualizado</span>`;
       }
       await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios });
     } catch (e) {
@@ -13401,49 +13401,115 @@ async function guardarUsuarios() {
 
 /* ─── ACTUALIZAR NIVELES Y FORMULARIOS ─── */
 
-/* ─── CONTROLADORES DE LISTAS DESPLEGABLES PERSONALIZADAS ─── */
+/* ─── CONTROLADORES DE LISTAS DESPLEGABLES PERSONALIZADAS Y BACKDROP MÓVIL ─── */
 function toggleDropdownSelect(tipo) {
   const menuArea = document.getElementById('menu-select-area');
   const menuNivel = document.getElementById('menu-select-nivel');
+  const menuSede = document.getElementById('menu-select-sede');
   const triggerArea = document.getElementById('fi-area-trigger');
   const triggerNivel = document.getElementById('fi-nivel-trigger');
+  const triggerSede = document.getElementById('fi-sede-trigger');
+  const backdrop = document.getElementById('custom-select-backdrop-mobile');
+  const contArea = document.getElementById('container-select-area');
+  const contNivel = document.getElementById('container-select-nivel');
+  const contSede = document.getElementById('container-select-sede');
 
-  if (tipo === 'area') {
+  const esMovil = window.innerWidth <= 768;
+
+  // Cerrar los otros selectores que no correspondan
+  if (tipo !== 'area') {
+    if (menuArea) menuArea.style.display = 'none';
+    if (triggerArea) triggerArea.classList.remove('activo');
+    if (contArea) contArea.classList.remove('activo-movil');
+  }
+  if (tipo !== 'nivel') {
     if (menuNivel) menuNivel.style.display = 'none';
     if (triggerNivel) triggerNivel.classList.remove('activo');
-    if (menuArea) {
-      const estaAbierto = menuArea.style.display === 'block';
-      menuArea.style.display = estaAbierto ? 'none' : 'block';
-      if (triggerArea) triggerArea.classList.toggle('activo', !estaAbierto);
-    }
+    if (contNivel) contNivel.classList.remove('activo-movil');
+  }
+  if (tipo !== 'sede') {
+    if (menuSede) menuSede.style.display = 'none';
+    if (triggerSede) triggerSede.classList.remove('activo');
+    if (contSede) contSede.classList.remove('activo-movil');
+  }
+
+  let menuActivo = null;
+  let triggerActivo = null;
+  let contActivo = null;
+
+  if (tipo === 'area') {
+    menuActivo = menuArea;
+    triggerActivo = triggerArea;
+    contActivo = contArea;
   } else if (tipo === 'nivel') {
     const selArea = document.getElementById('fi-area');
     if (!selArea || !selArea.value) {
-      // Si aún no ha seleccionado área, abrirle el área
+      // Si aún no ha seleccionado área, abrirle el área directamente
       toggleDropdownSelect('area');
       return;
     }
-    if (menuArea) menuArea.style.display = 'none';
-    if (triggerArea) triggerArea.classList.remove('activo');
-    if (menuNivel) {
-      const estaAbierto = menuNivel.style.display === 'block';
-      menuNivel.style.display = estaAbierto ? 'none' : 'block';
-      if (triggerNivel) triggerNivel.classList.toggle('activo', !estaAbierto);
-    }
+    menuActivo = menuNivel;
+    triggerActivo = triggerNivel;
+    contActivo = contNivel;
+  } else if (tipo === 'sede') {
+    menuActivo = menuSede;
+    triggerActivo = triggerSede;
+    contActivo = contSede;
+  }
+
+  if (menuActivo) {
+    const estaAbierto = menuActivo.style.display === 'block';
+    const nuevoEstado = !estaAbierto;
+    menuActivo.style.display = nuevoEstado ? 'block' : 'none';
+    if (triggerActivo) triggerActivo.classList.toggle('activo', nuevoEstado);
+    if (contActivo) contActivo.classList.toggle('activo-movil', nuevoEstado && esMovil);
+    if (backdrop) backdrop.classList.toggle('activo', nuevoEstado && esMovil);
   }
 }
+window.toggleDropdownSelect = toggleDropdownSelect;
 
 function cerrarDropdownsSelect() {
   const menuArea = document.getElementById('menu-select-area');
   const menuNivel = document.getElementById('menu-select-nivel');
+  const menuSede = document.getElementById('menu-select-sede');
   const triggerArea = document.getElementById('fi-area-trigger');
   const triggerNivel = document.getElementById('fi-nivel-trigger');
+  const triggerSede = document.getElementById('fi-sede-trigger');
+  const backdrop = document.getElementById('custom-select-backdrop-mobile');
+  const contArea = document.getElementById('container-select-area');
+  const contNivel = document.getElementById('container-select-nivel');
+  const contSede = document.getElementById('container-select-sede');
 
   if (menuArea) menuArea.style.display = 'none';
   if (menuNivel) menuNivel.style.display = 'none';
+  if (menuSede) menuSede.style.display = 'none';
   if (triggerArea) triggerArea.classList.remove('activo');
   if (triggerNivel) triggerNivel.classList.remove('activo');
+  if (triggerSede) triggerSede.classList.remove('activo');
+  if (contArea) contArea.classList.remove('activo-movil');
+  if (contNivel) contNivel.classList.remove('activo-movil');
+  if (contSede) contSede.classList.remove('activo-movil');
+  if (backdrop) backdrop.classList.remove('activo');
 }
+window.cerrarDropdownsSelect = cerrarDropdownsSelect;
+
+function seleccionarOpcionSede(valor, textoVisible) {
+  const selSede = document.getElementById('fi-sede-select');
+  const txtSede = document.getElementById('fi-sede-text');
+  if (selSede) selSede.value = valor;
+  if (txtSede) {
+    txtSede.textContent = textoVisible;
+    txtSede.classList.remove('placeholder');
+  }
+  const menuSede = document.getElementById('menu-select-sede');
+  if (menuSede) {
+    menuSede.querySelectorAll('.custom-select-option').forEach(el => {
+      el.classList.toggle('selected', el.getAttribute('data-value') === valor);
+    });
+  }
+  cerrarDropdownsSelect();
+}
+window.seleccionarOpcionSede = seleccionarOpcionSede;
 
 function seleccionarOpcionArea(valor, textoVisible) {
   const selArea = document.getElementById('fi-area');
@@ -13632,12 +13698,15 @@ function actualizarNiveles() {
 function actualizarOpcionesSedeSubcentro(valArea) {
   const grpSede = document.getElementById('grp-fi-sede');
   const selSede = document.getElementById('fi-sede-select');
+  const txtSede = document.getElementById('fi-sede-text');
+  const menuSede = document.getElementById('menu-select-sede');
   if (!selSede) return;
 
   // Si no se ha seleccionado un área aún, mantener oculto el grupo de sede/subcentro
   if (!valArea || valArea === '' || valArea.startsWith('--')) {
     if (grpSede) grpSede.style.display = 'none';
     selSede.innerHTML = '<option value="Sede Central (Centro de Chulumani)" selected>Sede Central (Centro de Chulumani)</option>';
+    if (txtSede) txtSede.textContent = 'Sede Central (Centro de Chulumani)';
     return;
   }
 
@@ -13652,17 +13721,47 @@ function actualizarOpcionesSedeSubcentro(valArea) {
     return n && n !== 'Sede Central - CEA' && n !== 'Sede Central (Centro de Chulumani)' && !n.toLowerCase().includes('sede central');
   }) : [];
 
+  const iconCentral = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11m16-11v11M8 14v4m4-4v4m4-4v4"/></svg>';
+  const iconSub = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+
   if (subcentros.length === 0) {
     if (grpSede) grpSede.style.display = 'none';
     selSede.innerHTML = '<option value="Sede Central (Centro de Chulumani)" selected>Sede Central (Centro de Chulumani)</option>';
+    if (txtSede) txtSede.textContent = 'Sede Central (Centro de Chulumani)';
   } else {
     if (grpSede) grpSede.style.display = 'block';
     let optionsHtml = '<option value="Sede Central (Centro de Chulumani)">Sede Central (Centro de Chulumani)</option>';
+    let menuHtml = `
+      <div class="custom-select-group-header">Centro o Subcentro de Formación</div>
+      <div class="custom-select-option selected" data-value="Sede Central (Centro de Chulumani)" onclick="seleccionarOpcionSede('Sede Central (Centro de Chulumani)', 'Sede Central (Centro de Chulumani)')">
+        <div class="opt-icon">${iconCentral}</div>
+        <div class="opt-content">
+          <span class="opt-title">Sede Central</span>
+          <small class="opt-desc">Centro de Chulumani (Instalaciones Principales)</small>
+        </div>
+      </div>
+    `;
+
     subcentros.forEach(s => {
       const nom = s.nombre.trim();
-      optionsHtml += `<option value="Subcentro: ${escapeHTML(nom)}">Subcentro: ${escapeHTML(nom)}</option>`;
+      const val = `Subcentro: ${nom}`;
+      optionsHtml += `<option value="${escapeHTML(val)}">${escapeHTML(val)}</option>`;
+      menuHtml += `
+        <div class="custom-select-option" data-value="${escapeHTML(val)}" onclick="seleccionarOpcionSede('${escapeHTML(val)}', '${escapeHTML(val)}')">
+          <div class="opt-icon">${iconSub}</div>
+          <div class="opt-content">
+            <span class="opt-title">${escapeHTML(nom)}</span>
+            <small class="opt-desc">Subcentro Autorizado de Formación</small>
+          </div>
+        </div>
+      `;
     });
+
     selSede.innerHTML = optionsHtml;
+    if (menuSede) menuSede.innerHTML = menuHtml;
+    if (txtSede && (!selSede.value || selSede.value === 'Sede Central (Centro de Chulumani)')) {
+      txtSede.textContent = 'Sede Central (Centro de Chulumani)';
+    }
   }
 }
 window.actualizarOpcionesSedeSubcentro = actualizarOpcionesSedeSubcentro;
@@ -14607,7 +14706,149 @@ function sanitizarTextoSimple(str) {
     .trim();
 }
 
-async function manejarFormInscripcion(e) {
+async /* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (PROFESIONAL, SIN EMOJIS, AUTO-CIERRA EN 5s) ─── */
+let _timerVentanaDatoFaltante = null;
+let _campoFaltantePendienteId = null;
+
+function mostrarVentanaDatoFaltante(nombreCampo, elementoId) {
+  _campoFaltantePendienteId = elementoId;
+  const modal = document.getElementById('modal-validacion-campo-faltante');
+  const txtNombre = document.getElementById('modal-campo-faltante-nombre');
+  const barra = document.getElementById('modal-campo-faltante-bar');
+  if (!modal) {
+    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Te falta llenar este dato: ' + nombreCampo, 'error');
+    return;
+  }
+
+  if (txtNombre) txtNombre.textContent = nombreCampo;
+
+  // Reiniciar barra de progreso animada de 5 segundos
+  if (barra) {
+    barra.classList.remove('animando');
+    void barra.offsetWidth; // Forzar reflow
+    barra.classList.add('animando');
+  }
+
+  modal.style.display = 'flex';
+
+  if (_timerVentanaDatoFaltante) clearTimeout(_timerVentanaDatoFaltante);
+  _timerVentanaDatoFaltante = setTimeout(() => {
+    cerrarVentanaDatoFaltante(true);
+  }, 5000);
+}
+window.mostrarVentanaDatoFaltante = mostrarVentanaDatoFaltante;
+
+function cerrarVentanaDatoFaltante(enfocar = true) {
+  if (_timerVentanaDatoFaltante) {
+    clearTimeout(_timerVentanaDatoFaltante);
+    _timerVentanaDatoFaltante = null;
+  }
+  const modal = document.getElementById('modal-validacion-campo-faltante');
+  if (modal) modal.style.display = 'none';
+
+  if (enfocar && _campoFaltantePendienteId) {
+    const el = document.getElementById(_campoFaltantePendienteId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try { el.focus(); } catch (e) {}
+      el.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+      el.style.borderColor = '#16a34a';
+      el.style.boxShadow = '0 0 0 4px rgba(22, 163, 74, 0.4)';
+      setTimeout(() => {
+        el.style.boxShadow = '';
+      }, 2000);
+    }
+  }
+}
+window.cerrarVentanaDatoFaltante = cerrarVentanaDatoFaltante;
+
+/* ─── CELEBRACIÓN DE PRE-INSCRIPCIÓN: ANIMACIÓN DE CHECK Y MIXTURA (CONFETI) ─── */
+function lanzarCelebracionPreinscripcion() {
+  const canvas = document.getElementById('canvas-celebracion-mixtura');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.display = 'block';
+
+  const colores = ['#15803d', '#22c55e', '#4ade80', '#f59e0b', '#fbbf24', '#ffffff', '#10b981', '#064e3b'];
+  const particulas = [];
+  const cantidad = window.innerWidth <= 768 ? 70 : 120;
+
+  for (let i = 0; i < cantidad; i++) {
+    particulas.push({
+      x: window.innerWidth * 0.5 + (Math.random() - 0.5) * 260,
+      y: window.innerHeight * 0.30 + (Math.random() - 0.5) * 100,
+      vx: (Math.random() - 0.5) * 15,
+      vy: (Math.random() * -13) - 4,
+      color: colores[Math.floor(Math.random() * colores.length)],
+      tam: Math.random() * 8 + 5,
+      rotacion: Math.random() * 360,
+      vRot: (Math.random() - 0.5) * 14,
+      forma: Math.random() > 0.4 ? 'rect' : 'circ',
+      opacidad: 1
+    });
+  }
+
+  let animFrameId = null;
+  const tInicio = Date.now();
+  const duracion = 3400; // 3.4 segundos
+
+  function bucle() {
+    const tTranscurrido = Date.now() - tInicio;
+    if (tTranscurrido > duracion) {
+      cancelAnimationFrame(animFrameId);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = 'none';
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < particulas.length; i++) {
+      const p = particulas[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.38; // Gravedad suave
+      p.vx *= 0.985; // Resistencia
+      p.rotacion += p.vRot;
+
+      const fade = Math.max(0, 1 - (tTranscurrido / duracion));
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotacion * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+
+      if (p.forma === 'rect') {
+        ctx.fillRect(-p.tam / 2, -p.tam / 4, p.tam, p.tam / 2);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.tam / 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    animFrameId = requestAnimationFrame(bucle);
+  }
+
+  animFrameId = requestAnimationFrame(bucle);
+
+  // Redirigir la pantalla directamente hacia abajo donde está el botón de descargar ficha
+  setTimeout(() => {
+    const voucher = document.getElementById('resultado-inscripcion-voucher');
+    if (voucher) {
+      voucher.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 180);
+}
+window.lanzarCelebracionPreinscripcion = lanzarCelebracionPreinscripcion;
+
+function manejarFormInscripcion(e) {
   e.preventDefault();
 
   // Control anti-spam y límite de peticiones del lado cliente
@@ -14624,6 +14865,8 @@ async function manejarFormInscripcion(e) {
     ? selNivel.options[selNivel.selectedIndex].text
     : (form.carrera?.value || '');
 
+  const nombreVal = (form.nombre?.value || document.getElementById('fi-nombre')?.value || '').trim();
+  const ciVal = (form.ci?.value || document.getElementById('fi-ci')?.value || '').trim();
   let fnacVal = (form.fechaNacimiento?.value || '').trim();
   if (!fnacVal) {
     const dispInp = document.getElementById('fi-fnac-display');
@@ -14634,15 +14877,41 @@ async function manejarFormInscripcion(e) {
       }
     }
   }
+  const telVal = (form.telefono?.value || document.getElementById('fi-tel')?.value || '').trim();
+  const comunidadVal = (form.comunidad?.value || document.getElementById('fi-comunidad')?.value || '').trim();
+  const areaVal = form.area?.value || document.getElementById('fi-area')?.value || '';
+  const nivelVal = form.carrera?.value || document.getElementById('fi-nivel')?.value || '';
 
-  const areaVal = form.area?.value || '';
-  const nivelVal = form.carrera?.value || '';
-
+  // Validaciones de campos obligatorios con modal interactivo
+  if (!nombreVal) {
+    mostrarVentanaDatoFaltante('Nombre completo', 'fi-nombre');
+    return;
+  }
+  if (!ciVal) {
+    mostrarVentanaDatoFaltante('Cédula de Identidad (CI)', 'fi-ci');
+    return;
+  }
   if (!fnacVal) {
-    mostrarMsg('form-msg', 'Por favor selecciona o escribe tu fecha de nacimiento.', 'error');
-    abrirCustomDatePicker();
-    const grp = document.getElementById('grp-fi-fnac');
-    if (grp) grp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    mostrarVentanaDatoFaltante('Fecha de Nacimiento', 'fi-fnac-display');
+    if (typeof abrirCustomDatePicker === 'function') abrirCustomDatePicker();
+    return;
+  }
+  if (!telVal) {
+    mostrarVentanaDatoFaltante('Teléfono / WhatsApp', 'fi-tel');
+    return;
+  }
+  if (!comunidadVal) {
+    mostrarVentanaDatoFaltante('¿De dónde vienes? (Comunidad)', 'fi-comunidad');
+    return;
+  }
+  if (!areaVal) {
+    mostrarVentanaDatoFaltante('Área de interés', 'fi-area-trigger');
+    if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('area');
+    return;
+  }
+  if (!nivelVal) {
+    mostrarVentanaDatoFaltante('Nivel o Carrera técnica', 'fi-nivel-trigger');
+    if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('nivel');
     return;
   }
 
@@ -14723,6 +14992,11 @@ async function manejarFormInscripcion(e) {
     window.pregenerarComprobantePDF(data);
   }
 
+  // Celebración con animación de check y mixtura (confeti) + scroll directo hacia abajo al botón
+  if (typeof window.lanzarCelebracionPreinscripcion === 'function') {
+    window.lanzarCelebracionPreinscripcion();
+  }
+
   const habilitarPdf = lsGet('cea_cfg_pdf', true);
   const habilitarWp = lsGet('cea_cfg_whatsapp', true);
 
@@ -14731,7 +15005,7 @@ async function manejarFormInscripcion(e) {
     let extraBtns = '';
     if (habilitarPdf) {
       extraBtns += `
-        <button type="button" class="btn-voucher-pdf" onclick="descargarComprobanteInscripcionPDF()">
+        <button type="button" class="btn-voucher-pdf" onclick="descargarComprobanteDirectoPDF(window._ultimoRegistroInscripcion)">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Descargar Ficha Oficial (PDF)
         </button>`;
@@ -14854,6 +15128,9 @@ function consultarInscripcionPorCI() {
   const rawVal = (inp.value || '').trim();
   const ciVal = rawVal.toLowerCase();
   if (!ciVal) {
+    if (typeof mostrarVentanaDatoFaltante === 'function') {
+      mostrarVentanaDatoFaltante('Cédula de Identidad (CI)', 'ci-consulta-inp');
+    }
     box.innerHTML = `<div class="form-msg error" style="display:block">Por favor ingresa tu número de Carnet (CI) para realizar la consulta.</div>`;
     box.style.display = 'block';
     return;
@@ -14873,7 +15150,7 @@ function consultarInscripcionPorCI() {
   if (!encontrada) {
     box.innerHTML = `
       <div class="form-msg error" style="display:block">
-        <strong>No se encontró ningún registro con el CI: "${inp.value.trim()}".</strong><br>
+        <strong>No se encontró ningún registro con el CI: "${escapeHTML(inp.value.trim())}".</strong><br>
         Verifica si escribiste correctamente los dígitos o completa el formulario de pre-inscripción arriba para registrarte ahora mismo.
       </div>
     `;
@@ -14881,63 +15158,45 @@ function consultarInscripcionPorCI() {
     return;
   }
 
+  // Guardar explícitamente en el registro global y pre-generar en segundo plano
   window._ultimoRegistroInscripcion = encontrada;
   if (typeof window.pregenerarComprobantePDF === 'function') {
     window.pregenerarComprobantePDF(encontrada);
   }
+
   const semStr = String(encontrada.semestre || '');
   const badgeClass = semStr.includes('2') ? 'badge-semestre-2' : (semStr.includes('1') ? 'badge-semestre-1' : 'badge-semestre-siguiente');
+  const edadTexto = encontrada.edad ? `${encontrada.edad} años cumplidos` : '—';
+  const sedeTexto = escapeHTML(String(encontrada.sede || encontrada.subcentro || 'Sede Central (Centro de Chulumani)'));
 
-  const fnacFormateada = formatearFechaSoloNumerosDMY(encontrada.fechaNacimiento);
-  const edadCalc = encontrada.edad || (encontrada.fechaNacimiento ? calcularEdad(encontrada.fechaNacimiento) : null);
-  const fnacTexto = fnacFormateada !== '—' 
-    ? `${fnacFormateada} ${edadCalc ? `(${edadCalc} años cumplidos)` : ''}`
-    : (edadCalc ? `${edadCalc} años cumplidos` : '—');
-  const fechaRegFormateada = formatearFechaRegistroConHora(encontrada.fechaRegistro || encontrada.fecha);
-
+  // Formato condensado oficial: títulos en negrita y datos del postulante en texto normal
   box.innerHTML = `
-    <div style="background:var(--verde-light);border:1.5px solid var(--verde);border-radius:10px;padding:16px;color:#1e293b">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid #c8e6c9;padding-bottom:8px">
-        <strong style="color:var(--verde-dark);font-size:1rem;display:flex;align-items:center;gap:6px">
+    <div style="background:var(--verde-light);border:1.5px solid var(--verde);border-radius:12px;padding:16px;color:var(--text-main);box-shadow:0 3px 12px rgba(12,88,37,0.08);animation:fadeInDownMenu 0.18s ease-out;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid rgba(12,88,37,0.18);padding-bottom:8px">
+        <strong style="color:var(--verde-dark);font-size:0.98rem;display:flex;align-items:center;gap:6px">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Pre-Inscripción Encontrada
+          Pre-Inscripción Registrada
         </strong>
         <span style="font-size:0.75rem;padding:3px 8px;background:#c8e6c9;border-radius:12px;font-weight:700;color:var(--verde-dark)">REGISTRO ACTIVO</span>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;font-size:0.86rem;margin-bottom:14px">
-        <div><strong>Postulante:</strong><br>${escapeHTML(String(encontrada.nombre || '—'))}</div>
-        <div><strong>Cédula de Identidad (CI):</strong><br>${escapeHTML(String(encontrada.ci || '—'))}</div>
-        <div><strong>Fecha de Nacimiento y Edad:</strong><br><strong style="color:var(--verde-dark)">${fnacTexto}</strong></div>
-        <div><strong>Teléfono / WhatsApp:</strong><br>${escapeHTML(String(encontrada.telefono || '—'))}</div>
-        <div><strong>¿De dónde vienes? (Comunidad):</strong><br><strong style="color:#0f172a">${escapeHTML(String(encontrada.comunidad || encontrada.direccion || 'Chulumani / Sud Yungas'))}</strong></div>
-        <div><strong>Centro o Subcentro a inscribirse:</strong><br><strong style="color:var(--verde-dark)">${escapeHTML(String(encontrada.sede || encontrada.subcentro || 'Sede Central (Centro de Chulumani)'))}</strong></div>
-        <div><strong>Área Solicitada:</strong><br>${String(encontrada.area || '').toLowerCase().includes('tec') ? 'Área Técnica (ETA)' : 'Área Humanística (EPA/ESA)'}</div>
-        <div><strong>Carrera / Especialidad:</strong><br>${escapeHTML(String(encontrada.carrera || '—'))}</div>
-        <div><strong>Semestre Asignado:</strong><br><span class="badge-semestre ${badgeClass}">${escapeHTML(String(encontrada.semestre || '1er Semestre'))} (${escapeHTML(String(encontrada.gestion || '2026'))})</span></div>
-        <div><strong>Fecha de Registro:</strong><br><strong>${escapeHTML(fechaRegFormateada)}</strong></div>
+      <div style="background:var(--bg-body);padding:12px 14px;border-radius:8px;font-size:0.86rem;line-height:1.6;margin-bottom:14px;border:1px solid var(--border-col)">
+        <strong>Postulante:</strong> <span style="font-weight:normal">${escapeHTML(String(encontrada.nombre || '—'))}</span> | <strong>CI:</strong> <span style="font-weight:normal">${escapeHTML(String(encontrada.ci || '—'))}</span> | <strong>Edad:</strong> <span style="font-weight:normal;color:var(--verde-dark);font-weight:700">${edadTexto}</span><br>
+        <strong>Carrera/Nivel:</strong> <span style="font-weight:normal">${escapeHTML(String(encontrada.carrera || '—'))}</span> | <strong>Sede:</strong> <span style="font-weight:normal">${sedeTexto}</span><br>
+        <span style="display:inline-block;margin-top:4px"><strong style="color:var(--verde-dark)">Semestre Asignado:</strong> <span class="badge-semestre ${badgeClass}" style="font-weight:700">${escapeHTML(String(encontrada.semestre || '1er Semestre'))} (${escapeHTML(String(encontrada.gestion || '2026'))})</span></span>
         ${encontrada.esCasoExcepcional || encontrada.casoExcepcional ? `
-          <div style="grid-column: 1 / -1; background:#fef3c7; border:1px solid #f59e0b; border-radius:6px; padding:6px 10px; font-size:0.80rem; color:#92400e">
-            <strong style="display:inline-flex;align-items:center;gap:4px">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              Caso Excepcional Registrado:
-            </strong> ${escapeHTML(String(encontrada.casoExcepcional || 'Sí'))}${encontrada.detalleExcepcion ? ` (${escapeHTML(String(encontrada.detalleExcepcion))})` : ''}
+          <div style="margin-top:8px;padding:6px 10px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:0.80rem;color:#92400e">
+            <strong>Caso Excepcional:</strong> <span style="font-weight:normal">${escapeHTML(String(encontrada.casoExcepcional || 'Sí'))}${encontrada.detalleExcepcion ? ` (${escapeHTML(String(encontrada.detalleExcepcion))})` : ''}</span>
           </div>
         ` : ''}
       </div>
 
-      ${encontrada.avisoVigencia ? `
-        <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:0.80rem;color:#92400e;line-height:1.4">
-          <strong>Condición de Matrícula:</strong> ${encontrada.avisoVigencia}
-        </div>
-      ` : ''}
-
       <div class="voucher-actions-row">
-        <button type="button" class="btn-voucher-pdf" onclick="descargarComprobanteInscripcionPDF()">
+        <button type="button" class="btn-voucher-pdf" onclick="descargarComprobanteDirectoPDF(window._ultimoRegistroInscripcion)">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Descargar Ficha Oficial (PDF)
         </button>
-        <button type="button" class="btn-voucher-whatsapp" onclick="confirmarInscripcionWhatsApp()">
+        <button type="button" class="btn-voucher-whatsapp" onclick="confirmarInscripcionWhatsApp(window._ultimoRegistroInscripcion)">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
           Confirmar por WhatsApp con Dirección
         </button>
@@ -14951,16 +15210,18 @@ function consultarInscripcionPorCI() {
 }
 
 function descargarComprobanteInscripcionPDF(dataOverride) {
+  const data = dataOverride || window._ultimoRegistroInscripcion;
+  if (typeof window.descargarComprobanteDirectoPDF === 'function') {
+    return window.descargarComprobanteDirectoPDF(data);
+  }
   if (typeof window.imprimirComprobante === 'function') {
-    return window.imprimirComprobante(dataOverride);
+    return window.imprimirComprobante(data);
   }
 
   // Aplicar orientación y clase de impresión exclusiva para Comprobante (1cm bordes, 2cm izquierdo)
   aplicarOrientacionImpresion('portrait', 'comprobante');
   document.body.classList.add('printing-comprobante');
   document.body.classList.remove('printing-kardex', 'printing-horario', 'printing-reporte');
-
-  const data = dataOverride || window._ultimoRegistroInscripcion;
   if (!data) {
     mostrarAlertaModal('No hay un registro de pre-inscripción seleccionado para descargar la ficha.', 'Descarga de Comprobante', 'warning');
     return;

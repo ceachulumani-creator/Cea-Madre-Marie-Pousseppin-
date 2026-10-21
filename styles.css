@@ -16922,6 +16922,257 @@ html.dark .custom-select-option:hover .opt-title {
 }
 
 /* ==========================================================================
+   OPTIMIZACIONES MÓVILES SELECTORES, BACKDROP BLUR, MODAL VALIDADOR Y PULSO
+   ========================================================================== */
+
+/* 1. Backdrop difuminado exclusivo para selectores en dispositivos móviles */
+.custom-select-backdrop-mobile {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+.custom-select-backdrop-mobile.activo {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 2. En dispositivos móviles: selector centrado con prioridad y fondo desenfocado */
+@media (max-width: 768px) {
+  .custom-select-container.activo-movil .custom-select-menu {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 90vw !important;
+    max-width: 390px !important;
+    max-height: 82vh !important;
+    z-index: 9999 !important;
+    background: #ffffff !important;
+    border: 2.5px solid var(--verde) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45) !important;
+    overflow-y: auto !important;
+    display: block !important;
+    animation: zoomModalSelect 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  }
+  html.dark .custom-select-container.activo-movil .custom-select-menu {
+    background: #0b1a0e !important;
+    border-color: #22c55e !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75) !important;
+  }
+}
+
+@keyframes zoomModalSelect {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* 3. Sub-pestañas protegidas contra desbordes en cualquier resolución */
+.custom-select-subtabs {
+  display: flex !important;
+  gap: 4px !important;
+  padding: 6px 8px !important;
+  background: #f8fafc !important;
+  border-bottom: 1.5px solid #e2e8f0 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+}
+.custom-select-subtab-btn {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  padding: 6px 4px !important;
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 4. Protección total anti-desborde en formularios móviles */
+.form-grid,
+.form-group,
+.form-group input,
+.form-group select,
+.form-group textarea,
+.custom-select-container,
+.custom-select-trigger {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+#fi-nombre, #fi-ci, #fi-tel, #fi-comunidad, #ci-consulta-inp {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 5. Pulso sutil para el botón de Descargar Ficha Oficial en móviles */
+@media (max-width: 768px) {
+  .btn-voucher-pdf {
+    animation: pulsoSutilVoucher 2s ease-in-out infinite !important;
+  }
+}
+@keyframes pulsoSutilVoucher {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);
+  }
+  50% {
+    transform: scale(1.025);
+    box-shadow: 0 6px 18px rgba(22, 163, 74, 0.60), 0 0 0 3px rgba(34, 197, 94, 0.22);
+  }
+}
+
+/* 6. Modal de Validación de Dato Faltante (Con timer de 5s o cierre manual) */
+.modal-campo-faltante-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  animation: fadeInModalOverlay 0.18s ease-out forwards;
+}
+.modal-campo-faltante-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border: 2.5px solid var(--verde);
+  border-radius: 14px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  animation: zoomModalSelect 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+html.dark .modal-campo-faltante-card {
+  background: #0b1a0e;
+  border-color: #22c55e;
+}
+.modal-campo-faltante-header {
+  padding: 14px 18px;
+  background: var(--verde-light);
+  border-bottom: 1.5px solid rgba(12, 88, 37, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+html.dark .modal-campo-faltante-header {
+  background: rgba(34, 197, 94, 0.12);
+  border-bottom-color: rgba(34, 197, 94, 0.25);
+}
+.modal-campo-faltante-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 2px solid var(--verde);
+  color: var(--verde-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+html.dark .modal-campo-faltante-icon {
+  background: #07150a;
+  border-color: #22c55e;
+  color: #4ade80;
+}
+.modal-campo-faltante-body {
+  padding: 18px 20px;
+}
+.modal-campo-faltante-bar-wrap {
+  margin-top: 14px;
+  width: 100%;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+html.dark .modal-campo-faltante-bar-wrap {
+  background: #1e293b;
+}
+.modal-campo-faltante-bar {
+  width: 100%;
+  height: 100%;
+  background: var(--verde);
+  transform-origin: left center;
+}
+.modal-campo-faltante-bar.animando {
+  animation: reduceBarra5s 5s linear forwards;
+}
+@keyframes reduceBarra5s {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.modal-campo-faltante-footer {
+  padding: 12px 20px 16px 20px;
+  display: flex;
+  justify-content: flex-end;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+html.dark .modal-campo-faltante-footer {
+  background: #08140a;
+  border-top-color: #162e1a;
+}
+.btn-campo-faltante-completar {
+  padding: 9px 20px;
+  font-size: 0.90rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: var(--verde);
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  box-shadow: 0 3px 10px rgba(12, 88, 37, 0.25);
+  transition: all 0.15s ease;
+}
+.btn-campo-faltante-completar:hover {
+  background: var(--verde-dark);
+  transform: translateY(-1px);
+}
+
+/* 7. Canvas de Celebración de Pre-Inscripción (Mixtura / Confeti) */
+.canvas-celebracion-mixtura {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 10090;
+  display: none;
+}
+
+
+/* ==========================================================================
    MEJORAS DASHBOARD: DOCENTES EN 2 COLUMNAS, MALLAS DESPLEGABLES Y KARDEX
    ========================================================================== */
 
