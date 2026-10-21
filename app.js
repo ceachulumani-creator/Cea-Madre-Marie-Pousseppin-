@@ -126,6 +126,30 @@ const COLOR_DIA = {
   'domingo':'#c62828'
 };
 
+var DOCUMENTOS_DEFAULT_LIST = [
+  {
+    id: 'doc-reglamento',
+    key: 'reglamento',
+    titulo: 'Reglamento Interno (SEA / CEA)',
+    desc: 'Normas, disposiciones e itinerarios institucionales oficiales del CEA.',
+    url: '#'
+  },
+  {
+    id: 'doc-graduacion',
+    key: 'graduacion',
+    titulo: 'Modalidades de Graduación y Emprendimiento',
+    desc: 'Guías y formatos oficiales de Proyecto de Emprendimiento Productivo.',
+    url: '#'
+  },
+  {
+    id: 'doc-mallas',
+    key: 'mallas',
+    titulo: 'Mallas Curriculares y Planes de Estudio',
+    desc: 'Planes de estudio oficiales, cargas horarias y certificaciones progresivas.',
+    url: '#'
+  }
+];
+
 const DRIVE_DEFAULT = {
   reglamento: '#',
   formulario: '#',

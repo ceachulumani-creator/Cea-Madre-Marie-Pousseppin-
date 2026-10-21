@@ -2935,6 +2935,109 @@
         font-size: 0.59rem !important;
       }
     }
+  
+    /* MODAL DE DATO FALTANTE EN PRE-INSCRIPCIÓN */
+    .modal-campo-faltante-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeInModalFast 0.2s ease-out;
+    }
+    .modal-campo-faltante-card {
+      background: var(--bg-card, #ffffff);
+      border-radius: 16px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3), 0 0 0 1.5px rgba(245, 158, 11, 0.45);
+      max-width: 440px;
+      width: 100%;
+      overflow: hidden;
+      position: relative;
+      animation: popInModalScale 0.26s cubic-bezier(0.175, 0.885, 0.32, 1.25);
+    }
+    .modal-campo-faltante-header {
+      background: #fef3c7;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1.5px solid #fde68a;
+    }
+    .modal-campo-faltante-icon {
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+      color: #ffffff;
+      width: 42px;
+      height: 42px;
+      min-width: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 8px rgba(180, 83, 9, 0.3);
+    }
+    .modal-campo-faltante-body {
+      padding: 20px 22px 14px 22px;
+    }
+    .modal-campo-faltante-bar-wrap {
+      width: 100%;
+      height: 5px;
+      background: #f1f5f9;
+      border-radius: 99px;
+      margin-top: 14px;
+      overflow: hidden;
+    }
+    .modal-campo-faltante-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+      width: 100%;
+      border-radius: 99px;
+    }
+    .modal-campo-faltante-bar.animando {
+      animation: countdownBar 5s linear forwards;
+    }
+    .modal-campo-faltante-footer {
+      padding: 10px 22px 18px 22px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .btn-campo-faltante-completar {
+      background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+      color: #ffffff;
+      border: 1.5px solid #22c55e;
+      border-radius: 99px;
+      padding: 10px 22px;
+      font-weight: 750;
+      font-size: 0.92rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3);
+      transition: all 0.2s ease;
+    }
+    .btn-campo-faltante-completar:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(21, 128, 61, 0.4);
+    }
+    @keyframes countdownBar {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+    @keyframes fadeInModalFast {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes popInModalScale {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
   </style>
   <link rel="stylesheet" href="print-horario.css?v=2026.190" />
   <link rel="stylesheet" href="print-kardex.css?v=2026.66" />
@@ -4871,7 +4974,7 @@
             </div>
 
             <div style="margin-top:22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-              <button type="button" onclick="ejecutarAccionEnviarPreInscripcion(event)" class="btn-submit btn-submit-modern" id="btn-enviar-preinscripcion" onclick="ejecutarAccionEnviarPreInscripcion(event)">
+              <button type="button" class="btn-submit btn-submit-modern" id="btn-enviar-preinscripcion" onclick="ejecutarAccionEnviarPreInscripcion(event)">
                 <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#fde047" stroke-width="2.3"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(253,224,71,0.2)"/></svg>
                 <span>Enviar Pre-Inscripción</span>
               </button>
@@ -9012,259 +9115,304 @@ window.lanzarCelebracionPreinscripcion = lanzarCelebracionPreinscripcion;
 function manejarFormInscripcionOptimizado(e) {
   if (e && typeof e.preventDefault === 'function') e.preventDefault();
   if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-  const form = document.getElementById('form-inscripcion') || (e ? e.target : null);
-  if (!form) return;
 
-  const nombreVal = (form.nombre?.value || document.getElementById('fi-nombre')?.value || '').trim();
-  const ciVal = (form.ci?.value || document.getElementById('fi-ci')?.value || '').trim();
-  let fnacVal = form.fechaNacimiento?.value || document.getElementById('fi-fnac')?.value || '';
-  const telVal = (form.telefono?.value || document.getElementById('fi-tel')?.value || '').trim();
-  const comunidadVal = (form.comunidad?.value || document.getElementById('fi-comunidad')?.value || '').trim();
-  const sedeVal = (form.sede?.value || document.getElementById('fi-sede-select')?.value || 'Sede Central (Centro de Chulumani)').trim();
-  const areaVal = form.area?.value || document.getElementById('fi-area')?.value || '';
-  const nivelVal = form.carrera?.value || document.getElementById('fi-nivel')?.value || '';
+  try {
+    const form = document.getElementById('form-inscripcion') || (e ? e.target : null);
+    if (!form) return false;
 
-  const fnacDisplayVal = (document.getElementById('fi-fnac-display')?.value || '').trim();
-  if (!fnacVal && fnacDisplayVal) {
-    const digits = fnacDisplayVal.replace(/[^\d]/g, '');
-    if (digits.length === 8) {
-      const d = digits.substring(0, 2);
-      const m = digits.substring(2, 4);
-      const y = digits.substring(4, 8);
-      fnacVal = `${y}-${m}-${d}`;
-      const hiddenInp = document.getElementById('fi-fnac');
-      if (hiddenInp) hiddenInp.value = fnacVal;
-    } else if (fnacDisplayVal.includes('-') || fnacDisplayVal.includes('/')) {
-      const parts = fnacDisplayVal.split(/[/-]/);
-      if (parts.length === 3) {
-        if (parts[0].length === 4) {
-          fnacVal = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
-        } else {
-          fnacVal = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
-        }
+    const btnSubmit = document.getElementById('btn-enviar-preinscripcion');
+    const nombreVal = (form.nombre?.value || document.getElementById('fi-nombre')?.value || '').trim();
+    const ciVal = (form.ci?.value || document.getElementById('fi-ci')?.value || '').trim();
+    let fnacVal = form.fechaNacimiento?.value || document.getElementById('fi-fnac')?.value || '';
+    const telVal = (form.telefono?.value || document.getElementById('fi-tel')?.value || '').trim();
+    const comunidadVal = (form.comunidad?.value || document.getElementById('fi-comunidad')?.value || '').trim();
+    const sedeVal = (form.sede?.value || document.getElementById('fi-sede-select')?.value || 'Sede Central (Centro de Chulumani)').trim();
+    const areaVal = form.area?.value || document.getElementById('fi-area')?.value || '';
+    const nivelVal = form.carrera?.value || document.getElementById('fi-nivel')?.value || '';
+
+    // Auto-detección y formateo robusto de fecha si está en fi-fnac-display
+    const fnacDisplayVal = (document.getElementById('fi-fnac-display')?.value || '').trim();
+    if (!fnacVal && fnacDisplayVal) {
+      const digits = fnacDisplayVal.replace(/[^\d]/g, '');
+      if (digits.length === 8) {
+        const d = digits.substring(0, 2);
+        const m = digits.substring(2, 4);
+        const y = digits.substring(4, 8);
+        fnacVal = `${y}-${m}-${d}`;
         const hiddenInp = document.getElementById('fi-fnac');
         if (hiddenInp) hiddenInp.value = fnacVal;
+      } else if (fnacDisplayVal.includes('-') || fnacDisplayVal.includes('/')) {
+        const parts = fnacDisplayVal.split(/[/\-]/);
+        if (parts.length === 3) {
+          if (parts[0].length === 4) {
+            fnacVal = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+          } else {
+            fnacVal = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+          }
+          const hiddenInp = document.getElementById('fi-fnac');
+          if (hiddenInp) hiddenInp.value = fnacVal;
+        }
       }
     }
-  }
 
-  const txtNivelElem = document.getElementById('fi-nivel-text');
-  const selNivel = document.getElementById('fi-nivel') || form.carrera;
-  const textoNivel = (txtNivelElem && !txtNivelElem.classList.contains('placeholder') && txtNivelElem.textContent)
-    ? txtNivelElem.textContent.trim()
-    : ((selNivel && selNivel.selectedIndex >= 0 && selNivel.options[selNivel.selectedIndex] && !selNivel.options[selNivel.selectedIndex].value.startsWith('--'))
-      ? selNivel.options[selNivel.selectedIndex].text
-      : (nivelVal || ''));
+    const txtNivelElem = document.getElementById('fi-nivel-text');
+    const selNivel = document.getElementById('fi-nivel') || form.carrera;
+    const textoNivel = (txtNivelElem && !txtNivelElem.classList.contains('placeholder') && txtNivelElem.textContent)
+      ? txtNivelElem.textContent.trim()
+      : ((selNivel && selNivel.selectedIndex >= 0 && selNivel.options[selNivel.selectedIndex] && !selNivel.options[selNivel.selectedIndex].value.startsWith('--'))
+        ? selNivel.options[selNivel.selectedIndex].text
+        : (nivelVal || ''));
 
-  // Validaciones de campos obligatorios con ventana emergente interactiva
-  if (!nombreVal) {
-    mostrarVentanaDatoFaltante('Nombre completo', 'fi-nombre');
-    return;
-  }
-
-  if (!ciVal) {
-    mostrarVentanaDatoFaltante('Cédula de Identidad (CI)', 'fi-ci');
-    return;
-  }
-
-  if (!fnacVal) {
-    mostrarVentanaDatoFaltante('Fecha de Nacimiento', 'fi-fnac-display');
-    if (typeof abrirCustomDatePicker === 'function') abrirCustomDatePicker();
-    return;
-  }
-
-  if (!telVal) {
-    mostrarVentanaDatoFaltante('Teléfono / WhatsApp', 'fi-tel');
-    return;
-  }
-
-  if (!comunidadVal) {
-    mostrarVentanaDatoFaltante('¿De dónde vienes? (Comunidad)', 'fi-comunidad');
-    return;
-  }
-
-  if (!areaVal) {
-    mostrarVentanaDatoFaltante('Área de interés', 'fi-area-trigger');
-    if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('area');
-    return;
-  }
-
-  if (!nivelVal) {
-    mostrarVentanaDatoFaltante('Nivel o Carrera técnica', 'fi-nivel-trigger');
-    if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('nivel');
-    return;
-  }
-
-  // VALIDACIÓN DINÁMICA DE EDAD (NORMATIVA EPJA / ETTP)
-  const valEdad = typeof evaluarEdadInscripcion === 'function'
-    ? evaluarEdadInscripcion(fnacVal, areaVal, nivelVal, textoNivel)
-    : { puedeInscribirseNormal: true, edadCalculada: 20, edadMinima: 15, nombreNivel: textoNivel };
-
-  const selTipoExcep = document.getElementById('fi-tipo-excepcion');
-  const casoExcepVal = selTipoExcep ? (selTipoExcep.value || '').trim() : '';
-  const detalleExcepVal = (form.detalleExcepcion?.value || document.getElementById('fi-detalle-excepcion')?.value || '').trim();
-
-  const esCasoExcepcional = Boolean(!valEdad.puedeInscribirseNormal && casoExcepVal);
-
-  if (!valEdad.puedeInscribirseNormal && !esCasoExcepcional) {
-    const msgErrorTexto = valEdad.edadCalculada !== null
-      ? `No cumple con la edad reglamentaria (${valEdad.edadCalculada} años frente al mínimo de ${valEdad.edadMinima} años). Para continuar, selecciona tu caso en "Inscripción por Caso Excepcional".`
-      : `Por favor completa tu fecha de nacimiento para verificar los requisitos de edad.`;
-
-    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', msgErrorTexto, 'error');
-    if (typeof mostrarAlertaModal === 'function') {
-      mostrarAlertaModal(
-        `El postulante tiene ${valEdad.edadCalculada} años y la normativa general del CEA exige un mínimo de ${valEdad.edadMinima} años cumplidos para ${valEdad.nombreNivel}.\n\nPara poder inscribirse sin la edad reglamentaria, la normativa ministerial de Educación Alternativa (Ley 070) permite optar por "Casos Excepcionales" justificados.\n\nPor favor elija la opción correspondiente en la sección de Casos Excepcionales del formulario para habilitar su pre-inscripción condicional.`,
-        'Inscripción por Caso Excepcional Requerida',
-        'warning'
-      );
+    // Validaciones de campos obligatorios con ventana emergente interactiva
+    if (!nombreVal) {
+      mostrarVentanaDatoFaltante('Nombre completo', 'fi-nombre');
+      return false;
     }
 
-    const containerExcep = document.getElementById('fi-caso-excepcional-container');
-    if (containerExcep) {
-      containerExcep.style.display = 'block';
-      containerExcep.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (selTipoExcep) {
-        selTipoExcep.focus();
-        selTipoExcep.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.4)';
-        setTimeout(() => { selTipoExcep.style.boxShadow = ''; }, 1500);
+    if (!ciVal) {
+      mostrarVentanaDatoFaltante('Cédula de Identidad (CI)', 'fi-ci');
+      return false;
+    }
+
+    if (!fnacVal) {
+      mostrarVentanaDatoFaltante('Fecha de Nacimiento', 'fi-fnac-display');
+      if (typeof abrirCustomDatePicker === 'function') abrirCustomDatePicker();
+      return false;
+    }
+
+    if (!telVal) {
+      mostrarVentanaDatoFaltante('Teléfono / WhatsApp', 'fi-tel');
+      return false;
+    }
+
+    if (!areaVal) {
+      mostrarVentanaDatoFaltante('Área de interés', 'fi-area-trigger');
+      if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('area');
+      return false;
+    }
+
+    if (!nivelVal) {
+      mostrarVentanaDatoFaltante('Nivel o Carrera técnica', 'fi-nivel-trigger');
+      if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('nivel');
+      return false;
+    }
+
+    if (!comunidadVal) {
+      mostrarVentanaDatoFaltante('¿De dónde vienes? (Comunidad)', 'fi-comunidad');
+      return false;
+    }
+
+    // Feedback visual inmediato en el botón
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      btnSubmit.style.opacity = '0.75';
+      const txtSpan = btnSubmit.querySelector('span');
+      if (txtSpan) txtSpan.textContent = 'Procesando pre-inscripción...';
+    }
+
+    // VALIDACIÓN DINÁMICA DE EDAD (NORMATIVA EPJA / ETTP)
+    const valEdad = typeof evaluarEdadInscripcion === 'function'
+      ? evaluarEdadInscripcion(fnacVal, areaVal, nivelVal, textoNivel)
+      : { puedeInscribirseNormal: true, edadCalculada: 20, edadMinima: 15, nombreNivel: textoNivel };
+
+    const selTipoExcep = document.getElementById('fi-tipo-excepcion');
+    const casoExcepVal = selTipoExcep ? (selTipoExcep.value || '').trim() : '';
+    const detalleExcepVal = (form.detalleExcepcion?.value || document.getElementById('fi-detalle-excepcion')?.value || '').trim();
+
+    const esCasoExcepcional = Boolean(!valEdad.puedeInscribirseNormal && casoExcepVal);
+
+    if (!valEdad.puedeInscribirseNormal && !esCasoExcepcional) {
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.style.opacity = '1';
+        const txtSpan = btnSubmit.querySelector('span');
+        if (txtSpan) txtSpan.textContent = 'Enviar Pre-Inscripción';
       }
-    }
-    return;
-  }
+      const msgErrorTexto = valEdad.edadCalculada !== null
+        ? `No cumple con la edad reglamentaria (${valEdad.edadCalculada} años frente al mínimo de ${valEdad.edadMinima} años). Para continuar, selecciona tu caso en "Inscripción por Caso Excepcional".`
+        : `Por favor completa tu fecha de nacimiento para verificar los requisitos de edad.`;
 
-  const semInfo = typeof determinarSemestreInscripcion === 'function'
-    ? determinarSemestreInscripcion(new Date())
-    : { semestre: '1er Semestre', gestion: 2026, avisoVigencia: '', estadoVigencia: 'vigente' };
+      if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', msgErrorTexto, 'error');
+      if (typeof mostrarAlertaModal === 'function') {
+        mostrarAlertaModal(
+          `El postulante tiene ${valEdad.edadCalculada} años y la normativa general del CEA exige un mínimo de ${valEdad.edadMinima} años cumplidos para ${valEdad.nombreNivel}.\n\nPara poder inscribirse sin la edad reglamentaria, la normativa ministerial de Educación Alternativa (Ley 070) permite optar por "Casos Excepcionales" justificados.\n\nPor favor elija la opción correspondiente en la sección de Casos Excepcionales del formulario para habilitar su pre-inscripción condicional.`,
+          'Inscripción por Caso Excepcional Requerida',
+          'warning'
+        );
+      }
 
-  const data = {
-    action: 'pre-inscripcion',
-    nombre: nombreVal,
-    ci: ciVal,
-    fechaNacimiento: fnacVal,
-    edad: valEdad.edadCalculada,
-    telefono: telVal,
-    comunidad: comunidadVal,
-    sede: sedeVal,
-    area: areaVal,
-    carrera: textoNivel || nivelVal,
-    observaciones: (form.observaciones?.value || document.getElementById('fi-obs')?.value || '').trim(),
-    semestre: semInfo.semestre,
-    gestion: semInfo.gestion,
-    avisoVigencia: semInfo.avisoVigencia,
-    estadoVigencia: semInfo.estadoVigencia,
-    esCasoExcepcional: esCasoExcepcional,
-    casoExcepcional: esCasoExcepcional ? casoExcepVal : '',
-    detalleExcepcion: esCasoExcepcional ? detalleExcepVal : '',
-    modalidadInscripcion: esCasoExcepcional ? `Caso Excepcional (${casoExcepVal})` : 'Inscripción Regular',
-    fechaRegistro: new Date().toISOString()
-  };
-
-  // 1. Guardar localmente de forma instantánea
-  const ins = typeof lsGet === 'function' ? lsGet('cea_inscripciones', []) : [];
-  ins.unshift({ ...data, fecha: new Date().toLocaleString() });
-  if (typeof lsSet === 'function') lsSet('cea_inscripciones', ins);
-  if (typeof cargarInscripciones === 'function') cargarInscripciones();
-  if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
-
-  // 2. Guardar registro en variable global y pre-generar automáticamente el PDF para descarga instantánea al hacer clic
-  window._ultimoRegistroInscripcion = data;
-  if (typeof window.pregenerarComprobantePDF === 'function') {
-    window.pregenerarComprobantePDF(data);
-  }
-
-  const habilitarPdf = typeof lsGet === 'function' ? lsGet('cea_cfg_pdf', true) : true;
-  const habilitarWp = typeof lsGet === 'function' ? lsGet('cea_cfg_whatsapp', true) : true;
-
-  // Celebración con animación de check y mixtura (confeti) + scroll suave directo
-  if (typeof window.lanzarCelebracionPreinscripcion === 'function') {
-    window.lanzarCelebracionPreinscripcion();
-  }
-
-  // 3. Renderizar y mostrar el comprobante / voucher INMEDIATAMENTE
-  const voucherWrap = document.getElementById('resultado-inscripcion-voucher');
-  if (voucherWrap) {
-    let extraBtns = '';
-    if (habilitarPdf) {
-      extraBtns += `
-        <button type="button" class="btn-voucher-pdf" onclick="descargarComprobanteDirectoPDF(window._ultimoRegistroInscripcion)">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          Descargar Ficha Oficial (PDF)
-        </button>`;
-    }
-    if (habilitarWp) {
-      extraBtns += `
-        <button type="button" class="btn-voucher-whatsapp" onclick="confirmarInscripcionWhatsApp()">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-          Confirmar por WhatsApp con Dirección
-        </button>`;
+      const containerExcep = document.getElementById('fi-caso-excepcional-container');
+      if (containerExcep) {
+        containerExcep.style.display = 'block';
+        containerExcep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (selTipoExcep) {
+          selTipoExcep.focus();
+          selTipoExcep.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.4)';
+          setTimeout(() => { selTipoExcep.style.boxShadow = ''; }, 1500);
+        }
+      }
+      return false;
     }
 
-    const badgeClass = (data.semestre || '').includes('2') ? 'badge-semestre-2' : ((data.semestre || '').includes('1') ? 'badge-semestre-1' : 'badge-semestre-siguiente');
-    const escFn = typeof escapeHTML === 'function' ? escapeHTML : (s => s);
+    const semInfo = typeof determinarSemestreInscripcion === 'function'
+      ? determinarSemestreInscripcion(new Date())
+      : { semestre: '1er Semestre', gestion: 2026, avisoVigencia: '', estadoVigencia: 'vigente' };
 
-    voucherWrap.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="background:var(--verde-light);color:#1a6b2e;padding:6px 10px;border-radius:8px;display:flex;align-items:center;justify-content:center">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    const data = {
+      action: 'pre-inscripcion',
+      nombre: nombreVal,
+      ci: ciVal,
+      fechaNacimiento: fnacVal,
+      edad: valEdad.edadCalculada,
+      telefono: telVal,
+      comunidad: comunidadVal,
+      sede: sedeVal,
+      area: areaVal,
+      carrera: textoNivel || nivelVal,
+      observaciones: (form.observaciones?.value || document.getElementById('fi-obs')?.value || '').trim(),
+      semestre: semInfo.semestre,
+      gestion: semInfo.gestion,
+      avisoVigencia: semInfo.avisoVigencia,
+      estadoVigencia: semInfo.estadoVigencia,
+      esCasoExcepcional: esCasoExcepcional,
+      casoExcepcional: esCasoExcepcional ? casoExcepVal : '',
+      detalleExcepcion: esCasoExcepcional ? detalleExcepVal : '',
+      modalidadInscripcion: esCasoExcepcional ? `Caso Excepcional (${casoExcepVal})` : 'Inscripción Regular',
+      fechaRegistro: new Date().toISOString()
+    };
+
+    // 1. Guardar localmente de forma instantánea
+    const ins = typeof lsGet === 'function' ? lsGet('cea_inscripciones', []) : [];
+    ins.unshift({ ...data, fecha: new Date().toLocaleString() });
+    if (typeof lsSet === 'function') lsSet('cea_inscripciones', ins);
+    if (typeof cargarInscripciones === 'function') {
+      try { cargarInscripciones(); } catch (eIns) { console.warn(eIns); }
+    }
+    if (typeof actualizarEstadisticasAdmin === 'function') {
+      try { actualizarEstadisticasAdmin(); } catch (eEst) { console.warn(eEst); }
+    }
+
+    // 2. Guardar registro en variable global y pre-generar automáticamente el PDF
+    window._ultimoRegistroInscripcion = data;
+    if (typeof window.pregenerarComprobantePDF === 'function') {
+      try { window.pregenerarComprobantePDF(data); } catch (ePdf) { console.warn(ePdf); }
+    }
+
+    const habilitarPdf = typeof lsGet === 'function' ? lsGet('cea_cfg_pdf', true) : true;
+    const habilitarWp = typeof lsGet === 'function' ? lsGet('cea_cfg_whatsapp', true) : true;
+
+    // Celebración con animación de check y mixtura (confeti)
+    if (typeof window.lanzarCelebracionPreinscripcion === 'function') {
+      try { window.lanzarCelebracionPreinscripcion(); } catch (eCel) { console.warn(eCel); }
+    }
+
+    // 3. Renderizar y mostrar el comprobante / voucher INMEDIATAMENTE
+    const voucherWrap = document.getElementById('resultado-inscripcion-voucher');
+    if (voucherWrap) {
+      let extraBtns = '';
+      if (habilitarPdf) {
+        extraBtns += `
+          <button type="button" class="btn-voucher-pdf" onclick="descargarComprobanteDirectoPDF(window._ultimoRegistroInscripcion)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Descargar Ficha Oficial (PDF)
+          </button>`;
+      }
+      if (habilitarWp) {
+        extraBtns += `
+          <button type="button" class="btn-voucher-whatsapp" onclick="confirmarInscripcionWhatsApp()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+            Confirmar por WhatsApp con Dirección
+          </button>`;
+      }
+
+      const badgeClass = (data.semestre || '').includes('2') ? 'badge-semestre-2' : ((data.semestre || '').includes('1') ? 'badge-semestre-1' : 'badge-semestre-siguiente');
+      const escFn = typeof escapeHTML === 'function' ? escapeHTML : (s => s);
+
+      voucherWrap.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="background:var(--verde-light);color:#1a6b2e;padding:6px 10px;border-radius:8px;display:flex;align-items:center;justify-content:center">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <h4 style="margin:0;font-size:1.05rem;color:#1a6b2e">¡Pre-Inscripción Registrada con Éxito!</h4>
+              <p style="margin:2px 0 0 0;font-size:0.83rem;color:var(--text-sec)">Tus datos fueron guardados correctamente. Haz clic en el botón de abajo para descargar tu Ficha Oficial en PDF.</p>
+            </div>
           </div>
-          <div>
-            <h4 style="margin:0;font-size:1.05rem;color:#1a6b2e">¡Pre-Inscripción Registrada con Éxito!</h4>
-            <p style="margin:2px 0 0 0;font-size:0.83rem;color:var(--text-sec)">Tus datos fueron guardados correctamente. Haz clic en el botón de abajo para descargar tu Ficha Oficial en PDF.</p>
-          </div>
+          <button type="button" onclick="cerrarVoucherInscripcion()" style="background:none;border:none;cursor:pointer;color:var(--text-sec);display:flex;align-items:center;padding:4px" title="Cerrar aviso">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
-        <button type="button" onclick="cerrarVoucherInscripcion()" style="background:none;border:none;cursor:pointer;color:var(--text-sec);display:flex;align-items:center;padding:4px" title="Cerrar aviso">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
 
-      <div style="background:var(--bg-body);padding:12px 16px;border-radius:8px;font-size:0.86rem;margin-bottom:14px;border:1px solid var(--border-col)">
-        <strong>Postulante:</strong> ${escFn(data.nombre)} | <strong>CI:</strong> ${escFn(data.ci)} | <strong>Edad:</strong> <span style="color:var(--verde-dark);font-weight:700">${data.edad ? `${data.edad} años cumplidos` : '—'}</span><br>
-        <strong>Comunidad / Procedencia:</strong> ${escFn(data.comunidad)} | <strong>Sede:</strong> ${escFn(data.sede)}<br>
-        <strong>Carrera/Nivel:</strong> ${escFn(data.carrera)}<br>
-        <span style="display:inline-block;margin-top:6px"><strong style="color:var(--verde-dark)">Semestre Asignado:</strong> <span class="badge-semestre ${badgeClass}">${escFn(data.semestre)} (${data.gestion})</span></span>
-        ${data.esCasoExcepcional ? `
-          <div style="margin-top:10px;padding:9px 12px;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:7px;color:#92400e;font-size:0.82rem">
-            <strong style="display:flex;align-items:center;gap:5px;font-size:0.84rem">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              Modalidad: Pre-Inscripción por Caso Excepcional (Ley 070)
-            </strong>
-            <div style="margin-top:3px">Causal: <strong>${escFn(data.casoExcepcional)}</strong>${data.detalleExcepcion ? ` — <em>${escFn(data.detalleExcepcion)}</em>` : ''}</div>
-            <div style="font-size:0.75rem;color:#78350f;margin-top:4px">Nota: Deberás presentar el documento de respaldo físico en la Dirección del CEA al confirmar tu matrícula.</div>
+        <div style="background:var(--bg-body);padding:12px 16px;border-radius:8px;font-size:0.86rem;margin-bottom:14px;border:1px solid var(--border-col)">
+          <strong>Postulante:</strong> ${escFn(data.nombre)} | <strong>CI:</strong> ${escFn(data.ci)} | <strong>Edad:</strong> <span style="color:var(--verde-dark);font-weight:700">${data.edad ? `${data.edad} años cumplidos` : '—'}</span><br>
+          <strong>Comunidad / Procedencia:</strong> ${escFn(data.comunidad)} | <strong>Sede:</strong> ${escFn(data.sede)}<br>
+          <strong>Carrera/Nivel:</strong> ${escFn(data.carrera)}<br>
+          <span style="display:inline-block;margin-top:6px"><strong style="color:var(--verde-dark)">Semestre Asignado:</strong> <span class="badge-semestre ${badgeClass}">${escFn(data.semestre)} (${data.gestion})</span></span>
+          ${data.esCasoExcepcional ? `
+            <div style="margin-top:10px;padding:9px 12px;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:7px;color:#92400e;font-size:0.82rem">
+              <strong style="display:flex;align-items:center;gap:5px;font-size:0.84rem">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Modalidad: Pre-Inscripción por Caso Excepcional (Ley 070)
+              </strong>
+              <div style="margin-top:3px">Causal: <strong>${escFn(data.casoExcepcional)}</strong>${data.detalleExcepcion ? ` — <em>${escFn(data.detalleExcepcion)}</em>` : ''}</div>
+              <div style="font-size:0.75rem;color:#78350f;margin-top:4px">Nota: Deberás presentar el documento de respaldo físico en la Dirección del CEA al confirmar tu matrícula.</div>
+            </div>
+          ` : ''}
+        </div>
+
+        ${data.avisoVigencia ? `
+          <div style="background:${data.estadoVigencia === 'vigente' ? 'var(--verde-light)' : '#fef3c7'};border:1.5px solid ${data.estadoVigencia === 'vigente' ? 'var(--verde)' : '#f59e0b'};border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.84rem;color:${data.estadoVigencia === 'vigente' ? 'var(--verde-dark)' : '#92400e'};line-height:1.4">
+            <strong style="display:block;margin-bottom:2px">Condición de Matrícula:</strong>
+            <span>${escFn(data.avisoVigencia)}</span>
           </div>
         ` : ''}
-      </div>
 
-      ${data.avisoVigencia ? `
-        <div style="background:${data.estadoVigencia === 'vigente' ? 'var(--verde-light)' : '#fef3c7'};border:1.5px solid ${data.estadoVigencia === 'vigente' ? 'var(--verde)' : '#f59e0b'};border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.84rem;color:${data.estadoVigencia === 'vigente' ? 'var(--verde-dark)' : '#92400e'};line-height:1.4">
-          <strong style="display:block;margin-bottom:2px">Condición de Matrícula:</strong>
-          <span>${escFn(data.avisoVigencia)}</span>
+        <div class="voucher-actions-row">
+          ${extraBtns}
         </div>
-      ` : ''}
+      `;
+      voucherWrap.style.display = 'block';
+      voucherWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 
-      <div class="voucher-actions-row">
-        ${extraBtns}
-      </div>
-    `;
-    voucherWrap.style.display = 'block';
-    voucherWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
+    if (typeof mostrarMsg === 'function') {
+      mostrarMsg('form-msg', '¡Pre-inscripción registrada con éxito! Descarga tu Ficha Oficial en PDF abajo.', 'success');
+    }
 
-  if (typeof mostrarMsg === 'function') {
-    mostrarMsg('form-msg', '¡Pre-inscripción registrada con éxito! Descarga tu Ficha Oficial en PDF abajo.', 'success');
-  }
+    form.reset();
+    const contExcep = document.getElementById('fi-caso-excepcional-container');
+    if (contExcep) contExcep.style.display = 'none';
+    const avisoOkExcep = document.getElementById('fi-excepcion-aviso-ok');
+    if (avisoOkExcep) avisoOkExcep.style.display = 'none';
+    if (typeof validarEdadInscripcionLive === 'function') validarEdadInscripcionLive();
 
-  form.reset();
-  const contExcep = document.getElementById('fi-caso-excepcional-container');
-  if (contExcep) contExcep.style.display = 'none';
-  const avisoOkExcep = document.getElementById('fi-excepcion-aviso-ok');
-  if (avisoOkExcep) avisoOkExcep.style.display = 'none';
-  if (typeof validarEdadInscripcionLive === 'function') validarEdadInscripcionLive();
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.style.opacity = '1';
+      const txtSpan = btnSubmit.querySelector('span');
+      if (txtSpan) txtSpan.textContent = 'Enviar Pre-Inscripción';
+    }
 
-  // Enviar a Google Sheets en segundo plano sin congelar ni bloquear
-  if (typeof enviarGoogleSheet === 'function') {
-    enviarGoogleSheet(data).catch(err => console.warn('Sync en segundo plano:', err));
+    // Enviar a Google Sheets en segundo plano sin congelar
+    if (typeof enviarGoogleSheet === 'function') {
+      enviarGoogleSheet(data).catch(err => console.warn('Sync en segundo plano:', err));
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error al procesar inscripción:', err);
+    const btnSubmit = document.getElementById('btn-enviar-preinscripcion');
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.style.opacity = '1';
+      const txtSpan = btnSubmit.querySelector('span');
+      if (txtSpan) txtSpan.textContent = 'Enviar Pre-Inscripción';
+    }
+    if (typeof mostrarMsg === 'function') {
+      mostrarMsg('form-msg', 'Ocurrió un inconveniente al procesar tu pre-inscripción: ' + (err.message || err), 'error');
+    }
+    return false;
   }
 }
 
@@ -9302,14 +9450,23 @@ function arreglarListaCarrerasTecnicasPunto() {
 const DOCUMENTOS_DEFAULT_LIST = [
   {
     id: 'doc-reglamento',
+    key: 'reglamento',
     titulo: 'Reglamento Interno (SEA / CEA)',
     desc: 'Normas, disposiciones e itinerarios institucionales oficiales del CEA.',
     url: '#'
   },
   {
     id: 'doc-graduacion',
+    key: 'graduacion',
     titulo: 'Modalidades de Graduación y Emprendimiento',
     desc: 'Guías y formatos oficiales de Proyecto de Emprendimiento Productivo.',
+    url: '#'
+  },
+  {
+    id: 'doc-mallas',
+    key: 'mallas',
+    titulo: 'Mallas Curriculares y Planes de Estudio',
+    desc: 'Planes de estudio oficiales, cargas horarias y certificaciones progresivas.',
     url: '#'
   }
 ];
@@ -9321,10 +9478,12 @@ function esSesionDirectorActiva() {
 
 function obtenerDocumentosDinamicos() {
   const saved = typeof lsGet === 'function' ? lsGet('cea_documentos_dinamicos', null) : null;
+  let docs = [];
   if (saved && Array.isArray(saved) && saved.length > 0) {
-    return saved.filter(d => !d.esContacto).map((d, i) => ({
+    docs = saved.filter(d => !d.esContacto).map((d, i) => ({
       ...d,
       id: d.id || d.key || ('doc-item-' + i),
+      key: d.key || d.id || ('doc-item-' + i),
       titulo: d.titulo || 'Documento Institucional',
       desc: d.desc || d.descripcion || '',
       descripcion: d.descripcion || d.desc || '',
@@ -9332,11 +9491,27 @@ function obtenerDocumentosDinamicos() {
       enlace: d.enlace || d.url || '#'
     }));
   }
-  return DOCUMENTOS_DEFAULT_LIST;
+
+  // Garantizar siempre los 3 documentos oficiales por defecto en la página de inicio
+  DOCUMENTOS_DEFAULT_LIST.forEach(defDoc => {
+    const existe = docs.some(d =>
+      d.id === defDoc.id ||
+      d.key === defDoc.id ||
+      d.key === defDoc.key ||
+      (d.titulo && defDoc.titulo && d.titulo.toLowerCase().trim() === defDoc.titulo.toLowerCase().trim()) ||
+      (defDoc.id === 'doc-reglamento' && (d.id === 'reglamento' || (d.titulo || '').toLowerCase().includes('reglamento'))) ||
+      (defDoc.id === 'doc-graduacion' && (d.id === 'graduacion' || (d.titulo || '').toLowerCase().includes('graduación') || (d.titulo || '').toLowerCase().includes('graduacion'))) ||
+      (defDoc.id === 'doc-mallas' && (d.id === 'mallas' || (d.titulo || '').toLowerCase().includes('malla') || (d.titulo || '').toLowerCase().includes('curricular')))
+    );
+    if (!existe) {
+      docs.push({ ...defDoc });
+    }
+  });
+
+  return docs;
 }
 
 function guardarDocumentosDinamicos(lista) {
-  if (!esSesionDirectorActiva()) return;
   const listaLimpia = (lista || []).filter(d => !d.esContacto).map((d, i) => ({
     ...d,
     id: d.id || d.key || ('doc-item-' + i),
@@ -9353,7 +9528,7 @@ function guardarDocumentosDinamicos(lista) {
     enviarGoogleSheet({
       action: 'guardar-documentos-dinamicos',
       documentos: listaLimpia
-    });
+    }).catch(err => console.warn('Sync documentos error:', err));
   }
 }
 
@@ -9417,7 +9592,14 @@ function renderDocumentosDinamicos() {
 }
 
 function abrirModalAgregarDocumentoDinamico() {
-  if (!esSesionDirectorActiva()) return;
+  if (!esSesionDirectorActiva()) {
+    if (typeof mostrarAlertaModal === 'function') {
+      mostrarAlertaModal('Debes iniciar sesión en el Modo Director para agregar o editar documentos institucionales.', 'Modo Director Requerido', 'info');
+    } else {
+      alert('Debes iniciar sesión en el Modo Director para agregar o editar documentos.');
+    }
+    return;
+  }
 
   document.getElementById('modal-doc-id').value = '';
   document.getElementById('modal-inp-doc-titulo').value = '';
@@ -9431,16 +9613,21 @@ function abrirModalAgregarDocumentoDinamico() {
 }
 
 function abrirModalEditarDocumentoDinamico(id) {
-  if (!esSesionDirectorActiva()) return;
+  if (!esSesionDirectorActiva()) {
+    if (typeof mostrarAlertaModal === 'function') {
+      mostrarAlertaModal('Debes iniciar sesión en el Modo Director para editar documentos institucionales.', 'Modo Director Requerido', 'info');
+    }
+    return;
+  }
 
   const docs = obtenerDocumentosDinamicos();
-  const d = docs.find(item => item.id === id);
+  const d = docs.find(item => item.id === id || item.key === id);
   if (!d) return;
 
   document.getElementById('modal-doc-id').value = d.id;
   document.getElementById('modal-inp-doc-titulo').value = d.titulo || '';
-  document.getElementById('modal-inp-doc-desc').value = d.desc || '';
-  document.getElementById('modal-inp-doc-url').value = d.url || '';
+  document.getElementById('modal-inp-doc-desc').value = d.desc || d.descripcion || '';
+  document.getElementById('modal-inp-doc-url').value = (d.url && d.url !== '#') ? d.url : '';
   document.getElementById('modal-doc-dinamico-title').textContent = 'Editar Documento Institucional';
   document.getElementById('btn-eliminar-doc-modal').style.display = 'inline-block';
 
@@ -9455,34 +9642,58 @@ function cerrarModalDocumentoDinamico() {
 
 function guardarDocumentoDinamicoModal(e) {
   if (e && typeof e.preventDefault === 'function') e.preventDefault();
-  if (!esSesionDirectorActiva()) return;
 
-  const id = document.getElementById('modal-doc-id').value;
-  const titulo = document.getElementById('modal-inp-doc-titulo').value.trim();
-  const desc = document.getElementById('modal-inp-doc-desc').value.trim();
-  const url = document.getElementById('modal-inp-doc-url').value.trim();
+  const idInp = document.getElementById('modal-doc-id');
+  const id = idInp ? idInp.value : '';
+  let titulo = (document.getElementById('modal-inp-doc-titulo')?.value || '').trim();
+  let desc = (document.getElementById('modal-inp-doc-desc')?.value || '').trim();
+  let url = (document.getElementById('modal-inp-doc-url')?.value || '').trim();
 
-  if (!titulo || !desc || !url) {
+  // Si el usuario solo pegó el enlace, auto-asignar título y descripción si están vacíos
+  if (!url) {
     if (typeof mostrarAlertaModal === 'function') {
-      mostrarAlertaModal('Por favor completa todos los campos del documento.', 'Datos Incompletos', 'warning');
+      mostrarAlertaModal('Por favor ingresa o pega el enlace del documento (Google Drive, enlace PDF o web).', 'Enlace Requerido', 'warning');
+    } else {
+      alert('Por favor ingresa o pega el enlace del documento.');
     }
     return;
+  }
+
+  if (!titulo) {
+    titulo = (id === 'doc-reglamento' || id === 'reglamento') ? 'Reglamento Interno (SEA / CEA)'
+      : ((id === 'doc-graduacion' || id === 'graduacion') ? 'Modalidades de Graduación y Emprendimiento'
+      : ((id === 'doc-mallas' || id === 'mallas') ? 'Mallas Curriculares y Planes de Estudio'
+      : 'Documento Oficial CEA'));
+  }
+  if (!desc) {
+    desc = (id === 'doc-reglamento' || id === 'reglamento') ? 'Normas, disposiciones e itinerarios institucionales oficiales del CEA.'
+      : ((id === 'doc-graduacion' || id === 'graduacion') ? 'Guías y formatos oficiales de Proyecto de Emprendimiento Productivo.'
+      : ((id === 'doc-mallas' || id === 'mallas') ? 'Planes de estudio oficiales, cargas horarias y certificaciones progresivas.'
+      : 'Documento institucional y normativo oficial.'));
   }
 
   let docs = obtenerDocumentosDinamicos();
 
   if (id) {
-    docs = docs.map(item => item.id === id ? { ...item, titulo, desc, url } : item);
+    docs = docs.map(item => (item.id === id || item.key === id) ? { ...item, titulo, desc, descripcion: desc, url, enlace: url } : item);
   } else {
     const newId = 'doc-' + Date.now();
-    const newDoc = { id: newId, titulo, desc, url };
+    const newDoc = { id: newId, key: newId, titulo, desc, descripcion: desc, url, enlace: url };
     docs.push(newDoc);
   }
+
+  // Actualizar también en cea_drive si corresponde
+  try {
+    const d = typeof lsGet === 'function' ? lsGet('cea_drive', {}) : {};
+    if (id === 'doc-reglamento' || id === 'reglamento' || titulo.toLowerCase().includes('reglamento')) d.reglamento = url;
+    if (id === 'doc-mallas' || id === 'mallas' || titulo.toLowerCase().includes('malla')) d.mallas = url;
+    if (typeof lsSet === 'function') lsSet('cea_drive', d);
+  } catch (eDrv) {}
 
   guardarDocumentosDinamicos(docs);
   cerrarModalDocumentoDinamico();
   if (typeof mostrarAlertaModal === 'function') {
-    mostrarAlertaModal('¡Documento guardado con éxito!', 'Documento Actualizado', 'success');
+    mostrarAlertaModal('¡Documento guardado y actualizado con éxito!', 'Documento Guardado', 'success');
   }
 }
 
