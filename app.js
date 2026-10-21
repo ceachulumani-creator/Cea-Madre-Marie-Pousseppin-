@@ -65,16 +65,16 @@ const DOCENTES_DEFAULT = {
 };
 
 const USUARIOS_DOCENTES_DEFAULT = {
-  'tec-sis': { user: 'profe.sistemas', pass: 'docente123', comision: false },
-  'tec-sec': { user: 'profe.secretariado', pass: 'docente123', comision: false },
-  'tec-bel': { user: 'profe.belleza', pass: 'docente123', comision: false },
-  'tec-tex': { user: 'profe.textil', pass: 'docente123', comision: false },
-  'tec-gas': { user: 'profe.gastronomia', pass: 'docente123', comision: false },
-  'tec-agr': { user: 'profe.agropecuaria', pass: 'docente123', comision: false },
-  'hum-cn':  { user: 'profe.naturales', pass: 'docente123', comision: true },
-  'hum-mat': { user: 'profe.matematica', pass: 'docente123', comision: false },
-  'hum-cs':  { user: 'profe.sociales', pass: 'docente123', comision: false },
-  'hum-len': { user: 'profe.lenguaje', pass: 'docente123', comision: false }
+  'tec-sis': { user: 'profe.sistemas', pass: '', comision: false },
+  'tec-sec': { user: 'profe.secretariado', pass: '', comision: false },
+  'tec-bel': { user: 'profe.belleza', pass: '', comision: false },
+  'tec-tex': { user: 'profe.textil', pass: '', comision: false },
+  'tec-gas': { user: 'profe.gastronomia', pass: '', comision: false },
+  'tec-agr': { user: 'profe.agropecuaria', pass: '', comision: false },
+  'hum-cn':  { user: 'profe.naturales', pass: '', comision: true },
+  'hum-mat': { user: 'profe.matematica', pass: '', comision: false },
+  'hum-cs':  { user: 'profe.sociales', pass: '', comision: false },
+  'hum-len': { user: 'profe.lenguaje', pass: '', comision: false }
 };
 
 const HORARIOS_DEFAULT_V2 = {
@@ -1263,7 +1263,7 @@ function aplicarDatosGoogleSheets(data) {
       Object.keys(data.usuariosDocentes).forEach(k => {
         const remoteUser = data.usuariosDocentes[k].user;
         const remoteComision = data.usuariosDocentes[k].comision;
-        const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[k]?.pass) || 'docente123';
+        const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[k]?.pass) || '';
         merged[k] = {
           ...(merged[k] || {}),
           user: (!haEditadoRecientemente && remoteUser !== undefined) ? remoteUser : (merged[k]?.user || remoteUser || ''),
@@ -2430,7 +2430,7 @@ function autoGuardarCredencialDocente(inp) {
 
   usuarios[asigKey] = {
     user: userVal || defU.user || '',
-    pass: passVal || defU.pass || 'docente123',
+    pass: passVal || defU.pass || '',
     comision: esComision
   };
   lsSet('cea_usuarios_docentes', usuarios);
@@ -2529,7 +2529,7 @@ function cargarDocentesUnificados() {
     const nombre = (d && d[item.key] !== undefined) ? d[item.key] : (DOCENTES_DEFAULT[item.key] || '');
     const defU = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[item.key])
       ? USUARIOS_DOCENTES_DEFAULT[item.key]
-      : { user: 'profe.' + item.key.replace('hum-', ''), pass: 'docente123', comision: false };
+      : { user: 'profe.' + item.key.replace('hum-', ''), pass: '', comision: false };
     const u = usuarios[item.key] || {};
     listaHum.push({
       key: item.key,
@@ -2538,7 +2538,7 @@ function cargarDocentesUnificados() {
       asigKey: item.key,
       asigLabel: item.label,
       user: u.user || defU.user || '',
-      pass: u.pass || defU.pass || 'docente123',
+      pass: u.pass || defU.pass || '',
       comision: (u.comision !== undefined) ? (u.comision === true || String(u.comision).toUpperCase() === 'SI') : defU.comision
     });
   });
@@ -2554,7 +2554,7 @@ function cargarDocentesUnificados() {
 
     const defU = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[a.key])
       ? USUARIOS_DOCENTES_DEFAULT[a.key]
-      : { user: 'profe.' + a.key.replace('tec-', ''), pass: 'docente123', comision: false };
+      : { user: 'profe.' + a.key.replace('tec-', ''), pass: '', comision: false };
     const u = usuarios[a.key] || {};
     listaTec.push({
       key: a.key,
@@ -2563,7 +2563,7 @@ function cargarDocentesUnificados() {
       asigKey: a.key,
       asigLabel: a.nombre,
       user: u.user || defU.user || '',
-      pass: u.pass || defU.pass || 'docente123',
+      pass: u.pass || defU.pass || '',
       comision: (u.comision !== undefined) ? (u.comision === true || String(u.comision).toUpperCase() === 'SI') : defU.comision
     });
   });
@@ -2849,7 +2849,7 @@ async function guardarDocentesUnificados() {
       if (carr) carr.docente = nom;
 
       // Preservar la contraseña existente si no se escribió una nueva en este guardado
-      const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[asigKey]?.pass) || 'docente123';
+      const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[asigKey]?.pass) || '';
       const defUser = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[asigKey]?.user) || ('profe.' + asigKey.replace('tec-', '').replace('hum-', ''));
       const prevPass = viejoUsuariosMap[asigKey]?.pass || defPass;
       const finalPass = passVal || prevPass || defPass;
@@ -13977,27 +13977,78 @@ function formatearFechaTeclado(valor, isBackspace = false) {
     return { formateado: '', digitos: '', dia: null, mes: null, anio: null, completo: false };
   }
 
-  let formatted = '';
-  if (digitos.length <= 2) {
-    formatted = digitos;
-    if (digitos.length === 2 && !isBackspace) {
+  // 1. Restricción estricta de Día (01 a 31)
+  let dStr = '';
+  if (digitos.length === 1) {
+    dStr = digitos[0];
+  } else if (digitos.length >= 2) {
+    let dNum = parseInt(digitos.substring(0, 2), 10);
+    if (dNum > 31) dNum = 31;
+    if (dNum === 0) dNum = 1;
+    dStr = String(dNum).padStart(2, '0');
+  }
+
+  // 2. Restricción estricta de Mes (01 a 12)
+  let mStr = '';
+  if (digitos.length === 3) {
+    mStr = digitos[2];
+  } else if (digitos.length >= 4) {
+    let mNum = parseInt(digitos.substring(2, 4), 10);
+    if (mNum > 12) mNum = 12;
+    if (mNum === 0) mNum = 1;
+    mStr = String(mNum).padStart(2, '0');
+  }
+
+  // 3. Año (hasta 4 dígitos)
+  let aStr = '';
+  if (digitos.length >= 5) {
+    aStr = digitos.substring(4, 8);
+  }
+
+  // Si tenemos año completo (4 dígitos), validar día máximo real del mes (bisiestos, feb 28/29, abr 30, etc.)
+  if (dStr.length === 2 && mStr.length === 2 && aStr.length === 4) {
+    let aNum = parseInt(aStr, 10);
+    let mNum = parseInt(mStr, 10);
+    let dNum = parseInt(dStr, 10);
+    const anioActual = new Date().getFullYear();
+    if (mNum >= 1 && mNum <= 12 && aNum >= 1920 && aNum <= anioActual) {
+      const maxDiasMes = new Date(aNum, mNum, 0).getDate();
+      if (dNum > maxDiasMes) {
+        dNum = maxDiasMes;
+        dStr = String(dNum).padStart(2, '0');
+      }
+    }
+  }
+
+  // 4. Formatear visualmente con ' / '
+  let formatted = dStr;
+  if (dStr.length === 2 && !isBackspace) {
+    formatted += ' / ';
+  }
+  if (mStr) {
+    if (dStr.length === 2 && !formatted.includes(' / ')) {
       formatted += ' / ';
     }
-  } else if (digitos.length <= 4) {
-    formatted = digitos.substring(0, 2) + ' / ' + digitos.substring(2);
-    if (digitos.length === 4 && !isBackspace) {
+    formatted += mStr;
+    if (mStr.length === 2 && !isBackspace) {
       formatted += ' / ';
     }
-  } else {
-    formatted = digitos.substring(0, 2) + ' / ' + digitos.substring(2, 4) + ' / ' + digitos.substring(4);
+  }
+  if (aStr) {
+    if (formatted.endsWith(' / ')) {
+      formatted += aStr;
+    } else if (mStr.length === 2) {
+      formatted += ' / ' + aStr;
+    } else {
+      formatted += aStr;
+    }
   }
 
   let dia = null, mes = null, anio = null, completo = false;
-  if (digitos.length === 8) {
-    let d = parseInt(digitos.substring(0, 2), 10);
-    let m = parseInt(digitos.substring(2, 4), 10);
-    let a = parseInt(digitos.substring(4, 8), 10);
-
+  if (dStr.length === 2 && mStr.length === 2 && aStr.length === 4) {
+    let d = parseInt(dStr, 10);
+    let m = parseInt(mStr, 10);
+    let a = parseInt(aStr, 10);
     const anioActual = new Date().getFullYear();
     if (m >= 1 && m <= 12 && a >= 1920 && a <= anioActual) {
       const maxDias = new Date(a, m, 0).getDate();
@@ -14010,7 +14061,7 @@ function formatearFechaTeclado(valor, isBackspace = false) {
     }
   }
 
-  return { formateado: formatted, digitos, dia, mes, anio, completo };
+  return { formateado: formatted, digitos: dStr + mStr + aStr, dia, mes, anio, completo };
 }
 
 function manejarKeydownTecladoFecha(e) {
@@ -14706,7 +14757,7 @@ function sanitizarTextoSimple(str) {
     .trim();
 }
 
-async /* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (PROFESIONAL, SIN EMOJIS, AUTO-CIERRA EN 5s) ─── */
+/* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (PROFESIONAL, SIN EMOJIS, AUTO-CIERRA EN 5s) ─── */
 let _timerVentanaDatoFaltante = null;
 let _campoFaltantePendienteId = null;
 
@@ -15120,6 +15171,27 @@ function formatearFechaRegistroConHora(fechaStr) {
   return str;
 }
 
+function manejarInputConsultaCI(e) {
+  const inp = document.getElementById('ci-consulta-inp');
+  if (!inp) return;
+  inp.value = inp.value.replace(/[^0-9]/g, '');
+  const digits = inp.value.trim();
+  if (digits.length >= 5) {
+    const inscripciones = lsGet('cea_inscripciones', []);
+    const match = inscripciones.find(ins => {
+      const ciReg = String(ins.ci || '').replace(/[^\d]/g, '');
+      return ciReg === digits;
+    });
+    if (match) {
+      window._ultimoRegistroInscripcion = match;
+      if (typeof window.pregenerarComprobantePDF === 'function') {
+        window.pregenerarComprobantePDF(match);
+      }
+    }
+  }
+}
+window.manejarInputConsultaCI = manejarInputConsultaCI;
+
 function consultarInscripcionPorCI() {
   const inp = document.getElementById('ci-consulta-inp');
   const box = document.getElementById('resultado-consulta-box');
@@ -15181,7 +15253,7 @@ function consultarInscripcionPorCI() {
       </div>
 
       <div style="background:var(--bg-body);padding:12px 14px;border-radius:8px;font-size:0.86rem;line-height:1.6;margin-bottom:14px;border:1px solid var(--border-col)">
-        <strong>Postulante:</strong> <span style="font-weight:normal">${escapeHTML(String(encontrada.nombre || '—'))}</span> | <strong>CI:</strong> <span style="font-weight:normal">${escapeHTML(String(encontrada.ci || '—'))}</span> | <strong>Edad:</strong> <span style="font-weight:normal;color:var(--verde-dark);font-weight:700">${edadTexto}</span><br>
+        <strong>Postulante:</strong> <span style="font-weight:normal">${escapeHTML(String(encontrada.nombre || '—'))}</span> | <strong>CI:</strong> <span style="font-weight:normal">${escapeHTML(String(encontrada.ci || '—'))}</span> | <strong>Edad:</strong> <span style="font-weight:400;color:var(--verde-dark)">${edadTexto}</span><br>
         <strong>Carrera/Nivel:</strong> <span style="font-weight:normal">${escapeHTML(String(encontrada.carrera || '—'))}</span> | <strong>Sede:</strong> <span style="font-weight:normal">${sedeTexto}</span><br>
         <span style="display:inline-block;margin-top:4px"><strong style="color:var(--verde-dark)">Semestre Asignado:</strong> <span class="badge-semestre ${badgeClass}" style="font-weight:700">${escapeHTML(String(encontrada.semestre || '1er Semestre'))} (${escapeHTML(String(encontrada.gestion || '2026'))})</span></span>
         ${encontrada.esCasoExcepcional || encontrada.casoExcepcional ? `
@@ -19186,34 +19258,84 @@ async function adminLogin(e) {
   if (e) e.preventDefault();
   const userEl = document.getElementById('admin-user') || document.getElementById('adm-user');
   const passEl = document.getElementById('admin-pass') || document.getElementById('adm-pass');
+  const btnSubmit = document.getElementById('btn-submit-admin-login') || document.querySelector('#admin-login button[type="submit"]');
   const userInp = (userEl?.value || '').trim();
   const passInp = (passEl?.value || '').trim();
-
   const msgId = document.getElementById('login-msg') ? 'login-msg' : 'adm-login-msg';
+  const msgEl = document.getElementById(msgId);
 
   if (!userInp || !passInp) {
-    mostrarMsg(msgId, 'Por favor ingrese su usuario y contraseña.', 'error');
+    if (msgEl) {
+      msgEl.className = 'form-msg error';
+      msgEl.style.display = 'block';
+      msgEl.textContent = 'Por favor ingrese su usuario y contraseña.';
+      setTimeout(() => { msgEl.style.display = 'none'; }, 4000);
+    }
     return;
   }
 
-  mostrarMsg(msgId, 'Verificando credenciales con la base de datos...', 'info');
+  // 1. Mostrar estado de carga ("Cargando...")
+  const origBtnHtml = btnSubmit ? btnSubmit.innerHTML : 'Ingresar';
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.style.opacity = '0.85';
+    btnSubmit.innerHTML = `
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spinVoucherBtn 0.8s linear infinite;vertical-align:middle;margin-right:8px;display:inline-block;">
+        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+        <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+      </svg>
+      <span>Cargando...</span>
+    `;
+  }
 
-  // 1. Intento de autenticación en línea contra Google Sheets (servidor seguro)
-  if (typeof GOOGLE_SCRIPT_URL === 'string' && GOOGLE_SCRIPT_URL.includes('script.google.com')) {
+  if (msgEl) {
+    msgEl.className = 'form-msg info';
+    msgEl.style.display = 'flex';
+    msgEl.innerHTML = `
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" style="animation:spinVoucherBtn 0.8s linear infinite;flex-shrink:0;">
+        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+        <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+      </svg>
+      <span>Cargando...</span>
+    `;
+  }
+
+  const restaurarBoton = () => {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.style.opacity = '';
+      btnSubmit.innerHTML = origBtnHtml;
+    }
+  };
+
+  // 2. Consulta directa y exclusiva a Google Sheets (sin contraseñas en el código fuente para máxima seguridad)
+  const gsheetUrl = (typeof obtenerGoogleSheetURL === 'function' ? obtenerGoogleSheetURL() : null) || GOOGLE_SCRIPT_URL;
+  let mensajeError = 'Usuario o contraseña incorrectos.';
+
+  if (gsheetUrl && gsheetUrl.includes('script.google.com')) {
     try {
-      const resp = await fetch(GOOGLE_SCRIPT_URL, {
+      const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      const timeoutId = setTimeout(() => { if (controller) controller.abort(); }, 15000);
+
+      const resp = await fetch(gsheetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           action: 'login',
           user: userInp,
           pass: passInp
-        })
+        }),
+        signal: controller ? controller.signal : undefined
       });
+      clearTimeout(timeoutId);
+
       const data = await resp.json();
+
       if (data && data.status === 'success') {
-        if (data.role === 'director') {
+        if (data.role === 'director' || data.role === 'admin') {
+          // Solo se guarda el token de sesión emitido por Google Sheets, NUNCA la contraseña en el navegador
           lsSet('cea_session', { role: 'director', name: data.name || 'Director(a)', token: data.token });
+          localStorage.removeItem('cea_director_creds');
           if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') refrescarCredencialesDocentesDesdeServidor(data.token);
           window.modoEdicionHorarioActivo = true;
           estadoLapicesDirectosVisibles = true;
@@ -19228,12 +19350,13 @@ async function adminLogin(e) {
           if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
           mostrarToastLive('¡Sesión iniciada como Director(a)!');
           if (passEl) passEl.value = '';
+          if (msgEl) { msgEl.style.display = 'none'; msgEl.className = 'form-msg'; }
+          restaurarBoton();
           return;
         } else if (data.role === 'docente') {
           const comisionFlag = data.comision === true || String(data.comision).toUpperCase() === 'SI' || data.comision === 'true';
-          const uDoc = lsGet('cea_usuarios_docentes', {})[data.areaKey];
-          const esCom = comisionFlag || Boolean(uDoc && (uDoc.comision === true || String(uDoc.comision).toUpperCase() === 'SI'));
-          lsSet('cea_session', { role: 'docente', areaKey: data.areaKey, name: data.name || userInp, token: data.token, comision: esCom });
+          lsSet('cea_session', { role: 'docente', areaKey: data.areaKey, name: data.name || userInp, token: data.token, comision: comisionFlag });
+          localStorage.removeItem('cea_director_creds');
           estadoLapicesDirectosVisibles = true;
           mostrarPanelDocente(data.areaKey);
           renderLapicesDirectosDirector();
@@ -19244,46 +19367,26 @@ async function adminLogin(e) {
           if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
           mostrarToastLive(`¡Sesión iniciada como Docente (${data.name || userInp})!`);
           if (passEl) passEl.value = '';
+          if (msgEl) { msgEl.style.display = 'none'; msgEl.className = 'form-msg'; }
+          restaurarBoton();
           return;
         }
+      } else if (data && data.message) {
+        mensajeError = data.message;
       }
     } catch (errNet) {
-      console.warn('No se pudo verificar con Google Sheets en línea:', errNet);
+      console.warn('Conexión con Google Sheets falló:', errNet);
+      mensajeError = 'Error al conectar con Google Sheets. Verifique su conexión.';
     }
   }
 
-  // 2. Validación de credenciales locales en caso de que Google Sheets aún no se haya actualizado con la nueva versión de Apps Script
-  const localUsuarios = lsGet('cea_usuarios_docentes', {});
-  const userNorm = userInp.toLowerCase();
-  for (const [aKey, uData] of Object.entries(localUsuarios)) {
-    if (uData && uData.user && uData.pass) {
-      if (String(uData.user).trim().toLowerCase() === userNorm && String(uData.pass).trim() === passInp) {
-        const dMap = lsGet('cea_docentes', DOCENTES_DEFAULT);
-        const nomDoc = dMap[aKey] || userInp;
-        const esCom = uData.comision === true || String(uData.comision).toUpperCase() === 'SI' || String(uData.comision) === 'true';
-        lsSet('cea_session', {
-          role: 'docente',
-          areaKey: aKey,
-          name: nomDoc,
-          token: 'local_docente_' + Date.now(),
-          comision: esCom
-        });
-        estadoLapicesDirectosVisibles = true;
-        mostrarPanelDocente(aKey);
-        renderLapicesDirectosDirector();
-        if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
-        if (typeof cargarGaleriaFotos === 'function') cargarGaleriaFotos();
-        if (typeof renderFeedActividades === 'function') renderFeedActividades();
-        if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
-        if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
-        mostrarToastLive(`¡Sesión iniciada como Docente (${nomDoc})!`);
-        if (passEl) passEl.value = '';
-        return;
-      }
-    }
+  // 3. Si no coincidió o Google Sheets rechazó el acceso, recién avisa que no es correcto
+  restaurarBoton();
+  if (msgEl) {
+    msgEl.className = 'form-msg error';
+    msgEl.style.display = 'block';
+    msgEl.textContent = mensajeError;
   }
-
-  mostrarMsg(msgId, 'Usuario o contraseña incorrectos.', 'error');
 }
 
 function restaurarSesion() {
@@ -19304,6 +19407,7 @@ function restaurarSesion() {
 
 function adminLogout() {
   localStorage.removeItem('cea_session');
+  localStorage.removeItem('cea_director_creds');
   window.modoEdicionHorarioActivo = false;
   elementoEditandoActivo = null;
 
@@ -23973,7 +24077,7 @@ async function refrescarCredencialesDocentesDesdeServidor(tokenOverride) {
       Object.keys(res.usuarios).forEach(k => {
         merged[k] = {
           user: res.usuarios[k].user || merged[k]?.user || USUARIOS_DOCENTES_DEFAULT[k]?.user || '',
-          pass: res.usuarios[k].pass || merged[k]?.pass || USUARIOS_DOCENTES_DEFAULT[k]?.pass || 'docente123',
+          pass: res.usuarios[k].pass || merged[k]?.pass || USUARIOS_DOCENTES_DEFAULT[k]?.pass || '',
           comision: (res.usuarios[k].comision !== undefined) ? res.usuarios[k].comision : (merged[k]?.comision || false)
         };
       });

@@ -46,7 +46,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2026.270" />
+  <link rel="stylesheet" href="styles.css?v=2026.277" />
   <script>
     document.documentElement.classList.remove('dark', 'dark-mode');
     try {
@@ -4699,7 +4699,7 @@
               </div>
               <div class="form-group">
                 <label for="fi-ci" id="lbl-fi-ci">Cédula de Identidad *</label>
-                <input type="text" id="fi-ci" name="ci" required placeholder="Ej: 1234567 LP" />
+                <input type="text" id="fi-ci" name="ci" required inputmode="numeric" pattern="[0-9]*" placeholder="Ej: 8345129" oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
               </div>
               <div class="form-group fi-fnac-group" id="grp-fi-fnac">
                 <label for="fi-fnac-display" id="lbl-fi-fnac" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
@@ -4739,7 +4739,7 @@
                   </select>
 
                   <div class="custom-select-menu" id="menu-select-area" style="display:none">
-                    <div class="custom-select-option" data-value="humanistica" onclick="seleccionarOpcionArea('humanistica', 'Bachiller Humanístico (Primaria y Secundaria)')">
+                    <div class="custom-select-option" data-value="humanistica" onclick="seleccionarOpcionArea('humanistica', 'Bachiller Humanístico')">
                       <div class="opt-icon">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                       </div>
@@ -4748,7 +4748,7 @@
                         <small class="opt-desc">Primaria y Secundaria de adultos</small>
                       </div>
                     </div>
-                    <div class="custom-select-option" data-value="tecnica" onclick="seleccionarOpcionArea('tecnica', 'Técnica Tecnológica (Carreras Técnicas)')">
+                    <div class="custom-select-option" data-value="tecnica" onclick="seleccionarOpcionArea('tecnica', 'Técnica Tecnológica')">
                       <div class="opt-icon">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                       </div>
@@ -4871,7 +4871,7 @@
             </div>
 
             <div style="margin-top:22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-              <button type="button" onclick="ejecutarAccionEnviarPreInscripcion(event)" class="btn-submit btn-submit-modern" id="btn-enviar-preinscripcion">
+              <button type="button" onclick="ejecutarAccionEnviarPreInscripcion(event)" class="btn-submit btn-submit-modern" id="btn-enviar-preinscripcion" onclick="ejecutarAccionEnviarPreInscripcion(event)">
                 <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#fde047" stroke-width="2.3"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(253,224,71,0.2)"/></svg>
                 <span>Enviar Pre-Inscripción</span>
               </button>
@@ -4934,7 +4934,7 @@
               </div>
 
               <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <input type="text" id="ci-consulta-inp" inputmode="numeric" placeholder="Ingresa tu CI (Ej: 8345129 LP)" style="flex:1;min-width:200px;padding:11px 16px;border:2px solid #16a34a;border-radius:10px;background:var(--bg-card);color:var(--text-main);font-family:inherit;font-size:0.96rem;font-weight:600" onkeydown="if(event.key==='Enter')consultarInscripcionPorCI()" />
+                <input type="text" id="ci-consulta-inp" inputmode="numeric" pattern="[0-9]*" placeholder="Ingresa tu CI (Ej: 8345129)" style="flex:1;min-width:200px;padding:11px 16px;border:2px solid #16a34a;border-radius:10px;font-size:0.95rem;font-weight:400;box-sizing:border-box" oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(typeof manejarInputConsultaCI === 'function') manejarInputConsultaCI(event);" onkeydown="if(event.key==='Enter')consultarInscripcionPorCI()" />
                 <button type="button" class="btn-submit" onclick="consultarInscripcionPorCI()" style="padding:11px 22px;font-size:0.92rem;border-radius:10px;display:inline-flex;align-items:center;gap:8px;font-weight:800;background:var(--verde-dark)">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   Consultar
@@ -5534,7 +5534,7 @@
           <input type="password" id="admin-pass" placeholder="contraseña" autocomplete="current-password" />
         </div>
       </div>
-      <button type="submit" class="btn-submit">Ingresar</button>
+      <button type="submit" class="btn-submit" id="btn-submit-admin-login">Ingresar</button>
       <div class="form-msg" id="login-msg"></div>
     </form>
 
@@ -8864,10 +8864,10 @@
 <div id="reporte-inscritos-print-area" style="display:none"></div>
 <div id="reporte-estadistico-print-area" style="display:none"></div>
 
-<script src="app.js?v=2026.270"></script>
+<script src="app.js?v=2026.277"></script>
 <script>
 // Sobrescribir manejarFormInscripcion con respuesta instantánea y descarga de PDF garantizada
-async /* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (PROFESIONAL, SIN EMOJIS, AUTO-CIERRA EN 5s) ─── */
+/* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (PROFESIONAL, SIN EMOJIS, AUTO-CIERRA EN 5s) ─── */
 let _timerVentanaDatoFaltante = null;
 let _campoFaltantePendienteId = null;
 
@@ -9617,7 +9617,7 @@ window.ejecutarEliminacionInscripciones = ejecutarEliminacionInscripciones;
 <script src="kardex-diseno2.js?v=2026.1"></script>
 <script src="print-kardex.js?v=2026.66"></script>
 <script src="qrcode.min.js"></script>
-<script src="print-comprobante.js?v=2026.275"></script>
+<script src="print-comprobante.js?v=2026.277"></script>
 <script src="print-estadisticas.js?v=2026.248"></script>
 <script src="print-reporte.js?v=2026.244"></script>
 <script src="print-preinscripciones.js?v=2026.244"></script>

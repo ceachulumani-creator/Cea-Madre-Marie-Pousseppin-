@@ -1627,6 +1627,7 @@ html.dark .btn-fechas-detalles:hover {
 }
 .form-msg.success { background: var(--verde-light); color: var(--verde-dark); border: 2px solid #4caf50; display: block; }
 .form-msg.error   { background: #ffebee; color: #b71c1c; border: 2px solid #f44336; display: block; }
+.form-msg.info    { background: #e0f2fe; color: #0369a1; border: 2px solid #38bdf8; display: flex; align-items: center; gap: 10px; }
 
 /* ===========================
    DOCUMENTOS
@@ -15360,8 +15361,8 @@ html.dark .inscripcion-form {
 
 /* ALTO CONTRASTE EN CAMPOS DEL FORMULARIO */
 .inscripcion-form .form-group label {
-  font-size: 0.95rem !important;
-  font-weight: 800 !important;
+  font-size: 0.90rem !important;
+  font-weight: 400 !important;
   color: #063c17 !important;
   margin-bottom: 6px !important;
 }
@@ -15378,7 +15379,7 @@ html.dark .inscripcion-form .form-group label {
   border-radius: 10px !important;
   padding: 12px 14px !important;
   font-size: 1rem !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
   color: #0f172a !important;
   transition: all 0.2s ease !important;
 }
@@ -17630,4 +17631,220 @@ html.dark .btn-copiar-cred:hover {
   body:has(#admin:target) #fabContainer {
     display: none !important;
   }
+}
+
+@keyframes fadeInModalOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ==========================================================================
+   TIPOGRAFÍA EN TEXTO NORMAL (NO NEGRITA) PARA FORMULARIO DE PRE-INSCRIPCIÓN
+   Y CONTROL ANTI-DESBORDE FLEX/GRID EN SELECTORES Y TABLAS
+   ========================================================================== */
+
+#form-inscripcion label,
+#form-inscripcion .form-group label,
+.form-group label {
+  font-weight: 400 !important;
+  font-size: 0.88rem !important;
+}
+
+#form-inscripcion input,
+#form-inscripcion select,
+#form-inscripcion textarea,
+#form-inscripcion .custom-select-trigger,
+#form-inscripcion .custom-select-text,
+.form-group input,
+.form-group select,
+.form-group textarea,
+.custom-select-text {
+  font-weight: 400 !important;
+}
+
+/* Protección estricta flex/grid: min-width: 0 evita desborde por textos largos */
+.form-grid .form-group,
+.custom-select-container,
+.custom-select-trigger {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.custom-select-trigger {
+  overflow: hidden !important;
+}
+
+.custom-select-text {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  flex: 1 1 0% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-weight: 400 !important;
+}
+
+/* Ajustes tabla Cursos Escolares y Edades y Casos Excepcionales para evitar desborde */
+.detalles-split-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 16px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 900px) {
+  .detalles-split-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+}
+
+.detalles-col-equivalencias,
+.detalles-col-excepciones {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.tec-subcard {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+#contenedor-tabla-epja.tabla-wrapper {
+  overflow-x: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.tabla-compacta-3col {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+  box-sizing: border-box !important;
+}
+
+.tabla-compacta-3col th,
+.tabla-compacta-3col td {
+  box-sizing: border-box !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.25 !important;
+}
+
+.tabla-compacta-3col th:nth-child(1),
+.tabla-compacta-3col td:nth-child(1) {
+  width: 33% !important;
+  padding: 6px 4px !important;
+  font-size: 0.72rem !important;
+}
+
+.tabla-compacta-3col th:nth-child(2),
+.tabla-compacta-3col td:nth-child(2) {
+  width: 41% !important;
+  padding: 6px 4px !important;
+  font-size: 0.72rem !important;
+}
+
+.tabla-compacta-3col th:nth-child(3),
+.tabla-compacta-3col td:nth-child(3) {
+  width: 26% !important;
+  padding: 6px 2px !important;
+  text-align: center !important;
+}
+
+.tabla-compacta-3col .edad-num {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 2.5px 5px !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  border-radius: 50px !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #f59e0b !important;
+}
+
+/* ==========================================================================
+   PULSO SUTIL PARA BOTÓN DE DESCARGA EN MÓVIL Y TIPOGRAFÍA NORMAL COMPLETA
+   ========================================================================== */
+
+@keyframes pulsoBotonDescargaSutil {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  }
+  50% {
+    transform: scale(1.025);
+    box-shadow: 0 6px 18px rgba(12, 88, 37, 0.35);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  }
+}
+
+@media (max-width: 768px) {
+  .btn-voucher-pdf {
+    animation: pulsoBotonDescargaSutil 2.4s ease-in-out infinite !important;
+  }
+}
+
+/* Forzar tipografía en texto normal (font-weight: 400) para todos los campos de inscripción y consulta */
+#form-inscripcion label,
+#form-inscripcion .form-group label,
+.inscripcion-form label,
+.inscripcion-form .form-group label,
+.form-group label,
+#lbl-fi-nombre,
+#lbl-fi-ci,
+#lbl-fi-fnac,
+#lbl-fi-tel,
+#lbl-fi-comunidad,
+#lbl-fi-area,
+#lbl-fi-nivel,
+#lbl-fi-sede,
+#lbl-fi-obs {
+  font-weight: 400 !important;
+  font-size: 0.88rem !important;
+}
+
+#form-inscripcion input,
+#form-inscripcion select,
+#form-inscripcion textarea,
+#form-inscripcion .custom-select-trigger,
+#form-inscripcion .custom-select-text,
+.inscripcion-form input,
+.inscripcion-form select,
+.inscripcion-form textarea,
+.form-group input,
+.form-group select,
+.form-group textarea,
+#ci-consulta-inp,
+.custom-select-text,
+.custom-select-trigger span {
+  font-weight: 400 !important;
+}
+
+/* En la consulta: los títulos principales en negrita (700) y los datos del postulante en normal (400) */
+#resultado-consulta-box strong,
+#resultado-consulta-box b {
+  font-weight: 700 !important;
+}
+
+#resultado-consulta-box span {
+  font-weight: 400 !important;
 }
