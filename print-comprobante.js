@@ -313,13 +313,14 @@
 
             <!-- SECCIÓN 5: CONTROL DE RECEPCIÓN Y QR DE VALIDACIÓN DIGITAL (+1 punto de tamaño de texto) -->
             <div style="display:grid; grid-template-columns:1fr 85px; gap:8px; align-items:center; border:1px solid #cbd5e1; border-radius:4px; padding:5px 8px; background:#f8fafc; margin:0;">
-              <div style="font-size:8.0pt; line-height:1.35; color:#334155;">
-                <strong style="color:#0f172a; text-transform:uppercase; display:block; margin-bottom:2px; font-size:8.2pt;">
+              <div style="font-size:8.0pt; line-height:1.4; color:#334155;">
+                <strong style="color:#0f172a; text-transform:uppercase; display:block; margin-bottom:3px; font-size:8.2pt;">
                   5. CONTROL DE RECEPCIÓN Y OBSERVACIONES DE KARDEX:
                 </strong>
-                <div>• Fecha límite de ratificación y entrega de carpetas: <strong>Hasta 5 días hábiles posteriores a la preinscripción</strong>.</div>
-                <div>• Observaciones de Kardex: ____________________________________________________________________________</div>
-                <div style="margin-top:2px;">• Código Único de Registro Electrónico: <strong style="font-family:monospace; font-size:8.5pt; color:#166534;">CEA-${codigoReg}-${new Date().getFullYear()}</strong></div>
+                <div style="line-height:1.85; margin-top:3px;">• Observaciones de Kardex: ____________________________________________________________________________</div>
+                <div style="line-height:1.85; margin-top:7px;">• Notas adicionales: __________________________________________________________________________________</div>
+                <div style="margin-top:6px; line-height:1.35;">• <em>Nota: Conservar este comprobante en formato físico o digital para su presentación al inicio de clases.</em></div>
+                <div style="margin-top:4px;">• Código Único de Registro Electrónico: <strong style="font-family:monospace; font-size:8.5pt; color:#166534;">CEA-${codigoReg}-${new Date().getFullYear()}</strong></div>
               </div>
               <div style="text-align:center;">
                 <img src="${qrUrl}" alt="QR Verificación" crossorigin="anonymous" style="width:68px; height:68px; border:1px solid #cbd5e1; padding:2px; border-radius:4px; display:inline-block; background:#ffffff;" />
@@ -547,13 +548,17 @@
       }
     } catch (e) {}
 
-    const ciLimpio = String(data.ci || 'CEA').replace(/[^a-zA-Z0-9_-]/g, '');
     const nomLimpio = String(data.nombre || 'Participante')
       .trim()
-      .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s_-]/g, '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9\s_-]/g, '')
       .replace(/\s+/g, '_')
-      .substring(0, 36);
-    const nombreArchivo = `Ficha_Inscripcion_CEA_${ciLimpio}_${nomLimpio}.pdf`;
+      .substring(0, 45);
+    const ciLimpio = String(data.ci || 'SN')
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '');
+    const nombreArchivo = `CEA_Inscripcion_${nomLimpio}_${ciLimpio}.pdf`;
 
     return {
       codigoReg: data._codigoReg,
@@ -569,7 +574,7 @@
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
-    a.download = filename || 'Ficha_Inscripcion_CEA_2026.pdf';
+    a.download = filename || 'CEA_Inscripcion_2026.pdf';
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
@@ -659,7 +664,7 @@
 
           <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:0.80rem;color:#334155;font-weight:700;word-break:break-all;display:flex;align-items:center;justify-content:center;gap:7px;">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#16a34a" stroke-width="2.2" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            <span>${escNom || 'Ficha_Inscripcion_CEA_2026.pdf'}</span>
+            <span>${escNom || 'CEA_Inscripcion_2026.pdf'}</span>
           </div>
 
           <p style="margin:0 0 20px 0;font-size:0.88rem;color:#475569;line-height:1.45;">
