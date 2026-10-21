@@ -17646,8 +17646,8 @@ html.dark .btn-copiar-cred:hover {
 #form-inscripcion label,
 #form-inscripcion .form-group label,
 .form-group label {
-  font-weight: 400 !important;
-  font-size: 0.88rem !important;
+  font-weight: 800 !important;
+  font-size: 0.92rem !important;
 }
 
 #form-inscripcion input,
@@ -17803,7 +17803,7 @@ html.dark .btn-copiar-cred:hover {
   }
 }
 
-/* Forzar tipografía en texto normal (font-weight: 400) para todos los campos de inscripción y consulta */
+/* Forzar títulos de etiquetas en negrita (800) y datos ingresados por el usuario en texto normal (400) */
 #form-inscripcion label,
 #form-inscripcion .form-group label,
 .inscripcion-form label,
@@ -17818,8 +17818,8 @@ html.dark .btn-copiar-cred:hover {
 #lbl-fi-nivel,
 #lbl-fi-sede,
 #lbl-fi-obs {
-  font-weight: 400 !important;
-  font-size: 0.88rem !important;
+  font-weight: 800 !important;
+  font-size: 0.92rem !important;
 }
 
 #form-inscripcion input,

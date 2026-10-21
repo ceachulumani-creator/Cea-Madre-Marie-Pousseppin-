@@ -811,6 +811,8 @@ async function enviarGoogleSheet(datos) {
     const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 segundos máximo
 
     const payload = (typeof datos === 'object' && datos !== null) ? { ...datos } : { payload: datos };
+    delete payload._pdfGeneratingPromise;
+    delete payload._pdfBlobUrlCache;
     const token = getSessionToken();
     if (token && !payload.token) {
       payload.token = token;
@@ -1137,50 +1139,93 @@ function aplicarDatosGoogleSheets(data) {
       cargarMaterias();
     }
 
-    // 5. Documentos (normalizando desc/descripcion y url/enlace)
-    if (data.documentos && Array.isArray(data.documentos) && data.documentos.length > 0) {
-      const docsNormalizados = data.documentos.map((doc, idx) => ({
-        ...doc,
-        id: doc.id || doc.key || ('doc-item-' + idx),
-        key: doc.key || doc.id || ('doc-item-' + idx),
-        titulo: doc.titulo || 'Documento Institucional',
-        desc: doc.desc || doc.descripcion || '',
-        descripcion: doc.descripcion || doc.desc || '',
-        url: doc.url || doc.enlace || '#',
-        enlace: doc.enlace || doc.url || '#',
-        botonTexto: doc.botonTexto || 'Ver / Descargar'
-      }));
+    // 5. Documentos (priorizando documentos_oficiales_dinamicos_json de Director_y_Textos y preservando enlaces válidos)
+    let docsFinales = null;
+    const docsLocalesActuales = lsGet('cea_documentos_dinamicos', []);
+    const editadoLocalmente = lsGet('cea_documentos_editados_director', false);
+    const dDrive = lsGet('cea_drive', DRIVE_DEFAULT);
+    let driveCambio = false;
 
-      const d = lsGet('cea_drive', DRIVE_DEFAULT);
-      let driveCambio = false;
-      docsNormalizados.forEach(doc => {
-        const key = String(doc.key || doc.titulo || '').toLowerCase();
-        if (key.includes('reglamento') && doc.enlace && doc.enlace !== '#') { d.reglamento = doc.enlace; driveCambio = true; }
-        else if (key.includes('formulario') && doc.enlace && doc.enlace !== '#') { d.formulario = doc.enlace; driveCambio = true; }
-        else if (key.includes('malla') && doc.enlace && doc.enlace !== '#') { d.mallas = doc.enlace; driveCambio = true; }
-        else if (key.includes('calendario') && doc.enlace && doc.enlace !== '#') { d.calendario = doc.enlace; driveCambio = true; }
+    if (data.textos) {
+      if (data.textos.drive_reglamento && data.textos.drive_reglamento !== '#') { dDrive.reglamento = data.textos.drive_reglamento; driveCambio = true; }
+      if (data.textos.drive_formulario && data.textos.drive_formulario !== '#') { dDrive.formulario = data.textos.drive_formulario; driveCambio = true; }
+      if (data.textos.drive_mallas && data.textos.drive_mallas !== '#') { dDrive.mallas = data.textos.drive_mallas; driveCambio = true; }
+      if (data.textos.drive_calendario && data.textos.drive_calendario !== '#') { dDrive.calendario = data.textos.drive_calendario; driveCambio = true; }
+
+      if (data.textos.documentos_oficiales_dinamicos_json) {
+        try {
+          const parsedDocs = typeof data.textos.documentos_oficiales_dinamicos_json === 'string'
+            ? JSON.parse(data.textos.documentos_oficiales_dinamicos_json)
+            : data.textos.documentos_oficiales_dinamicos_json;
+          if (Array.isArray(parsedDocs)) {
+            docsFinales = parsedDocs.map((doc, idx) => ({
+              ...doc,
+              id: doc.id || doc.key || ('doc-item-' + idx),
+              key: doc.key || doc.id || ('doc-item-' + idx),
+              titulo: doc.titulo || 'Documento Institucional',
+              desc: doc.desc || doc.descripcion || '',
+              descripcion: doc.descripcion || doc.desc || '',
+              url: doc.url || doc.enlace || '#',
+              enlace: doc.enlace || doc.url || '#',
+              botonTexto: doc.botonTexto || 'Ver / Descargar'
+            }));
+            lsSet('cea_documentos_editados_director', true);
+          }
+        } catch (eDocsJson) {
+          console.warn('Error parseando documentos_oficiales_dinamicos_json:', eDocsJson);
+        }
+      }
+    }
+
+    if (!docsFinales && data.documentos && Array.isArray(data.documentos) && data.documentos.length > 0 && !editadoLocalmente) {
+      docsFinales = data.documentos.map((doc, idx) => {
+        const docId = doc.id || doc.key || ('doc-item-' + idx);
+        const docKey = doc.key || doc.id || ('doc-item-' + idx);
+        const localMatch = Array.isArray(docsLocalesActuales)
+          ? docsLocalesActuales.find(ld => ld.id === docId || ld.key === docKey || (ld.titulo && doc.titulo && ld.titulo.toLowerCase() === doc.titulo.toLowerCase()))
+          : null;
+        let rawUrl = doc.url || doc.enlace || '#';
+        if ((!rawUrl || rawUrl === '#') && localMatch && localMatch.url && localMatch.url !== '#') {
+          rawUrl = localMatch.url;
+        }
+        return {
+          ...doc,
+          id: docId,
+          key: docKey,
+          titulo: (localMatch && localMatch.titulo) ? localMatch.titulo : (doc.titulo || 'Documento Institucional'),
+          desc: (localMatch && localMatch.desc) ? localMatch.desc : (doc.desc || doc.descripcion || ''),
+          descripcion: (localMatch && localMatch.desc) ? localMatch.desc : (doc.descripcion || doc.desc || ''),
+          url: rawUrl,
+          enlace: rawUrl,
+          botonTexto: doc.botonTexto || 'Ver / Descargar'
+        };
+      });
+    }
+
+    if (docsFinales) {
+      docsFinales.forEach(doc => {
+        const key = String(doc.key || doc.id || doc.titulo || '').toLowerCase();
+        const linkVal = doc.url || doc.enlace || '#';
+        if (linkVal && linkVal !== '#') {
+          if (key.includes('reglamento')) { dDrive.reglamento = linkVal; driveCambio = true; }
+          else if (key.includes('formulario') || key.includes('graduac')) { dDrive.formulario = linkVal; driveCambio = true; }
+          else if (key.includes('malla')) { dDrive.mallas = linkVal; driveCambio = true; }
+          else if (key.includes('calendario')) { dDrive.calendario = linkVal; driveCambio = true; }
+        }
       });
       if (driveCambio) {
-        lsSet('cea_drive', d);
+        lsSet('cea_drive', dDrive);
         cargarDrive();
       }
 
-      lsSet('cea_documentos_dinamicos', docsNormalizados);
+      lsSet('cea_documentos_dinamicos', docsFinales);
       if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
       if (typeof cargarDocumentosOficialesAdmin === 'function') cargarDocumentosOficialesAdmin();
-
-      const docsGrid = document.getElementById('docs-grid-display');
-      if (docsGrid) {
-        const defaultIcon = `<svg class="svg-icon" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
-        docsGrid.innerHTML = docsNormalizados.map(doc => `
-          <div class="doc-card">
-            <div class="doc-icon">${doc.icono && !doc.icono.match(/[\u{1F300}-\u{1F9FF}]/u) ? doc.icono : defaultIcon}</div>
-            <h4>${doc.titulo}</h4>
-            <p>${doc.descripcion || ''}</p>
-            <a href="${doc.enlace || '#'}" class="btn-download" target="_blank" rel="noopener">${doc.botonTexto || 'Ver / Descargar'}</a>
-          </div>
-        `).join('');
-      }
+    } else if (driveCambio) {
+      lsSet('cea_drive', dDrive);
+      cargarDrive();
+      if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
+      if (typeof cargarDocumentosOficialesAdmin === 'function') cargarDocumentosOficialesAdmin();
     }
 
     // 5.1 Sincronización de Sedes / Subcentros desde Google Sheets
@@ -12342,7 +12387,7 @@ function cargarAreasTec() {
   cargarAreasTecSilencioso();
   renderAreasTecAdminList(areas);
   poblarSelectCarrerasOficiales();
-  actualizarNiveles();
+  actualizarNiveles(true);
 }
 
 function conmutarSubvistaMallas(sub) {
@@ -12701,22 +12746,36 @@ function actualizarTestLinkDocCard(input) {
 async function guardarTodosLosDocumentosOficialesAdmin() {
   const cards = document.querySelectorAll('.doc-admin-card-din');
   const docs = [];
+  const dDrive = lsGet('cea_drive', DRIVE_DEFAULT);
+
   cards.forEach((card, idx) => {
     const id = card.dataset.docId || `doc-${Date.now()}-${idx}`;
     const titulo = (card.querySelector('.inp-doc-din-titulo')?.value || '').trim();
     const desc = (card.querySelector('.inp-doc-din-desc')?.value || '').trim();
-    const url = (card.querySelector('.inp-doc-din-url')?.value || '').trim();
+    const url = (card.querySelector('.inp-doc-din-url')?.value || '').trim() || '#';
     if (titulo) {
-      docs.push({ id, titulo, desc, url: url || '#' });
+      docs.push({
+        id,
+        key: id,
+        titulo,
+        desc,
+        descripcion: desc,
+        url,
+        enlace: url
+      });
+      const kLower = (id + ' ' + titulo).toLowerCase();
+      if (kLower.includes('reglamento')) dDrive.reglamento = url;
+      else if (kLower.includes('graduac') || kLower.includes('formulario') || kLower.includes('modalidad')) dDrive.formulario = url;
+      else if (kLower.includes('malla')) dDrive.mallas = url;
     }
   });
 
-  if (docs.length === 0) {
-    mostrarMsg('msg-documentos-admin-din', 'No hay documentos para guardar.', 'error');
-    return;
-  }
-
+  _ultimaEdicionLocalTimestamp = Date.now();
+  lsSet('cea_documentos_editados_director', true);
   lsSet('cea_documentos_dinamicos', docs);
+  lsSet('cea_drive', dDrive);
+  cargarDrive();
+
   if (typeof renderDocumentosDinamicos === 'function') {
     renderDocumentosDinamicos();
   }
@@ -12724,6 +12783,15 @@ async function guardarTodosLosDocumentosOficialesAdmin() {
 
   mostrarMsg('msg-documentos-admin-din', '¡Documentos oficiales guardados y sincronizados con el inicio!', 'success');
   mostrarToastLive('Documentos oficiales actualizados en la página de inicio.');
+
+  const docsJsonStr = JSON.stringify(docs);
+  await enviarGoogleSheet({
+    action: 'guardar-contenido-vivo',
+    key: 'documentos_oficiales_dinamicos_json',
+    valor: docsJsonStr,
+    htmlValor: docsJsonStr
+  });
+  await enviarGoogleSheet({ action: 'guardar-drive', drive: dDrive });
   await enviarGoogleSheet({ action: 'guardar-documentos-dinamicos', documentos: docs });
 }
 
@@ -12782,11 +12850,22 @@ async function eliminarDocumentoOficialAdminDirecto(id) {
   if (!ok) return;
 
   let docs = (typeof obtenerDocumentosDinamicos === 'function') ? obtenerDocumentosDinamicos() : DOCUMENTOS_DEFAULT_LIST;
-  docs = docs.filter(item => item.id !== id);
+  docs = docs.filter(item => item.id !== id && item.key !== id);
+  _ultimaEdicionLocalTimestamp = Date.now();
+  lsSet('cea_documentos_editados_director', true);
   lsSet('cea_documentos_dinamicos', docs);
   if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
   cargarDocumentosOficialesAdmin();
   mostrarToastLive('Documento eliminado de la lista pública.');
+
+  const docsJsonStr = JSON.stringify(docs);
+  await enviarGoogleSheet({
+    action: 'guardar-contenido-vivo',
+    key: 'documentos_oficiales_dinamicos_json',
+    valor: docsJsonStr,
+    htmlValor: docsJsonStr
+  });
+  await enviarGoogleSheet({ action: 'guardar-documentos-dinamicos', documentos: docs });
 }
 
 const cargarDocumentosAdmin = cargarDocumentosOficialesAdmin;
@@ -13520,9 +13599,19 @@ window.cerrarDropdownsSelect = cerrarDropdownsSelect;
 function seleccionarOpcionSede(valor, textoVisible) {
   const selSede = document.getElementById('fi-sede-select');
   const txtSede = document.getElementById('fi-sede-text');
-  if (selSede) selSede.value = valor;
+  if (selSede) {
+    if (!Array.from(selSede.options).some(o => o.value === valor)) {
+      const opt = document.createElement('option');
+      opt.value = valor;
+      opt.textContent = textoVisible || valor;
+      selSede.appendChild(opt);
+    }
+    selSede.value = valor;
+    selSede.dataset.selectedValue = valor;
+    selSede.dataset.selectedText = textoVisible || valor;
+  }
   if (txtSede) {
-    txtSede.textContent = textoVisible;
+    txtSede.textContent = '✓ ' + (textoVisible || valor).replace(/^✓\s*/, '');
     txtSede.classList.remove('placeholder');
   }
   const menuSede = document.getElementById('menu-select-sede');
@@ -13532,6 +13621,9 @@ function seleccionarOpcionSede(valor, textoVisible) {
     });
   }
   cerrarDropdownsSelect();
+  if (typeof actualizarEstadoVisualSelects === 'function') {
+    actualizarEstadoVisualSelects();
+  }
 }
 window.seleccionarOpcionSede = seleccionarOpcionSede;
 
@@ -13540,9 +13632,11 @@ function seleccionarOpcionArea(valor, textoVisible) {
   const txtArea = document.getElementById('fi-area-text');
   if (selArea) {
     selArea.value = valor;
+    selArea.dataset.selectedValue = valor;
+    selArea.dataset.selectedText = textoVisible || valor;
   }
   if (txtArea) {
-    txtArea.textContent = textoVisible;
+    txtArea.textContent = '✓ ' + (textoVisible || valor).replace(/^✓\s*/, '');
     txtArea.classList.remove('placeholder');
   }
 
@@ -13554,7 +13648,19 @@ function seleccionarOpcionArea(valor, textoVisible) {
   }
 
   cerrarDropdownsSelect();
-  actualizarNiveles();
+  actualizarNiveles(false);
+  if (typeof actualizarEstadoVisualSelects === 'function') {
+    actualizarEstadoVisualSelects();
+  }
+
+  // Desplazar y abrir automáticamente el selector de Carrera / Nivel
+  setTimeout(() => {
+    const trigNivel = document.getElementById('fi-nivel-trigger');
+    if (trigNivel) {
+      trigNivel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toggleDropdownSelect('nivel');
+    }
+  }, 160);
 }
 
 function seleccionarOpcionNivel(valor, textoVisible) {
@@ -13562,10 +13668,18 @@ function seleccionarOpcionNivel(valor, textoVisible) {
   const txtNivel = document.getElementById('fi-nivel-text');
 
   if (selNivel) {
+    if (!Array.from(selNivel.options).some(o => o.value === valor)) {
+      const opt = document.createElement('option');
+      opt.value = valor;
+      opt.textContent = textoVisible || valor;
+      selNivel.appendChild(opt);
+    }
     selNivel.value = valor;
+    selNivel.dataset.selectedValue = valor;
+    selNivel.dataset.selectedText = textoVisible || valor;
   }
   if (txtNivel) {
-    txtNivel.textContent = textoVisible;
+    txtNivel.textContent = '✓ ' + (textoVisible || valor).replace(/^✓\s*/, '');
     txtNivel.classList.remove('placeholder');
   }
 
@@ -13578,6 +13692,9 @@ function seleccionarOpcionNivel(valor, textoVisible) {
 
   cerrarDropdownsSelect();
   validarEdadInscripcionLive();
+  if (typeof actualizarEstadoVisualSelects === 'function') {
+    actualizarEstadoVisualSelects();
+  }
 }
 
 function filtrarSubNivelHumanistico(filtro) {
@@ -13606,20 +13723,25 @@ function filtrarSubNivelHumanistico(filtro) {
   });
 }
 
-function actualizarNiveles() {
+function actualizarNiveles(preservarSeleccion = false) {
   const area = document.getElementById('fi-area');
   const sel = document.getElementById('fi-nivel');
   const menuNivel = document.getElementById('menu-select-nivel');
   const txtNivel = document.getElementById('fi-nivel-text');
   if (!area || !sel) return;
 
-  const valArea = area.value;
+  const valArea = area.value || area.dataset.selectedValue || '';
+  const prevNivelVal = preservarSeleccion ? (sel.value || sel.dataset.selectedValue || '') : '';
+  const prevNivelTxt = preservarSeleccion ? (sel.dataset.selectedText || (txtNivel && !txtNivel.classList.contains('placeholder') ? txtNivel.textContent : '')) : '';
 
-  // Reset del texto y valor de nivel
-  sel.value = '';
-  if (txtNivel) {
-    txtNivel.textContent = '-- Selecciona el nivel o carrera --';
-    txtNivel.classList.add('placeholder');
+  if (!preservarSeleccion) {
+    sel.value = '';
+    sel.dataset.selectedValue = '';
+    sel.dataset.selectedText = '';
+    if (txtNivel) {
+      txtNivel.textContent = '-- Selecciona el nivel o carrera --';
+      txtNivel.classList.add('placeholder');
+    }
   }
 
   if (valArea === 'humanistica') {
@@ -13709,6 +13831,27 @@ function actualizarNiveles() {
     if (txtNivel) {
       txtNivel.textContent = '-- Primero selecciona un área --';
       txtNivel.classList.add('placeholder');
+    }
+  }
+
+  // Si se pidió preservar la selección previa (por ejemplo en sincronización en segundo plano), restaurarla
+  if (preservarSeleccion && prevNivelVal) {
+    if (!Array.from(sel.options).some(o => o.value === prevNivelVal)) {
+      const opt = document.createElement('option');
+      opt.value = prevNivelVal;
+      opt.textContent = prevNivelTxt || prevNivelVal;
+      sel.appendChild(opt);
+    }
+    sel.value = prevNivelVal;
+    sel.dataset.selectedValue = prevNivelVal;
+    if (txtNivel && prevNivelTxt) {
+      txtNivel.textContent = prevNivelTxt.startsWith('✓') ? prevNivelTxt : ('✓ ' + prevNivelTxt);
+      txtNivel.classList.remove('placeholder');
+    }
+    if (menuNivel) {
+      menuNivel.querySelectorAll('.custom-select-option').forEach(el => {
+        el.classList.toggle('selected', el.getAttribute('data-value') === prevNivelVal);
+      });
     }
   }
 
@@ -14319,6 +14462,9 @@ function finalizarSeleccionFecha() {
 
   cerrarCustomDatePicker();
   validarEdadInscripcionLive();
+  if (typeof marcarCampoVisualLleno === 'function') {
+    marcarCampoVisualLleno('fi-fnac-display', 'lbl-fi-fnac', true);
+  }
 }
 
 function limpiarSeleccionFecha() {
@@ -14335,6 +14481,9 @@ function limpiarSeleccionFecha() {
   if (hiddenInp) hiddenInp.value = '';
 
   validarEdadInscripcionLive();
+  if (typeof marcarCampoVisualLleno === 'function') {
+    marcarCampoVisualLleno('fi-fnac-display', 'lbl-fi-fnac', false);
+  }
   renderizarCustomDatePicker();
 }
 
@@ -14498,14 +14647,12 @@ function inicializarCustomDatePicker() {
   const triggerBtn = document.getElementById('fi-date-trigger-btn');
 
   if (displayInp) {
-    displayInp.addEventListener('input', manejarInputTecladoFecha);
-    displayInp.addEventListener('keydown', manejarKeydownTecladoFecha);
     displayInp.addEventListener('focus', () => {
       cerrarCustomDatePicker();
     });
   }
 
-  if (triggerBtn) {
+  if (triggerBtn && !triggerBtn.getAttribute('onclick')) {
     triggerBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const popover = document.getElementById('fi-custom-datepicker-popover');
@@ -14781,12 +14928,35 @@ function sanitizarTextoSimple(str) {
     .trim();
 }
 
-/* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (PROFESIONAL, SIN EMOJIS, AUTO-CIERRA EN 5s) ─── */
-let _timerVentanaDatoFaltante = null;
-let _campoFaltantePendienteId = null;
+/* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (SOLO MÓVIL, AUTO-CIERRA EN 5s) ─── */
+var _timerVentanaDatoFaltante = null;
+var _campoFaltantePendienteId = null;
+
+function esDispositivoMovilCEA() {
+  return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+}
+window.esDispositivoMovilCEA = esDispositivoMovilCEA;
 
 function mostrarVentanaDatoFaltante(nombreCampo, elementoId) {
   _campoFaltantePendienteId = elementoId;
+
+  // En computadora NO abrir ventana emergente: enfocar campo y mostrar aviso directo
+  if (!esDispositivoMovilCEA()) {
+    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Te falta llenar este dato: ' + nombreCampo, 'error');
+    if (elementoId) {
+      const el = document.getElementById(elementoId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try { el.focus(); } catch (e) {}
+        el.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+        el.style.borderColor = '#16a34a';
+        el.style.boxShadow = '0 0 0 4px rgba(22, 163, 74, 0.4)';
+        setTimeout(() => { el.style.boxShadow = ''; }, 2000);
+      }
+    }
+    return;
+  }
+
   const modal = document.getElementById('modal-validacion-campo-faltante');
   const txtNombre = document.getElementById('modal-campo-faltante-nombre');
   const barra = document.getElementById('modal-campo-faltante-bar');
@@ -14837,81 +15007,195 @@ function cerrarVentanaDatoFaltante(enfocar = true) {
 }
 window.cerrarVentanaDatoFaltante = cerrarVentanaDatoFaltante;
 
-/* ─── CELEBRACIÓN DE PRE-INSCRIPCIÓN: ANIMACIÓN DE CHECK Y MIXTURA (CONFETI) ─── */
+/* ─── CELEBRACIÓN DE PRE-INSCRIPCIÓN: ANIMACIÓN FLUIDA DE CONFETI VERDE Y MENSAJE EN COMPUTADORA ─── */
+function asegurarEstilosCelebracionCEA() {
+  if (document.getElementById('estilos-celebracion-cea-anim')) return;
+  const st = document.createElement('style');
+  st.id = 'estilos-celebracion-cea-anim';
+  st.textContent = `
+    @keyframes ceaCelebracionPopIn {
+      0%   { opacity: 0; transform: translate(-50%, -28px) scale(0.72); }
+      55%  { opacity: 1; transform: translate(-50%, 6px) scale(1.06); }
+      80%  { opacity: 1; transform: translate(-50%, -2px) scale(0.98); }
+      100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    }
+    @keyframes ceaCelebracionPopOut {
+      0%   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -22px) scale(0.88); }
+    }
+    @keyframes ceaCelebracionCheckCircle {
+      0%   { transform: scale(0) rotate(-45deg); }
+      60%  { transform: scale(1.18) rotate(8deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    @keyframes ceaCelebracionCheckStroke {
+      0%   { stroke-dashoffset: 30; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes ceaCelebracionPulseRing {
+      0%   { transform: scale(0.9); opacity: 0.85; }
+      100% { transform: scale(1.85); opacity: 0; }
+    }
+    @keyframes ceaCelebracionFloat {
+      0%, 100% { transform: translate(-50%, 0) scale(1); }
+      50%      { transform: translate(-50%, -5px) scale(1.02); }
+    }
+  `;
+  (document.head || document.documentElement).appendChild(st);
+}
+
 function lanzarCelebracionPreinscripcion() {
-  const canvas = document.getElementById('canvas-celebracion-mixtura');
+  asegurarEstilosCelebracionCEA();
+  const duracion = 3400; // Animación completa y fluida
+
+  // En computadora: mostrar aviso animado sin ventana modal ("¡Felicidades, te inscribiste!")
+  if (!esDispositivoMovilCEA()) {
+    const prev = document.getElementById('banner-celebracion-pc-inscripcion');
+    if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+
+    const banner = document.createElement('div');
+    banner.id = 'banner-celebracion-pc-inscripcion';
+    banner.style.cssText = 'position:fixed;top:36px;left:50%;transform:translate(-50%,0);z-index:2147483647;background:linear-gradient(135deg,#064e3b 0%,#15803d 55%,#16a34a 100%);color:#ffffff;padding:16px 32px;border-radius:999px;box-shadow:0 18px 45px rgba(6,78,59,0.45),0 0 0 3px rgba(134,239,172,0.75);display:flex;align-items:center;gap:14px;font-weight:800;font-size:1.15rem;pointer-events:none;animation:ceaCelebracionPopIn 0.55s cubic-bezier(0.22,1,0.36,1) forwards, ceaCelebracionFloat 1.6s ease-in-out 0.55s infinite;';
+    banner.innerHTML = `
+      <span style="position:relative;width:36px;height:36px;border-radius:50%;background:#22c55e;color:#ffffff;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(22,163,74,0.5);animation:ceaCelebracionCheckCircle 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;">
+        <span style="position:absolute;inset:-4px;border-radius:50%;border:2.5px solid #86efac;animation:ceaCelebracionPulseRing 1.2s ease-out infinite;"></span>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:30;stroke-dashoffset:30;animation:ceaCelebracionCheckStroke 0.45s ease-out 0.22s forwards;">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </span>
+      <span style="letter-spacing:0.01em;text-shadow:0 2px 6px rgba(0,0,0,0.22);">¡Felicidades, te inscribiste!</span>
+    `;
+    if (document.body) document.body.appendChild(banner);
+
+    if (window._timerBannerCelebracionPC) clearTimeout(window._timerBannerCelebracionPC);
+    window._timerBannerCelebracionPC = setTimeout(() => {
+      banner.style.animation = 'ceaCelebracionPopOut 0.42s ease-in forwards';
+      setTimeout(() => {
+        if (banner.parentNode) banner.parentNode.removeChild(banner);
+      }, 430);
+    }, duracion - 420);
+  }
+
+  let canvas = document.getElementById('canvas-celebracion-mixtura');
+  if (!canvas && document.body) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'canvas-celebracion-mixtura';
+    document.body.appendChild(canvas);
+  }
   if (!canvas) return;
+
+  canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:2147483646;display:block;';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  canvas.style.display = 'block';
-
-  const colores = ['#15803d', '#22c55e', '#4ade80', '#f59e0b', '#fbbf24', '#ffffff', '#10b981', '#064e3b'];
-  const particulas = [];
-  const cantidad = window.innerWidth <= 768 ? 70 : 120;
-
-  for (let i = 0; i < cantidad; i++) {
-    particulas.push({
-      x: window.innerWidth * 0.5 + (Math.random() - 0.5) * 260,
-      y: window.innerHeight * 0.30 + (Math.random() - 0.5) * 100,
-      vx: (Math.random() - 0.5) * 15,
-      vy: (Math.random() * -13) - 4,
-      color: colores[Math.floor(Math.random() * colores.length)],
-      tam: Math.random() * 8 + 5,
-      rotacion: Math.random() * 360,
-      vRot: (Math.random() - 0.5) * 14,
-      forma: Math.random() > 0.4 ? 'rect' : 'circ',
-      opacidad: 1
-    });
+  if (window._ceaConfettiRafId) {
+    cancelAnimationFrame(window._ceaConfettiRafId);
+    window._ceaConfettiRafId = null;
   }
 
-  let animFrameId = null;
-  const tInicio = Date.now();
-  const duracion = 3400; // 3.4 segundos
+  // Paleta de confetis exclusivamente en tonos verdes (esmeralda, menta, bosque, lima, jade)
+  const colores = ['#064e3b', '#047857', '#14532d', '#15803d', '#16a34a', '#22c55e', '#4ade80', '#86efac', '#10b981', '#34d399', '#a7f3d0'];
+  const particulas = [];
+  const esMovil = window.innerWidth <= 768;
 
-  function bucle() {
-    const tTranscurrido = Date.now() - tInicio;
-    if (tTranscurrido > duracion) {
-      cancelAnimationFrame(animFrameId);
+  function crearRafaga(origenX, origenY, cantidad, dispersionX, fuerzaYMin, fuerzaYMax) {
+    const formas = ['rect', 'ribbon', 'circle'];
+    for (let i = 0; i < cantidad; i++) {
+      const angulo = -Math.PI / 2 + (Math.random() - 0.5) * dispersionX;
+      const velocidad = fuerzaYMin + Math.random() * (fuerzaYMax - fuerzaYMin);
+      particulas.push({
+        x: origenX + (Math.random() - 0.5) * 40,
+        y: origenY + (Math.random() - 0.5) * 20,
+        vx: Math.cos(angulo) * velocidad * (0.7 + Math.random() * 0.6),
+        vy: Math.sin(angulo) * velocidad,
+        color: colores[Math.floor(Math.random() * colores.length)],
+        w: Math.random() * 10 + 7,
+        h: Math.random() * 6 + 4,
+        rotacion: Math.random() * Math.PI * 2,
+        vRot: (Math.random() - 0.5) * 0.22,
+        tiltAngle: Math.random() * Math.PI * 2,
+        vTilt: 0.08 + Math.random() * 0.14,
+        wobble: Math.random() * Math.PI * 2,
+        vWobble: 0.05 + Math.random() * 0.08,
+        forma: formas[Math.floor(Math.random() * formas.length)]
+      });
+    }
+  }
+
+  // Oleada 1: Explosión central + cañones laterales hacia arriba
+  const W = canvas.width;
+  const H = canvas.height;
+  crearRafaga(W * 0.5, H * 0.22, esMovil ? 55 : 90, Math.PI * 0.85, 8, 18);
+  crearRafaga(W * 0.18, H * 0.55, esMovil ? 30 : 55, Math.PI * 0.55, 12, 22);
+  crearRafaga(W * 0.82, H * 0.55, esMovil ? 30 : 55, Math.PI * 0.55, 12, 22);
+
+  // Oleada 2 a los 450ms para que la lluvia sea abundante y continua
+  setTimeout(() => {
+    crearRafaga(W * 0.35, H * 0.18, esMovil ? 30 : 50, Math.PI * 0.8, 6, 15);
+    crearRafaga(W * 0.65, H * 0.18, esMovil ? 30 : 50, Math.PI * 0.8, 6, 15);
+  }, 450);
+
+  let tInicio = performance.now();
+  let tAnterior = tInicio;
+
+  function bucle(ahora) {
+    const tTranscurrido = ahora - tInicio;
+    const dt = Math.min(2.5, Math.max(0.5, (ahora - tAnterior) / 16.667));
+    tAnterior = ahora;
+
+    if (tTranscurrido >= duracion) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       canvas.style.display = 'none';
+      window._ceaConfettiRafId = null;
       return;
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Desvanecimiento suave en los últimos 600ms
+    const alphaGlobal = tTranscurrido > (duracion - 600)
+      ? Math.max(0, (duracion - tTranscurrido) / 600)
+      : 1;
+
     for (let i = 0; i < particulas.length; i++) {
       const p = particulas[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.38; // Gravedad suave
-      p.vx *= 0.985; // Resistencia
-      p.rotacion += p.vRot;
+      p.wobble += p.vWobble * dt;
+      p.tiltAngle += p.vTilt * dt;
+      p.rotacion += p.vRot * dt;
 
-      const fade = Math.max(0, 1 - (tTranscurrido / duracion));
+      p.x += (p.vx + Math.sin(p.wobble) * 1.6) * dt;
+      p.y += p.vy * dt;
+      p.vy += 0.36 * dt; // Gravedad realista
+      p.vx *= Math.pow(0.988, dt); // Resistencia del aire
+
+      const escalaGiro3D = Math.cos(p.tiltAngle);
+
       ctx.save();
-      ctx.globalAlpha = fade;
+      ctx.globalAlpha = alphaGlobal;
       ctx.translate(p.x, p.y);
-      ctx.rotate((p.rotacion * Math.PI) / 180);
+      ctx.rotate(p.rotacion);
+      ctx.scale(1, escalaGiro3D);
       ctx.fillStyle = p.color;
 
       if (p.forma === 'rect') {
-        ctx.fillRect(-p.tam / 2, -p.tam / 4, p.tam, p.tam / 2);
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      } else if (p.forma === 'ribbon') {
+        ctx.fillRect(-p.w * 0.7, -p.h * 0.28, p.w * 1.4, p.h * 0.56);
       } else {
         ctx.beginPath();
-        ctx.arc(0, 0, p.tam / 2.5, 0, Math.PI * 2);
+        ctx.arc(0, 0, p.h * 0.6, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.restore();
     }
 
-    animFrameId = requestAnimationFrame(bucle);
+    window._ceaConfettiRafId = requestAnimationFrame(bucle);
   }
 
-  animFrameId = requestAnimationFrame(bucle);
+  window._ceaConfettiRafId = requestAnimationFrame(bucle);
 
   // Redirigir la pantalla directamente hacia abajo donde está el botón de descargar ficha
   setTimeout(() => {
@@ -14919,30 +15203,25 @@ function lanzarCelebracionPreinscripcion() {
     if (voucher) {
       voucher.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, 180);
+  }, 220);
 }
 window.lanzarCelebracionPreinscripcion = lanzarCelebracionPreinscripcion;
 
 function manejarFormInscripcion(e) {
-  e.preventDefault();
-
-  // Control anti-spam y límite de peticiones del lado cliente
-  if (window._enviandoInscripcionCooldown) {
-    mostrarMsg('form-msg', 'Tu pre-inscripción ya se está procesando, por favor espera un momento...', 'info');
-    return;
+  if (typeof window.manejarFormInscripcionOptimizado === 'function' && window.manejarFormInscripcionOptimizado !== manejarFormInscripcion) {
+    return window.manejarFormInscripcionOptimizado(e);
   }
-  window._enviandoInscripcionCooldown = true;
-  setTimeout(() => { window._enviandoInscripcionCooldown = false; }, 4000);
+  if (e && typeof e.preventDefault === 'function') e.preventDefault();
+  if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
 
-  const form = e.target;
-  const selNivel = form.carrera;
-  const textoNivel = (selNivel && selNivel.selectedIndex >= 0 && selNivel.options[selNivel.selectedIndex] && !selNivel.options[selNivel.selectedIndex].value.startsWith('--'))
-    ? selNivel.options[selNivel.selectedIndex].text
-    : (form.carrera?.value || '');
+  const form = document.getElementById('form-inscripcion') || (e ? e.target : null);
+  if (!form) return false;
+
+  document.querySelectorAll('.campo-faltante-alerta').forEach(el => el.classList.remove('campo-faltante-alerta'));
 
   const nombreVal = (form.nombre?.value || document.getElementById('fi-nombre')?.value || '').trim();
   const ciVal = (form.ci?.value || document.getElementById('fi-ci')?.value || '').trim();
-  let fnacVal = (form.fechaNacimiento?.value || '').trim();
+  let fnacVal = (form.fechaNacimiento?.value || document.getElementById('fi-fnac')?.value || '').trim();
   if (!fnacVal) {
     const dispInp = document.getElementById('fi-fnac-display');
     if (dispInp && dispInp.value) {
@@ -14952,42 +15231,78 @@ function manejarFormInscripcion(e) {
       }
     }
   }
+  if (!fnacVal && typeof estadoCustomDatePicker === 'object' && estadoCustomDatePicker && estadoCustomDatePicker.dia && estadoCustomDatePicker.mes && estadoCustomDatePicker.anio) {
+    fnacVal = `${estadoCustomDatePicker.anio}-${String(estadoCustomDatePicker.mes).padStart(2, '0')}-${String(estadoCustomDatePicker.dia).padStart(2, '0')}`;
+    const hiddenInp = document.getElementById('fi-fnac');
+    if (hiddenInp) hiddenInp.value = fnacVal;
+  }
+
   const telVal = (form.telefono?.value || document.getElementById('fi-tel')?.value || '').trim();
-  const comunidadVal = (form.comunidad?.value || document.getElementById('fi-comunidad')?.value || '').trim();
-  const areaVal = form.area?.value || document.getElementById('fi-area')?.value || '';
-  const nivelVal = form.carrera?.value || document.getElementById('fi-nivel')?.value || '';
+  let comunidadVal = (form.comunidad?.value || document.getElementById('fi-comunidad')?.value || '').trim();
+
+  const selSede = document.getElementById('fi-sede-select') || form.sede;
+  const txtSedeElem = document.getElementById('fi-sede-text');
+  let sedeVal = (selSede?.value || selSede?.dataset?.selectedValue || '').trim();
+  if (!sedeVal && txtSedeElem && !txtSedeElem.classList.contains('placeholder')) {
+    sedeVal = txtSedeElem.textContent.replace('✓', '').trim();
+  }
+  if (!sedeVal) sedeVal = 'Sede Central (Centro de Chulumani)';
+
+  const selArea = document.getElementById('fi-area') || form.area;
+  const txtAreaElem = document.getElementById('fi-area-text');
+  let areaVal = (selArea?.value || selArea?.dataset?.selectedValue || '').trim();
+  if (!areaVal && txtAreaElem && !txtAreaElem.classList.contains('placeholder')) {
+    const txtA = txtAreaElem.textContent.replace('✓', '').trim().toLowerCase();
+    if (txtA.includes('human')) areaVal = 'humanistica';
+    else if (txtA.includes('téc') || txtA.includes('tec')) areaVal = 'tecnica';
+  }
+
+  const selNivel = document.getElementById('fi-nivel') || form.carrera;
+  const txtNivelElem = document.getElementById('fi-nivel-text');
+  let nivelVal = (selNivel?.value || selNivel?.dataset?.selectedValue || '').trim();
+  const textoNivelVisual = (txtNivelElem && !txtNivelElem.classList.contains('placeholder') && txtNivelElem.textContent)
+    ? txtNivelElem.textContent.replace('✓', '').trim()
+    : '';
+  if (!nivelVal && textoNivelVisual && !textoNivelVisual.toLowerCase().includes('selecciona')) {
+    nivelVal = textoNivelVisual;
+  }
+  const textoNivel = textoNivelVisual ||
+    ((selNivel && selNivel.selectedIndex >= 0 && selNivel.options[selNivel.selectedIndex] && !selNivel.options[selNivel.selectedIndex].value.startsWith('--'))
+      ? selNivel.options[selNivel.selectedIndex].text
+      : (selNivel?.dataset?.selectedText || nivelVal || ''));
 
   // Validaciones de campos obligatorios con modal interactivo
   if (!nombreVal) {
     mostrarVentanaDatoFaltante('Nombre completo', 'fi-nombre');
-    return;
+    return false;
   }
   if (!ciVal) {
     mostrarVentanaDatoFaltante('Cédula de Identidad (CI)', 'fi-ci');
-    return;
+    return false;
   }
   if (!fnacVal) {
     mostrarVentanaDatoFaltante('Fecha de Nacimiento', 'fi-fnac-display');
     if (typeof abrirCustomDatePicker === 'function') abrirCustomDatePicker();
-    return;
+    return false;
   }
   if (!telVal) {
     mostrarVentanaDatoFaltante('Teléfono / WhatsApp', 'fi-tel');
-    return;
-  }
-  if (!comunidadVal) {
-    mostrarVentanaDatoFaltante('¿De dónde vienes? (Comunidad)', 'fi-comunidad');
-    return;
+    return false;
   }
   if (!areaVal) {
     mostrarVentanaDatoFaltante('Área de interés', 'fi-area-trigger');
     if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('area');
-    return;
+    return false;
   }
   if (!nivelVal) {
     mostrarVentanaDatoFaltante('Nivel o Carrera técnica', 'fi-nivel-trigger');
     if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('nivel');
-    return;
+    return false;
+  }
+  if (!comunidadVal) {
+    comunidadVal = 'Chulumani (Sede Central)';
+    const elCom = document.getElementById('fi-comunidad');
+    if (elCom) elCom.value = comunidadVal;
   }
 
   // VALIDACIÓN DINÁMICA DE EDAD (NORMATIVA EPJA / ETTP)
@@ -15026,23 +15341,23 @@ function manejarFormInscripcion(e) {
         containerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
-    return;
+    return false;
   }
 
   const semInfo = determinarSemestreInscripcion(new Date());
 
   const data = {
     action: 'pre-inscripcion',
-    nombre: sanitizarTextoSimple(form.nombre?.value || ''),
-    ci: sanitizarTextoSimple(form.ci?.value || ''),
+    nombre: sanitizarTextoSimple(nombreVal),
+    ci: sanitizarTextoSimple(ciVal),
     fechaNacimiento: fnacVal,
     edad: valEdad.edadCalculada,
-    telefono: sanitizarTextoSimple(form.telefono?.value || ''),
-    area: sanitizarTextoSimple(form.area?.value || ''),
-    carrera: sanitizarTextoSimple(textoNivel || form.carrera?.value || ''),
-    sede: sanitizarTextoSimple(form.sede?.value || 'Sede Central (Centro de Chulumani)'),
-    comunidad: sanitizarTextoSimple(form.comunidad?.value || ''),
-    observaciones: sanitizarTextoSimple(form.observaciones?.value || ''),
+    telefono: sanitizarTextoSimple(telVal),
+    area: sanitizarTextoSimple(areaVal),
+    carrera: sanitizarTextoSimple(textoNivel || nivelVal),
+    sede: sanitizarTextoSimple(sedeVal),
+    comunidad: sanitizarTextoSimple(comunidadVal),
+    observaciones: sanitizarTextoSimple(form.observaciones?.value || document.getElementById('fi-obs')?.value || ''),
     semestre: semInfo.semestre,
     gestion: semInfo.gestion,
     avisoVigencia: semInfo.avisoVigencia,
@@ -15061,15 +15376,21 @@ function manejarFormInscripcion(e) {
   cargarInscripciones();
   if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
 
-  // 2. Guardar datos para los botones de acción (PDF y WhatsApp) y pre-generar el PDF automáticamente
+  // 2. Guardar datos para los botones de acción (PDF y WhatsApp) y diferir el pre-cálculo del PDF para NO congelar los FPS de la animación de confeti
   window._ultimoRegistroInscripcion = data;
   if (typeof window.pregenerarComprobantePDF === 'function') {
-    window.pregenerarComprobantePDF(data);
+    setTimeout(() => {
+      window.pregenerarComprobantePDF(data);
+    }, 3800);
   }
 
   // Celebración con animación de check y mixtura (confeti) + scroll directo hacia abajo al botón
   if (typeof window.lanzarCelebracionPreinscripcion === 'function') {
     window.lanzarCelebracionPreinscripcion();
+  }
+
+  if (typeof window.mostrarModalExitoPreinscripcionDirecto === 'function') {
+    window.mostrarModalExitoPreinscripcionDirecto(data);
   }
 
   const habilitarPdf = lsGet('cea_cfg_pdf', true);
@@ -15143,16 +15464,18 @@ function manejarFormInscripcion(e) {
   }
 
   mostrarMsg('form-msg', '¡Pre-inscripción guardada con éxito! Puedes descargar tu Ficha Oficial en PDF.', 'success');
-  form.reset();
-  const contExcep = document.getElementById('fi-caso-excepcional-container');
-  if (contExcep) contExcep.style.display = 'none';
-  const avisoOkExcep = document.getElementById('fi-excepcion-aviso-ok');
-  if (avisoOkExcep) avisoOkExcep.style.display = 'none';
-  validarEdadInscripcionLive();
 
-  // 3. Sincronizar en segundo plano sin bloquear al usuario
+  // 3. Sincronizar con Google Sheets en segundo plano sin bloquear al usuario
   enviarGoogleSheet(data).catch(err => console.warn('Sync en segundo plano:', err));
+  return true;
 }
+window.ejecutarAccionEnviarPreInscripcion = function(e) {
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+  }
+  return manejarFormInscripcion(e);
+};
 
 function cerrarVoucherInscripcion() {
   const v = document.getElementById('resultado-inscripcion-voucher');
@@ -18401,13 +18724,16 @@ async function sincronizarConGoogleSheetsManual() {
         hum_modo_dia_json: JSON.stringify(lsGet('cea_hum_modo_dia', {})),
         tec_modo_dia_json: JSON.stringify(lsGet('cea_tec_modo_dia', {})),
         bth_cursos_por_dia_json: JSON.stringify(getSedeLsData('cea_bth_cursos_por_dia', {})),
+        documentos_oficiales_dinamicos_json: JSON.stringify(lsGet('cea_documentos_dinamicos', [])),
         ...textosDir,
         ...textosVivos
       };
       await enviarGoogleSheet(payloadTextos);
 
-      // 1.3 Sincronizar Documentos Oficiales Dinámicos
+      // 1.3 Sincronizar Documentos Oficiales Dinámicos y Drive
       const docs = lsGet('cea_documentos_dinamicos', []);
+      const dDrive = lsGet('cea_drive', DRIVE_DEFAULT);
+      await enviarGoogleSheet({ action: 'guardar-drive', drive: dDrive });
       if (docs && docs.length > 0) {
         await enviarGoogleSheet({
           action: 'guardar-documentos-dinamicos',
@@ -18645,14 +18971,6 @@ const TARGETS_EDICION_DIRECTOR = [
   { id: 'inscripcion-titulo-text', key: 'inscripcion_titulo', title: 'Título Inscripciones', type: 'text' },
   { id: 'inscripcion-desc-text', key: 'inscripcion_desc', title: 'Descripción Inscripciones', type: 'text' },
   { id: 'inscripcion-form-titulo-text', key: 'inscripcion_form_titulo', title: 'Título Formulario Inscripción', type: 'text' },
-  { id: 'lbl-fi-nombre', key: 'lbl_fi_nombre', title: 'Etiqueta Nombre', type: 'text' },
-  { id: 'lbl-fi-ci', key: 'lbl_fi_ci', title: 'Etiqueta Cédula', type: 'text' },
-  { id: 'lbl-fi-fnac', key: 'lbl_fi_fnac', title: 'Etiqueta Fecha de Nacimiento', type: 'text' },
-  { id: 'lbl-fi-tel', key: 'lbl_fi_tel', title: 'Etiqueta Teléfono', type: 'text' },
-  { id: 'lbl-fi-area', key: 'lbl_fi_area', title: 'Etiqueta Área de Interés', type: 'text' },
-  { id: 'lbl-fi-nivel', key: 'lbl_fi_nivel', title: 'Etiqueta Nivel/Carrera', type: 'text' },
-  { id: 'lbl-fi-obs', key: 'lbl_fi_obs', title: 'Etiqueta Observaciones', type: 'text' },
-  { id: 'btn-enviar-preinscripcion', key: 'btn_enviar_texto', title: 'Texto Botón Enviar', type: 'text' },
 
   // Formaciones y Materias Humanística
   { id: 'oferta-hum-esa-bullet', key: 'oferta_hum_esa_bullet', title: 'Educación Secundaria de Adultos (ESA)', type: 'html' },

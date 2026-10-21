@@ -46,7 +46,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2026.277" />
+  <link rel="stylesheet" href="styles.css?v=2026.310" />
   <script>
     document.documentElement.classList.remove('dark', 'dark-mode');
     try {
@@ -3038,6 +3038,205 @@
       to { transform: scale(1); opacity: 1; }
     }
 
+  
+    /* TÍTULOS EN NEGRITA PARA IDENTIFICAR CLARAMENTE CADA DATO */
+    #form-inscripcion label,
+    .form-group label {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      font-weight: 850 !important;
+      font-size: 0.94rem !important;
+      color: var(--text-main, #0f172a) !important;
+      margin-bottom: 6px !important;
+      letter-spacing: -0.01em !important;
+    }
+    html.dark #form-inscripcion label,
+    html.dark .form-group label {
+      color: #f1f5f9 !important;
+    }
+
+    /* BADGE VISUAL DE CAMPO COMPLETADO / LLENO */
+    .badge-completado-ok {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #dcfce7 !important;
+      color: #15803d !important;
+      font-size: 0.72rem !important;
+      font-weight: 800 !important;
+      padding: 2px 8px !important;
+      border-radius: 99px !important;
+      border: 1px solid #86efac !important;
+      animation: fadeInModalFast 0.2s ease-out;
+    }
+    html.dark .badge-completado-ok {
+      background: #14532d !important;
+      color: #86efac !important;
+      border-color: #22c55e !important;
+    }
+
+    /* ESTILO VISUAL DE INPUT LLENO Y VÁLIDO */
+    .input-completado-ok {
+      border-color: #16a34a !important;
+      background-color: #f0fdf4 !important;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15) !important;
+    }
+    html.dark .input-completado-ok {
+      background-color: rgba(22, 163, 74, 0.1) !important;
+      border-color: #22c55e !important;
+    }
+
+    /* ESTILO VISUAL DE CAMPO CON ERROR O FALTANTE */
+    .campo-faltante-alerta {
+      border-color: #ef4444 !important;
+      background-color: #fef2f2 !important;
+      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3) !important;
+      animation: shakeCampo 0.35s ease-in-out;
+    }
+    @keyframes shakeCampo {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+
+    /* SELECCIÓN VISUAL DE OPCIONES */
+    .custom-select-option.selected {
+      background: #f0fdf4 !important;
+      border: 2px solid #16a34a !important;
+      color: #14532d !important;
+    }
+    .custom-select-option.selected .opt-title {
+      color: #15803d !important;
+      font-weight: 850 !important;
+    }
+    .custom-select-trigger.trigger-completado-ok {
+      border-color: #16a34a !important;
+      background: #f0fdf4 !important;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15) !important;
+    }
+    .custom-select-trigger.trigger-completado-ok .custom-select-text {
+      color: #14532d !important;
+      font-weight: 800 !important;
+    }
+
+    /* MODAL CONFIRMACIÓN DE ÉXITO DE PRE-INSCRIPCIÓN */
+    .modal-exito-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 9999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeInModalFast 0.25s ease-out;
+    }
+    .modal-exito-card {
+      background: var(--bg-card, #ffffff);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), 0 0 0 2px #22c55e;
+      max-width: 480px;
+      width: 100%;
+      overflow: hidden;
+      position: relative;
+      animation: popInModalScale 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.25);
+    }
+    .modal-exito-header {
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1.5px solid #86efac;
+    }
+    .modal-exito-icon-anim {
+      background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+      color: #ffffff;
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(21, 128, 61, 0.35);
+      animation: bounceCheck 0.6s ease-out;
+    }
+    @keyframes bounceCheck {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .modal-exito-body {
+      padding: 20px 22px 22px 22px;
+    }
+    .modal-exito-resumen {
+      background: var(--bg-body, #f8fafc);
+      border: 1.5px solid var(--border-col, #e2e8f0);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 0.90rem;
+      line-height: 1.55;
+      color: var(--text-main, #0f172a);
+    }
+    .btn-modal-descargar-pdf {
+      width: 100%;
+      background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+      color: #ffffff;
+      border: 1.5px solid #22c55e;
+      border-radius: 10px;
+      padding: 13px 20px;
+      font-weight: 850;
+      font-size: 0.96rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      box-shadow: 0 5px 15px rgba(21, 128, 61, 0.35);
+      transition: all 0.2s ease;
+      animation: pulseSubtleBtn 2s infinite ease-in-out;
+    }
+    .btn-modal-descargar-pdf:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(21, 128, 61, 0.45);
+    }
+    @keyframes pulseSubtleBtn {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+    .btn-modal-whatsapp {
+      width: 100%;
+      background: #25d366;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 18px;
+      font-weight: 750;
+      font-size: 0.88rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .btn-modal-cerrar-simple {
+      width: 100%;
+      background: transparent;
+      color: var(--text-sec, #64748b);
+      border: 1px solid var(--border-col, #cbd5e1);
+      border-radius: 9px;
+      padding: 9px 16px;
+      font-weight: 700;
+      font-size: 0.84rem;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
   </style>
   <link rel="stylesheet" href="print-horario.css?v=2026.190" />
   <link rel="stylesheet" href="print-kardex.css?v=2026.66" />
@@ -3262,15 +3461,73 @@
   <div id="documentos" style="scroll-margin-top:80px"></div>
   <div class="container" style="padding-top:14px; padding-bottom:24px;">
     <!-- BOTÓN DE ADMINISTRACIÓN DEL DIRECTOR (SÓLO MODO DIRECTOR) -->
-    <div id="doc-admin-bar-public" style="display:none; justify-content:flex-end; margin-bottom:10px;">
-      <button type="button" id="btn-admin-add-doc-public" class="btn-submit btn-admin-only" onclick="abrirModalAgregarDocumentoDinamico()" style="font-size:0.80rem; padding:6px 14px; background:var(--verde-dark); font-weight:700;">
-        + Añadir Documento
-      </button>
+    <div id="doc-admin-bar-public" style="display:none; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; padding:10px 14px; background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px;">
+      <span style="font-size:0.84rem; font-weight:800; color:#14532d; display:inline-flex; align-items:center; gap:6px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Modo Director: Puedes editar, quitar o añadir documentos directamente aquí
+      </span>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" onclick="restaurarDocumentosPorDefectoInicio()" style="font-size:0.78rem; padding:6px 12px; background:#ffffff; color:#15803d; border:1.5px solid #16a34a; border-radius:8px; font-weight:800; cursor:pointer;">
+          ↺ Restaurar 3 por Defecto
+        </button>
+        <button type="button" id="btn-admin-add-doc-public" onclick="abrirModalAgregarDocumentoDinamico()" style="font-size:0.80rem; padding:6px 14px; background:var(--verde-dark, #0c5825); color:#ffffff; border:none; border-radius:8px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+          + Añadir Documento
+        </button>
+      </div>
     </div>
 
     <!-- GRID DIRECTO DE TARJETAS DE DOCUMENTOS -->
     <div id="contenedor-documentos-dinamicos" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; align-items:stretch;">
-      <!-- Rellenado dinámicamente por JS -->
+      <!-- DOCUMENTO 1: REGLAMENTO INTERNO (PRE-CARGADO ESTÁTICAMENTE) -->
+      <div class="doc-card-estatico" id="doc-card-reglamento" style="background:var(--bg-card, #ffffff); border:1.5px solid var(--border-col, #e2e8f0); border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; justify-content:space-between; transition:all 0.2s ease; position:relative; box-shadow:0 3px 10px rgba(0,0,0,0.04);">
+        <div>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div style="width:36px; height:36px; min-width:36px; border-radius:50%; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); border:1.5px solid #86efac; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 2px 6px rgba(6,60,23,0.25);">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <h4 style="margin:0; font-size:1rem; font-weight:800; color:var(--text-main, #0f172a); line-height:1.25;">Reglamento Interno (SEA / CEA)</h4>
+          </div>
+          <p style="margin:0 0 14px 0; font-size:0.85rem; color:var(--text-sec, #64748b); line-height:1.4;">Normas, disposiciones e itinerarios institucionales oficiales del CEA Madre Marie Poussepín.</p>
+        </div>
+        <a href="#" id="doc-btn-link-reglamento" target="_blank" rel="noopener" style="width:100%; text-align:center; padding:10px 16px; font-size:0.86rem; font-weight:800; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:7px; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); color:#ffffff; border:1px solid #16a34a; text-decoration:none; box-shadow:0 3px 8px rgba(6,60,23,0.22); transition:all 0.2s ease;">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar Documento (PDF)
+        </a>
+      </div>
+
+      <!-- DOCUMENTO 2: MODALIDADES DE GRADUACIÓN (PRE-CARGADO ESTÁTICAMENTE) -->
+      <div class="doc-card-estatico" id="doc-card-graduacion" style="background:var(--bg-card, #ffffff); border:1.5px solid var(--border-col, #e2e8f0); border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; justify-content:space-between; transition:all 0.2s ease; position:relative; box-shadow:0 3px 10px rgba(0,0,0,0.04);">
+        <div>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div style="width:36px; height:36px; min-width:36px; border-radius:50%; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); border:1.5px solid #86efac; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 2px 6px rgba(6,60,23,0.25);">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <h4 style="margin:0; font-size:1rem; font-weight:800; color:var(--text-main, #0f172a); line-height:1.25;">Modalidades de Graduación y Emprendimiento</h4>
+          </div>
+          <p style="margin:0 0 14px 0; font-size:0.85rem; color:var(--text-sec, #64748b); line-height:1.4;">Guías y formatos oficiales de Proyecto de Emprendimiento Productivo.</p>
+        </div>
+        <a href="#" id="doc-btn-link-graduacion" target="_blank" rel="noopener" style="width:100%; text-align:center; padding:10px 16px; font-size:0.86rem; font-weight:800; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:7px; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); color:#ffffff; border:1px solid #16a34a; text-decoration:none; box-shadow:0 3px 8px rgba(6,60,23,0.22); transition:all 0.2s ease;">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar Documento (PDF)
+        </a>
+      </div>
+
+      <!-- DOCUMENTO 3: MALLAS CURRICULARES (PRE-CARGADO ESTÁTICAMENTE) -->
+      <div class="doc-card-estatico" id="doc-card-mallas" style="background:var(--bg-card, #ffffff); border:1.5px solid var(--border-col, #e2e8f0); border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; justify-content:space-between; transition:all 0.2s ease; position:relative; box-shadow:0 3px 10px rgba(0,0,0,0.04);">
+        <div>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div style="width:36px; height:36px; min-width:36px; border-radius:50%; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); border:1.5px solid #86efac; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 2px 6px rgba(6,60,23,0.25);">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <h4 style="margin:0; font-size:1rem; font-weight:800; color:var(--text-main, #0f172a); line-height:1.25;">Mallas Curriculares y Planes de Estudio</h4>
+          </div>
+          <p style="margin:0 0 14px 0; font-size:0.85rem; color:var(--text-sec, #64748b); line-height:1.4;">Planes de estudio oficiales, cargas horarias y certificaciones progresivas.</p>
+        </div>
+        <a href="#" id="doc-btn-link-mallas" target="_blank" rel="noopener" style="width:100%; text-align:center; padding:10px 16px; font-size:0.86rem; font-weight:800; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:7px; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); color:#ffffff; border:1px solid #16a34a; text-decoration:none; box-shadow:0 3px 8px rgba(6,60,23,0.22); transition:all 0.2s ease;">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar Documento (PDF)
+        </a>
+      </div>
     </div>
   </div>
 </section>
@@ -4794,7 +5051,7 @@
             </div>
           </div>
 
-          <form id="form-inscripcion" novalidate>
+          <form id="form-inscripcion" novalidate onsubmit="return ejecutarAccionEnviarPreInscripcion(event)">
             <div class="form-grid">
               <div class="form-group">
                 <label for="fi-nombre" id="lbl-fi-nombre">Nombre completo *</label>
@@ -4974,7 +5231,7 @@
             </div>
 
             <div style="margin-top:22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-              <button type="button" class="btn-submit btn-submit-modern" id="btn-enviar-preinscripcion" onclick="ejecutarAccionEnviarPreInscripcion(event)">
+              <button type="submit" class="btn-submit btn-submit-modern" id="btn-enviar-preinscripcion" onclick="return ejecutarAccionEnviarPreInscripcion(event)">
                 <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#fde047" stroke-width="2.3"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z" fill="rgba(253,224,71,0.2)"/></svg>
                 <span>Enviar Pre-Inscripción</span>
               </button>
@@ -7792,17 +8049,17 @@
 
       <div style="margin-bottom:14px">
         <label style="display:block;font-size:0.84rem;font-weight:700;color:var(--text-main);margin-bottom:5px">Título del Documento *</label>
-        <input type="text" id="modal-inp-doc-titulo" placeholder="Ej: Modalidades de Graduación / Formato Emprendimiento" required style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border-col);background:var(--bg-body);color:var(--text-main);font-size:0.90rem;box-sizing:border-box" />
+        <input type="text" id="modal-inp-doc-titulo" placeholder="Ej: Reglamento Interno (SEA / CEA)" required style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border-col);background:var(--bg-body);color:var(--text-main);font-size:0.90rem;box-sizing:border-box" />
       </div>
 
       <div style="margin-bottom:14px">
-        <label style="display:block;font-size:0.84rem;font-weight:700;color:var(--text-main);margin-bottom:5px">Descripción o Detalle *</label>
-        <textarea id="modal-inp-doc-desc" rows="3" placeholder="Ej: Formato oficial de la guía y estructura para proyectos de grado..." required style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border-col);background:var(--bg-body);color:var(--text-main);font-size:0.86rem;line-height:1.4;box-sizing:border-box"></textarea>
+        <label style="display:block;font-size:0.84rem;font-weight:700;color:var(--text-main);margin-bottom:5px">Descripción o Detalle</label>
+        <textarea id="modal-inp-doc-desc" rows="3" placeholder="Ej: Normas, disposiciones e itinerarios institucionales oficiales..." style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border-col);background:var(--bg-body);color:var(--text-main);font-size:0.86rem;line-height:1.4;box-sizing:border-box"></textarea>
       </div>
 
       <div style="margin-bottom:18px">
-        <label style="display:block;font-size:0.84rem;font-weight:700;color:var(--text-main);margin-bottom:5px">Enlace de Descarga (Google Drive / URL PDF) *</label>
-        <input type="url" id="modal-inp-doc-url" placeholder="https://drive.google.com/file/d/..." required style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border-col);background:var(--bg-body);color:var(--text-main);font-size:0.86rem;box-sizing:border-box" />
+        <label style="display:block;font-size:0.84rem;font-weight:700;color:var(--text-main);margin-bottom:5px">Enlace de Descarga (Google Drive / URL PDF)</label>
+        <input type="text" id="modal-inp-doc-url" placeholder="https://drive.google.com/file/d/..." style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border-col);background:var(--bg-body);color:var(--text-main);font-size:0.86rem;box-sizing:border-box" />
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -8943,6 +9200,41 @@
 <!-- BACKDROP DIFUMINADO PARA SELECTORES EN DISPOSITIVOS MÓVILES -->
 <div id="custom-select-backdrop-mobile" class="custom-select-backdrop-mobile" onclick="cerrarDropdownsSelect()"></div>
 
+<!-- MODAL DE ÉXITO DE PRE-INSCRIPCIÓN DIRECTO E INCONFUNDIBLE -->
+<div id="modal-exito-preinscripcion-directa" class="modal-exito-overlay" style="display:none" onclick="cerrarModalExitoPreinscripcion()">
+  <div class="modal-exito-card" onclick="event.stopPropagation()">
+    <div class="modal-exito-header">
+      <div class="modal-exito-icon-anim">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <div>
+        <h3 style="margin:0; font-size:1.15rem; font-weight:900; color:#14532d;">¡Pre-Inscripción Registrada con Éxito!</h3>
+        <p style="margin:2px 0 0 0; font-size:0.82rem; color:#166534; font-weight:600;">CEA Madre Marie Poussepín • Gestión Oficial 2026</p>
+      </div>
+    </div>
+    <div class="modal-exito-body">
+      <div id="modal-exito-datos-resumen" class="modal-exito-resumen">
+        <!-- Rellenado con datos del estudiante -->
+      </div>
+      <div style="margin-top:16px; display:flex; flex-direction:column; gap:10px;">
+        <button type="button" class="btn-modal-descargar-pdf btn-voucher-pdf" id="btn-modal-descargar-pdf-instantaneo" onclick="descargarComprobanteDirectoPDF(window._ultimoRegistroInscripcion)">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <span>Descargar Ficha Oficial (PDF)</span>
+        </button>
+        <button type="button" class="btn-modal-whatsapp" onclick="confirmarInscripcionWhatsApp()">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+          <span>Confirmar por WhatsApp con Dirección</span>
+        </button>
+        <button type="button" class="btn-modal-cerrar-simple" onclick="cerrarModalExitoPreinscripcion()">
+          <span>Cerrar ventana y ver ficha en pantalla</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- CANVAS DE CELEBRACIÓN DE PREINSCRIPCIÓN (MIXTURA / CONFETI) -->
 <canvas id="canvas-celebracion-mixtura" class="canvas-celebracion-mixtura"></canvas>
 
@@ -8967,15 +9259,38 @@
 <div id="reporte-inscritos-print-area" style="display:none"></div>
 <div id="reporte-estadistico-print-area" style="display:none"></div>
 
-<script src="app.js?v=2026.277"></script>
+<script src="app.js?v=2026.315"></script>
 <script>
 // Sobrescribir manejarFormInscripcion con respuesta instantánea y descarga de PDF garantizada
-/* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (PROFESIONAL, SIN EMOJIS, AUTO-CIERRA EN 5s) ─── */
-let _timerVentanaDatoFaltante = null;
-let _campoFaltantePendienteId = null;
+/* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (SOLO MÓVIL, AUTO-CIERRA EN 5s) ─── */
+var _timerVentanaDatoFaltante = null;
+var _campoFaltantePendienteId = null;
+
+function esDispositivoMovilCEA() {
+  return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+}
+window.esDispositivoMovilCEA = esDispositivoMovilCEA;
 
 function mostrarVentanaDatoFaltante(nombreCampo, elementoId) {
   _campoFaltantePendienteId = elementoId;
+
+  // En computadora NO abrir ventana emergente: enfocar campo y mostrar aviso directo
+  if (!esDispositivoMovilCEA()) {
+    if (typeof mostrarMsg === 'function') mostrarMsg('form-msg', 'Te falta llenar este dato: ' + nombreCampo, 'error');
+    if (elementoId) {
+      const el = document.getElementById(elementoId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try { el.focus(); } catch (e) {}
+        el.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+        el.style.borderColor = '#16a34a';
+        el.style.boxShadow = '0 0 0 4px rgba(22, 163, 74, 0.4)';
+        setTimeout(() => { el.style.boxShadow = ''; }, 2000);
+      }
+    }
+    return;
+  }
+
   const modal = document.getElementById('modal-validacion-campo-faltante');
   const txtNombre = document.getElementById('modal-campo-faltante-nombre');
   const barra = document.getElementById('modal-campo-faltante-bar');
@@ -9026,81 +9341,194 @@ function cerrarVentanaDatoFaltante(enfocar = true) {
 }
 window.cerrarVentanaDatoFaltante = cerrarVentanaDatoFaltante;
 
-/* ─── CELEBRACIÓN DE PRE-INSCRIPCIÓN: ANIMACIÓN DE CHECK Y MIXTURA (CONFETI) ─── */
+/* ─── CELEBRACIÓN DE PRE-INSCRIPCIÓN: ANIMACIÓN FLUIDA 60FPS DE MIXTURA VERDE Y CHECK ANIMADO ─── */
+function asegurarEstilosCelebracionCEA() {
+  if (document.getElementById('estilos-celebracion-cea-anim')) return;
+  const st = document.createElement('style');
+  st.id = 'estilos-celebracion-cea-anim';
+  st.textContent = `
+    @keyframes ceaCelebracionPopIn {
+      0% { opacity: 0; transform: translate(-50%, -40px) scale(0.55); }
+      55% { opacity: 1; transform: translate(-50%, 6px) scale(1.06); }
+      78% { transform: translate(-50%, -2px) scale(0.98); }
+      100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    }
+    @keyframes ceaCelebracionPopOut {
+      0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -28px) scale(0.85); }
+    }
+    @keyframes ceaCelebracionCheckCircle {
+      0% { transform: scale(0) rotate(-45deg); }
+      65% { transform: scale(1.18) rotate(6deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    @keyframes ceaCelebracionCheckStroke {
+      0% { stroke-dashoffset: 36; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes ceaCelebracionPulseRing {
+      0% { transform: scale(0.85); opacity: 0.85; }
+      100% { transform: scale(2.15); opacity: 0; }
+    }
+    @keyframes ceaCelebracionFloat {
+      0%, 100% { transform: translate(-50%, 0px); }
+      50% { transform: translate(-50%, -5px); }
+    }
+  `;
+  if (document.head) document.head.appendChild(st);
+}
+
 function lanzarCelebracionPreinscripcion() {
+  asegurarEstilosCelebracionCEA();
+  const duracion = 3600; // 3.6 segundos de animación fluida a 60fps
+
+  // En computadora: mostrar insignia animada con check que se dibuja en vivo (sin ventana modal)
+  if (!esDispositivoMovilCEA()) {
+    const prevBanner = document.getElementById('banner-celebracion-pc-inscripcion');
+    if (prevBanner) prevBanner.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'banner-celebracion-pc-inscripcion';
+    banner.style.cssText = 'position:fixed;top:34px;left:50%;transform:translate(-50%,0);z-index:999999;background:linear-gradient(135deg,#064e3b 0%,#0c5825 50%,#15803d 100%);color:#ffffff;padding:16px 32px;border-radius:999px;box-shadow:0 18px 42px rgba(6,60,23,0.45), 0 0 0 3px rgba(134,239,172,0.55);display:flex;align-items:center;gap:15px;pointer-events:none;animation:ceaCelebracionPopIn 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards, ceaCelebracionFloat 1.6s ease-in-out 0.55s infinite;';
+    banner.innerHTML = `
+      <div style="position:relative;width:38px;height:38px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span style="position:absolute;inset:0;border-radius:50%;border:2.5px solid #4ade80;animation:ceaCelebracionPulseRing 1.1s ease-out infinite;"></span>
+        <span style="position:relative;width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#16a34a);color:#ffffff;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(34,197,94,0.5);animation:ceaCelebracionCheckCircle 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" style="stroke-dasharray:36;stroke-dashoffset:36;animation:ceaCelebracionCheckStroke 0.45s ease-out 0.22s forwards;"/>
+          </svg>
+        </span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <span style="font-weight:900;font-size:1.15rem;letter-spacing:0.2px;color:#ffffff;text-shadow:0 1px 2px rgba(0,0,0,0.2);">¡Felicidades, te inscribiste!</span>
+        <span style="font-weight:600;font-size:0.80rem;color:#bbf7d0;">Tu ficha oficial de pre-inscripción ya está lista abajo</span>
+      </div>
+    `;
+    if (document.body) document.body.appendChild(banner);
+
+    if (window._timerBannerCelebracionPC) clearTimeout(window._timerBannerCelebracionPC);
+    window._timerBannerCelebracionPC = setTimeout(() => {
+      banner.style.animation = 'ceaCelebracionPopOut 0.4s ease-in forwards';
+      setTimeout(() => { if (banner.parentNode) banner.remove(); }, 420);
+    }, duracion - 400);
+  }
+
   const canvas = document.getElementById('canvas-celebracion-mixtura');
   if (!canvas) return;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
+  if (window._animFrameConfetiCEA) {
+    cancelAnimationFrame(window._animFrameConfetiCEA);
+    window._animFrameConfetiCEA = null;
+  }
+
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   canvas.style.display = 'block';
 
-  const colores = ['#15803d', '#22c55e', '#4ade80', '#f59e0b', '#fbbf24', '#ffffff', '#10b981', '#064e3b'];
+  // Paleta de confetis / mixtura 100% en tonos verdes luminosos y esmeralda
+  const colores = ['#064e3b', '#047857', '#14532d', '#15803d', '#16a34a', '#22c55e', '#4ade80', '#86efac', '#10b981', '#34d399', '#a7f3d0'];
   const particulas = [];
-  const cantidad = window.innerWidth <= 768 ? 70 : 120;
+  const esMovil = window.innerWidth <= 768;
 
-  for (let i = 0; i < cantidad; i++) {
-    particulas.push({
-      x: window.innerWidth * 0.5 + (Math.random() - 0.5) * 260,
-      y: window.innerHeight * 0.30 + (Math.random() - 0.5) * 100,
-      vx: (Math.random() - 0.5) * 15,
-      vy: (Math.random() * -13) - 4,
-      color: colores[Math.floor(Math.random() * colores.length)],
-      tam: Math.random() * 8 + 5,
-      rotacion: Math.random() * 360,
-      vRot: (Math.random() - 0.5) * 14,
-      forma: Math.random() > 0.4 ? 'rect' : 'circ',
-      opacidad: 1
-    });
+  function lanzarOleada(origenX, origenY, dispersionX, numParticulas, velYMin, velYMax) {
+    for (let i = 0; i < numParticulas; i++) {
+      const angulo = (Math.random() - 0.5) * Math.PI * 0.85;
+      const velocidad = Math.random() * 14 + 7;
+      const formas = ['rect', 'circ', 'streamer'];
+      particulas.push({
+        x: origenX + (Math.random() - 0.5) * dispersionX,
+        y: origenY + (Math.random() - 0.5) * 40,
+        vx: Math.sin(angulo) * velocidad + (Math.random() - 0.5) * 6,
+        vy: -Math.abs(Math.cos(angulo) * velocidad) - (Math.random() * (velYMax - velYMin) + velYMin),
+        color: colores[Math.floor(Math.random() * colores.length)],
+        tamW: Math.random() * 9 + 6,
+        tamH: Math.random() * 6 + 4,
+        rotacion: Math.random() * 360,
+        vRot: (Math.random() - 0.5) * 11,
+        tiltAngle: Math.random() * Math.PI * 2,
+        vTilt: Math.random() * 0.14 + 0.05,
+        wobble: Math.random() * Math.PI * 2,
+        vWobble: Math.random() * 0.09 + 0.04,
+        forma: formas[Math.floor(Math.random() * formas.length)]
+      });
+    }
   }
 
-  let animFrameId = null;
-  const tInicio = Date.now();
-  const duracion = 3400; // 3.4 segundos
+  // Oleada 1: Explosión central y cañones laterales inmediatos
+  const w = canvas.width;
+  const h = canvas.height;
+  lanzarOleada(w * 0.5, h * 0.32, w * 0.25, esMovil ? 55 : 95, 2, 8);
+  lanzarOleada(w * 0.18, h * 0.45, 80, esMovil ? 25 : 45, 4, 10);
+  lanzarOleada(w * 0.82, h * 0.45, 80, esMovil ? 25 : 45, 4, 10);
 
-  function bucle() {
-    const tTranscurrido = Date.now() - tInicio;
-    if (tTranscurrido > duracion) {
-      cancelAnimationFrame(animFrameId);
+  // Oleada 2: Segunda lluvia de mixtura a los 450ms para dar sensación de fiesta real
+  setTimeout(() => {
+    if (canvas.style.display !== 'none') {
+      lanzarOleada(w * 0.35, h * 0.22, w * 0.3, esMovil ? 35 : 60, 1, 6);
+      lanzarOleada(w * 0.65, h * 0.22, w * 0.3, esMovil ? 35 : 60, 1, 6);
+    }
+  }, 450);
+
+  const tInicio = performance.now();
+  let tUltimo = tInicio;
+
+  function bucle(ahora) {
+    const tTranscurrido = ahora - tInicio;
+    const dt = Math.min(2.5, Math.max(0.5, (ahora - tUltimo) / 16.67));
+    tUltimo = ahora;
+
+    if (tTranscurrido >= duracion) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       canvas.style.display = 'none';
+      window._animFrameConfetiCEA = null;
       return;
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Desvanecimiento suave en el último 25% de la animación
+    const fadeGlobal = tTranscurrido > duracion * 0.72
+      ? Math.max(0, 1 - ((tTranscurrido - duracion * 0.72) / (duracion * 0.28)))
+      : 1;
+
     for (let i = 0; i < particulas.length; i++) {
       const p = particulas[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.38; // Gravedad suave
-      p.vx *= 0.985; // Resistencia
-      p.rotacion += p.vRot;
+      p.wobble += p.vWobble * dt;
+      p.tiltAngle += p.vTilt * dt;
+      p.x += (p.vx + Math.sin(p.wobble) * 1.6) * dt;
+      p.y += p.vy * dt;
+      p.vy += 0.34 * dt; // Gravedad realista de papel/mixtura
+      p.vx *= Math.pow(0.988, dt); // Resistencia del aire
+      p.rotacion += p.vRot * dt;
 
-      const fade = Math.max(0, 1 - (tTranscurrido / duracion));
+      const escalaFlip = Math.cos(p.tiltAngle);
+
       ctx.save();
-      ctx.globalAlpha = fade;
+      ctx.globalAlpha = fadeGlobal;
       ctx.translate(p.x, p.y);
       ctx.rotate((p.rotacion * Math.PI) / 180);
+      ctx.scale(1, escalaFlip);
       ctx.fillStyle = p.color;
 
       if (p.forma === 'rect') {
-        ctx.fillRect(-p.tam / 2, -p.tam / 4, p.tam, p.tam / 2);
+        ctx.fillRect(-p.tamW / 2, -p.tamH / 2, p.tamW, p.tamH);
+      } else if (p.forma === 'streamer') {
+        ctx.fillRect(-p.tamW * 0.85, -p.tamH * 0.28, p.tamW * 1.7, p.tamH * 0.56);
       } else {
         ctx.beginPath();
-        ctx.arc(0, 0, p.tam / 2.5, 0, Math.PI * 2);
+        ctx.arc(0, 0, p.tamW * 0.42, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.restore();
     }
 
-    animFrameId = requestAnimationFrame(bucle);
+    window._animFrameConfetiCEA = requestAnimationFrame(bucle);
   }
 
-  animFrameId = requestAnimationFrame(bucle);
+  window._animFrameConfetiCEA = requestAnimationFrame(bucle);
 
   // Redirigir la pantalla directamente hacia abajo donde está el botón de descargar ficha
   setTimeout(() => {
@@ -9108,7 +9536,7 @@ function lanzarCelebracionPreinscripcion() {
     if (voucher) {
       voucher.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, 180);
+  }, 220);
 }
 window.lanzarCelebracionPreinscripcion = lanzarCelebracionPreinscripcion;
 
@@ -9116,93 +9544,136 @@ function manejarFormInscripcionOptimizado(e) {
   if (e && typeof e.preventDefault === 'function') e.preventDefault();
   if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
 
+  if (window._lockEnvioPreinscripcionTimestamp && (Date.now() - window._lockEnvioPreinscripcionTimestamp < 600)) {
+    return false;
+  }
+
   try {
     const form = document.getElementById('form-inscripcion') || (e ? e.target : null);
     if (!form) return false;
+
+    // Limpiar alertas rojas previas
+    document.querySelectorAll('.campo-faltante-alerta').forEach(el => el.classList.remove('campo-faltante-alerta'));
 
     const btnSubmit = document.getElementById('btn-enviar-preinscripcion');
     const nombreVal = (form.nombre?.value || document.getElementById('fi-nombre')?.value || '').trim();
     const ciVal = (form.ci?.value || document.getElementById('fi-ci')?.value || '').trim();
     let fnacVal = form.fechaNacimiento?.value || document.getElementById('fi-fnac')?.value || '';
     const telVal = (form.telefono?.value || document.getElementById('fi-tel')?.value || '').trim();
-    const comunidadVal = (form.comunidad?.value || document.getElementById('fi-comunidad')?.value || '').trim();
-    const sedeVal = (form.sede?.value || document.getElementById('fi-sede-select')?.value || 'Sede Central (Centro de Chulumani)').trim();
-    const areaVal = form.area?.value || document.getElementById('fi-area')?.value || '';
-    const nivelVal = form.carrera?.value || document.getElementById('fi-nivel')?.value || '';
+    let comunidadVal = (form.comunidad?.value || document.getElementById('fi-comunidad')?.value || '').trim();
 
-    // Auto-detección y formateo robusto de fecha si está en fi-fnac-display
+    const selSede = document.getElementById('fi-sede-select') || form.sede;
+    const txtSedeElem = document.getElementById('fi-sede-text');
+    let sedeVal = (selSede?.value || selSede?.dataset?.selectedValue || '').trim();
+    if (!sedeVal && txtSedeElem && !txtSedeElem.classList.contains('placeholder')) {
+      sedeVal = txtSedeElem.textContent.replace('✓', '').trim();
+    }
+    if (!sedeVal) sedeVal = 'Sede Central (Centro de Chulumani)';
+
+    const selArea = document.getElementById('fi-area') || form.area;
+    const txtAreaElem = document.getElementById('fi-area-text');
+    let areaVal = (selArea?.value || selArea?.dataset?.selectedValue || '').trim();
+    if (!areaVal && txtAreaElem && !txtAreaElem.classList.contains('placeholder')) {
+      const txtA = txtAreaElem.textContent.replace('✓', '').trim().toLowerCase();
+      if (txtA.includes('human')) areaVal = 'humanistica';
+      else if (txtA.includes('téc') || txtA.includes('tec')) areaVal = 'tecnica';
+    }
+
+    const selNivel = document.getElementById('fi-nivel') || form.carrera;
+    const txtNivelElem = document.getElementById('fi-nivel-text');
+    let nivelVal = (selNivel?.value || selNivel?.dataset?.selectedValue || '').trim();
+    const textoNivelVisual = (txtNivelElem && !txtNivelElem.classList.contains('placeholder') && txtNivelElem.textContent)
+      ? txtNivelElem.textContent.replace('✓', '').trim()
+      : '';
+    if (!nivelVal && textoNivelVisual && !textoNivelVisual.toLowerCase().includes('selecciona')) {
+      nivelVal = textoNivelVisual;
+    }
+
+    // Auto-detección y formateo robusto de fecha si está en fi-fnac-display o en estadoCustomDatePicker
     const fnacDisplayVal = (document.getElementById('fi-fnac-display')?.value || '').trim();
     if (!fnacVal && fnacDisplayVal) {
-      const digits = fnacDisplayVal.replace(/[^\d]/g, '');
+      const digits = fnacDisplayVal.replace(/\D/g, '');
       if (digits.length === 8) {
-        const d = digits.substring(0, 2);
-        const m = digits.substring(2, 4);
-        const y = digits.substring(4, 8);
-        fnacVal = `${y}-${m}-${d}`;
-        const hiddenInp = document.getElementById('fi-fnac');
-        if (hiddenInp) hiddenInp.value = fnacVal;
+        fnacVal = `${digits.substring(4, 8)}-${digits.substring(2, 4)}-${digits.substring(0, 2)}`;
       } else if (fnacDisplayVal.includes('-') || fnacDisplayVal.includes('/')) {
-        const parts = fnacDisplayVal.split(/[/\-]/);
+        const parts = fnacDisplayVal.split(/[/\-]/).map(s => s.trim()).filter(Boolean);
         if (parts.length === 3) {
           if (parts[0].length === 4) {
             fnacVal = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
-          } else {
+          } else if (parts[2].length === 4) {
             fnacVal = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
           }
-          const hiddenInp = document.getElementById('fi-fnac');
-          if (hiddenInp) hiddenInp.value = fnacVal;
         }
       }
+      if (fnacVal) {
+        const hiddenInp = document.getElementById('fi-fnac');
+        if (hiddenInp) hiddenInp.value = fnacVal;
+      }
+    }
+    if (!fnacVal && typeof estadoCustomDatePicker === 'object' && estadoCustomDatePicker && estadoCustomDatePicker.dia && estadoCustomDatePicker.mes && estadoCustomDatePicker.anio) {
+      fnacVal = `${estadoCustomDatePicker.anio}-${String(estadoCustomDatePicker.mes).padStart(2, '0')}-${String(estadoCustomDatePicker.dia).padStart(2, '0')}`;
+      const hiddenInp = document.getElementById('fi-fnac');
+      if (hiddenInp) hiddenInp.value = fnacVal;
     }
 
-    const txtNivelElem = document.getElementById('fi-nivel-text');
-    const selNivel = document.getElementById('fi-nivel') || form.carrera;
-    const textoNivel = (txtNivelElem && !txtNivelElem.classList.contains('placeholder') && txtNivelElem.textContent)
-      ? txtNivelElem.textContent.trim()
-      : ((selNivel && selNivel.selectedIndex >= 0 && selNivel.options[selNivel.selectedIndex] && !selNivel.options[selNivel.selectedIndex].value.startsWith('--'))
+    const textoNivel = textoNivelVisual ||
+      ((selNivel && selNivel.selectedIndex >= 0 && selNivel.options[selNivel.selectedIndex] && !selNivel.options[selNivel.selectedIndex].value.startsWith('--'))
         ? selNivel.options[selNivel.selectedIndex].text
-        : (nivelVal || ''));
+        : (selNivel?.dataset?.selectedText || nivelVal || ''));
 
-    // Validaciones de campos obligatorios con ventana emergente interactiva
+    // Validaciones estrictas con marcado visual en el campo exacto
     if (!nombreVal) {
+      const el = document.getElementById('fi-nombre');
+      if (el) { el.classList.add('campo-faltante-alerta'); el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       mostrarVentanaDatoFaltante('Nombre completo', 'fi-nombre');
       return false;
     }
 
     if (!ciVal) {
+      const el = document.getElementById('fi-ci');
+      if (el) { el.classList.add('campo-faltante-alerta'); el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       mostrarVentanaDatoFaltante('Cédula de Identidad (CI)', 'fi-ci');
       return false;
     }
 
     if (!fnacVal) {
+      const el = document.getElementById('fi-fnac-display');
+      if (el) { el.classList.add('campo-faltante-alerta'); el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       mostrarVentanaDatoFaltante('Fecha de Nacimiento', 'fi-fnac-display');
       if (typeof abrirCustomDatePicker === 'function') abrirCustomDatePicker();
       return false;
     }
 
     if (!telVal) {
+      const el = document.getElementById('fi-tel');
+      if (el) { el.classList.add('campo-faltante-alerta'); el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       mostrarVentanaDatoFaltante('Teléfono / WhatsApp', 'fi-tel');
       return false;
     }
 
     if (!areaVal) {
+      const el = document.getElementById('fi-area-trigger');
+      if (el) { el.classList.add('campo-faltante-alerta'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       mostrarVentanaDatoFaltante('Área de interés', 'fi-area-trigger');
       if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('area');
       return false;
     }
 
     if (!nivelVal) {
+      const el = document.getElementById('fi-nivel-trigger');
+      if (el) { el.classList.add('campo-faltante-alerta'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       mostrarVentanaDatoFaltante('Nivel o Carrera técnica', 'fi-nivel-trigger');
       if (typeof toggleDropdownSelect === 'function') toggleDropdownSelect('nivel');
       return false;
     }
 
     if (!comunidadVal) {
-      mostrarVentanaDatoFaltante('¿De dónde vienes? (Comunidad)', 'fi-comunidad');
-      return false;
+      comunidadVal = 'Chulumani (Sede Central)';
+      const elCom = document.getElementById('fi-comunidad');
+      if (elCom) elCom.value = comunidadVal;
     }
 
-    // Feedback visual inmediato en el botón
+    // Feedback visual inmediato en el botón de envío
     if (btnSubmit) {
       btnSubmit.disabled = true;
       btnSubmit.style.opacity = '0.75';
@@ -9281,6 +9752,8 @@ function manejarFormInscripcionOptimizado(e) {
       fechaRegistro: new Date().toISOString()
     };
 
+    window._lockEnvioPreinscripcionTimestamp = Date.now();
+
     // 1. Guardar localmente de forma instantánea
     const ins = typeof lsGet === 'function' ? lsGet('cea_inscripciones', []) : [];
     ins.unshift({ ...data, fecha: new Date().toLocaleString() });
@@ -9292,21 +9765,28 @@ function manejarFormInscripcionOptimizado(e) {
       try { actualizarEstadisticasAdmin(); } catch (eEst) { console.warn(eEst); }
     }
 
-    // 2. Guardar registro en variable global y pre-generar automáticamente el PDF
+    // 2. Guardar registro en variable global (la pre-generación pesada del PDF se difiere para NO congelar los 60fps de la animación de confeti)
     window._ultimoRegistroInscripcion = data;
-    if (typeof window.pregenerarComprobantePDF === 'function') {
-      try { window.pregenerarComprobantePDF(data); } catch (ePdf) { console.warn(ePdf); }
-    }
+    setTimeout(() => {
+      if (typeof window.pregenerarComprobantePDF === 'function') {
+        try { window.pregenerarComprobantePDF(data); } catch (ePdf) { console.warn(ePdf); }
+      }
+    }, 3800);
 
     const habilitarPdf = typeof lsGet === 'function' ? lsGet('cea_cfg_pdf', true) : true;
     const habilitarWp = typeof lsGet === 'function' ? lsGet('cea_cfg_whatsapp', true) : true;
 
-    // Celebración con animación de check y mixtura (confeti)
+    // 3. Celebración con animación de confeti
     if (typeof window.lanzarCelebracionPreinscripcion === 'function') {
       try { window.lanzarCelebracionPreinscripcion(); } catch (eCel) { console.warn(eCel); }
     }
 
-    // 3. Renderizar y mostrar el comprobante / voucher INMEDIATAMENTE
+    // 4. MOSTRAR EL MODAL DE ÉXITO DIRECTO E INMEDIATO EN LA PANTALLA
+    if (typeof mostrarModalExitoPreinscripcionDirecto === 'function') {
+      mostrarModalExitoPreinscripcionDirecto(data);
+    }
+
+    // 5. Renderizar y mostrar el comprobante / voucher INMEDIATAMENTE
     const voucherWrap = document.getElementById('resultado-inscripcion-voucher');
     if (voucherWrap) {
       let extraBtns = '';
@@ -9380,13 +9860,6 @@ function manejarFormInscripcionOptimizado(e) {
       mostrarMsg('form-msg', '¡Pre-inscripción registrada con éxito! Descarga tu Ficha Oficial en PDF abajo.', 'success');
     }
 
-    form.reset();
-    const contExcep = document.getElementById('fi-caso-excepcional-container');
-    if (contExcep) contExcep.style.display = 'none';
-    const avisoOkExcep = document.getElementById('fi-excepcion-aviso-ok');
-    if (avisoOkExcep) avisoOkExcep.style.display = 'none';
-    if (typeof validarEdadInscripcionLive === 'function') validarEdadInscripcionLive();
-
     if (btnSubmit) {
       btnSubmit.disabled = false;
       btnSubmit.style.opacity = '1';
@@ -9447,7 +9920,7 @@ function arreglarListaCarrerasTecnicasPunto() {
 }
 
 /* ─── DOCUMENTOS INSTITUCIONALES DINÁMICOS ─── */
-const DOCUMENTOS_DEFAULT_LIST = [
+var DOCUMENTOS_DEFAULT_LIST = [
   {
     id: 'doc-reglamento',
     key: 'reglamento',
@@ -9473,42 +9946,60 @@ const DOCUMENTOS_DEFAULT_LIST = [
 
 function esSesionDirectorActiva() {
   const session = typeof lsGet === 'function' ? lsGet('cea_session', null) : null;
-  return Boolean(session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.loggedIn === true));
+  if (session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.loggedIn === true || session.token)) {
+    return true;
+  }
+  const liveBar = document.getElementById('directorLiveBar');
+  if (liveBar && liveBar.style.display && liveBar.style.display !== 'none') return true;
+  const panelAdmin = document.getElementById('admin-panel') || document.getElementById('admin-content');
+  if (panelAdmin && panelAdmin.style.display && panelAdmin.style.display !== 'none') return true;
+  return false;
 }
 
 function obtenerDocumentosDinamicos() {
   const saved = typeof lsGet === 'function' ? lsGet('cea_documentos_dinamicos', null) : null;
-  let docs = [];
-  if (saved && Array.isArray(saved) && saved.length > 0) {
-    docs = saved.filter(d => !d.esContacto).map((d, i) => ({
-      ...d,
-      id: d.id || d.key || ('doc-item-' + i),
-      key: d.key || d.id || ('doc-item-' + i),
-      titulo: d.titulo || 'Documento Institucional',
-      desc: d.desc || d.descripcion || '',
-      descripcion: d.descripcion || d.desc || '',
-      url: d.url || d.enlace || '#',
-      enlace: d.enlace || d.url || '#'
-    }));
+  const editadoPorDirector = typeof lsGet === 'function' ? lsGet('cea_documentos_editados_director', false) : false;
+  const driveData = typeof lsGet === 'function' ? lsGet('cea_drive', {}) : {};
+
+  // Si el Director ya editó, quitó o añadió documentos (o existen en almacenamiento), respetar su lista exacta
+  if (saved && Array.isArray(saved) && (editadoPorDirector || saved.length > 0)) {
+    return saved.filter(d => !d.esContacto).map((d, i) => {
+      const id = d.id || d.key || ('doc-item-' + i);
+      const key = d.key || d.id || ('doc-item-' + i);
+      let url = d.url || d.enlace || '#';
+      if ((!url || url === '#') && (id === 'doc-reglamento' || key === 'reglamento') && driveData.reglamento && driveData.reglamento !== '#') {
+        url = driveData.reglamento;
+      } else if ((!url || url === '#') && (id === 'doc-mallas' || key === 'mallas') && driveData.mallas && driveData.mallas !== '#') {
+        url = driveData.mallas;
+      } else if ((!url || url === '#') && (id === 'doc-graduacion' || key === 'graduacion') && driveData.formulario && driveData.formulario !== '#') {
+        url = driveData.formulario;
+      }
+      return {
+        ...d,
+        id,
+        key,
+        titulo: d.titulo || 'Documento Institucional',
+        desc: d.desc || d.descripcion || '',
+        descripcion: d.descripcion || d.desc || '',
+        url,
+        enlace: url
+      };
+    });
   }
 
-  // Garantizar siempre los 3 documentos oficiales por defecto en la página de inicio
-  DOCUMENTOS_DEFAULT_LIST.forEach(defDoc => {
-    const existe = docs.some(d =>
-      d.id === defDoc.id ||
-      d.key === defDoc.id ||
-      d.key === defDoc.key ||
-      (d.titulo && defDoc.titulo && d.titulo.toLowerCase().trim() === defDoc.titulo.toLowerCase().trim()) ||
-      (defDoc.id === 'doc-reglamento' && (d.id === 'reglamento' || (d.titulo || '').toLowerCase().includes('reglamento'))) ||
-      (defDoc.id === 'doc-graduacion' && (d.id === 'graduacion' || (d.titulo || '').toLowerCase().includes('graduación') || (d.titulo || '').toLowerCase().includes('graduacion'))) ||
-      (defDoc.id === 'doc-mallas' && (d.id === 'mallas' || (d.titulo || '').toLowerCase().includes('malla') || (d.titulo || '').toLowerCase().includes('curricular')))
-    );
-    if (!existe) {
-      docs.push({ ...defDoc });
-    }
+  // Si nunca fue editado, mostrar los 3 documentos oficiales por defecto
+  return DOCUMENTOS_DEFAULT_LIST.map(defDoc => {
+    let url = defDoc.url || '#';
+    if (defDoc.key === 'reglamento' && driveData.reglamento && driveData.reglamento !== '#') url = driveData.reglamento;
+    if (defDoc.key === 'mallas' && driveData.mallas && driveData.mallas !== '#') url = driveData.mallas;
+    if (defDoc.key === 'graduacion' && driveData.formulario && driveData.formulario !== '#') url = driveData.formulario;
+    return {
+      ...defDoc,
+      descripcion: defDoc.desc,
+      url,
+      enlace: url
+    };
   });
-
-  return docs;
 }
 
 function guardarDocumentosDinamicos(lista) {
@@ -9522,9 +10013,42 @@ function guardarDocumentosDinamicos(lista) {
     url: d.url || d.enlace || '#',
     enlace: d.enlace || d.url || '#'
   }));
-  if (typeof lsSet === 'function') lsSet('cea_documentos_dinamicos', listaLimpia);
+
+  if (typeof lsSet === 'function') {
+    lsSet('cea_documentos_dinamicos', listaLimpia);
+    lsSet('cea_documentos_editados_director', true);
+  }
+
+  // Sincronizar también cea_drive con los enlaces principales
+  const driveObj = typeof lsGet === 'function' ? lsGet('cea_drive', {}) : {};
+  listaLimpia.forEach(d => {
+    const tLow = (d.titulo || '').toLowerCase();
+    if (d.id === 'doc-reglamento' || d.key === 'reglamento' || tLow.includes('reglamento')) driveObj.reglamento = d.url;
+    if (d.id === 'doc-mallas' || d.key === 'mallas' || tLow.includes('malla')) driveObj.mallas = d.url;
+    if (d.id === 'doc-graduacion' || d.key === 'graduacion' || tLow.includes('graduación') || tLow.includes('graduacion')) driveObj.formulario = d.url;
+  });
+  if (typeof lsSet === 'function') lsSet('cea_drive', driveObj);
+
   renderDocumentosDinamicos();
+  if (typeof cargarDocumentosOficialesAdmin === 'function') {
+    try { cargarDocumentosOficialesAdmin(); } catch (eAdm) {}
+  }
+
   if (typeof enviarGoogleSheet === 'function') {
+    // 1. Guardar en Director_y_Textos (soportado por cualquier versión de Google Apps Script)
+    enviarGoogleSheet({
+      action: 'guardar-contenido-vivo',
+      key: 'documentos_oficiales_dinamicos_json',
+      valor: JSON.stringify(listaLimpia)
+    }).catch(err => console.warn('Sync documentos JSON error:', err));
+
+    // 2. Guardar enlaces drive principales
+    enviarGoogleSheet({
+      action: 'guardar-drive',
+      ...driveObj
+    }).catch(err => console.warn('Sync drive error:', err));
+
+    // 3. Guardar lista dinámica
     enviarGoogleSheet({
       action: 'guardar-documentos-dinamicos',
       documentos: listaLimpia
@@ -9532,12 +10056,34 @@ function guardarDocumentosDinamicos(lista) {
   }
 }
 
+async function restaurarDocumentosPorDefectoInicio() {
+  if (!esSesionDirectorActiva()) return;
+  const driveData = typeof lsGet === 'function' ? lsGet('cea_drive', {}) : {};
+  const restaurados = DOCUMENTOS_DEFAULT_LIST.map(defDoc => {
+    let url = '#';
+    if (defDoc.key === 'reglamento' && driveData.reglamento && driveData.reglamento !== '#') url = driveData.reglamento;
+    if (defDoc.key === 'mallas' && driveData.mallas && driveData.mallas !== '#') url = driveData.mallas;
+    if (defDoc.key === 'graduacion' && driveData.formulario && driveData.formulario !== '#') url = driveData.formulario;
+    return {
+      ...defDoc,
+      descripcion: defDoc.desc,
+      url,
+      enlace: url
+    };
+  });
+  guardarDocumentosDinamicos(restaurados);
+  if (typeof mostrarAlertaModal === 'function') {
+    mostrarAlertaModal('Se han restaurado los 3 documentos institucionales por defecto en el Inicio.', 'Documentos Restaurados', 'success');
+  }
+}
+window.restaurarDocumentosPorDefectoInicio = restaurarDocumentosPorDefectoInicio;
+
 function renderDocumentosDinamicos() {
   const cont = document.getElementById('contenedor-documentos-dinamicos');
   if (!cont) return;
 
   const docs = obtenerDocumentosDinamicos().filter(d => !d.esContacto);
-  const isDirector = esSesionDirectorActiva() && (typeof estadoLapicesDirectosVisibles === 'undefined' || estadoLapicesDirectosVisibles);
+  const isDirector = esSesionDirectorActiva();
 
   const adminBar = document.getElementById('doc-admin-bar-public');
   if (adminBar) {
@@ -9551,41 +10097,61 @@ function renderDocumentosDinamicos() {
 
   const driveData = typeof lsGet === 'function' ? lsGet('cea_drive', {}) : {};
 
+  if (docs.length === 0) {
+    cont.innerHTML = isDirector ? `
+      <div style="grid-column: 1 / -1; text-align:center; padding: 24px; background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; color:#475569;">
+        <p style="margin:0 0 12px 0; font-weight:700;">No hay documentos visibles en el Inicio.</p>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+          <button type="button" onclick="abrirModalAgregarDocumentoDinamico()" class="btn btn-primary btn-sm">+ Añadir Documento</button>
+          <button type="button" onclick="restaurarDocumentosPorDefectoInicio()" class="btn btn-outline btn-sm">↺ Restaurar los 3 por Defecto</button>
+        </div>
+      </div>
+    ` : '';
+    return;
+  }
+
   cont.innerHTML = docs.map((d) => {
     let finalUrl = d.url || d.enlace || '#';
-    if (d.id === 'doc-reglamento' && driveData.reglamento && driveData.reglamento !== '#') {
+    if ((!finalUrl || finalUrl === '#') && (d.id === 'doc-reglamento' || d.key === 'reglamento') && driveData.reglamento && driveData.reglamento !== '#') {
       finalUrl = driveData.reglamento;
+    } else if ((!finalUrl || finalUrl === '#') && (d.id === 'doc-mallas' || d.key === 'mallas') && driveData.mallas && driveData.mallas !== '#') {
+      finalUrl = driveData.mallas;
+    } else if ((!finalUrl || finalUrl === '#') && (d.id === 'doc-graduacion' || d.key === 'graduacion') && driveData.formulario && driveData.formulario !== '#') {
+      finalUrl = driveData.formulario;
     }
 
     const escT = typeof escapeHTML === 'function' ? escapeHTML(d.titulo || '') : (d.titulo || '');
     const descTxt = d.desc || d.descripcion || '';
     const escD = typeof escapeHTML === 'function' ? escapeHTML(descTxt) : descTxt;
     const escU = typeof escapeHTML === 'function' ? escapeHTML(finalUrl) : finalUrl;
+    const esNoLink = (!escU || escU === '#');
 
     return `
-      <div style="background:var(--bg-card, #ffffff); border:1.5px solid var(--border-col, #e2e8f0); border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; justify-content:space-between; transition:all 0.2s ease; position:relative; box-shadow:0 3px 10px rgba(0,0,0,0.04);">
+      <div class="doc-card-estatico" style="background:var(--bg-card, #ffffff); border:1.5px solid var(--border-col, #e2e8f0); border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; justify-content:space-between; transition:all 0.2s ease; position:relative; box-shadow:0 3px 10px rgba(0,0,0,0.04);">
         ${isDirector ? `
-          <div style="position:absolute; top:8px; right:8px; display:flex; gap:6px; z-index:3; align-items:center;">
-            <button type="button" class="inline-edit-pencil-btn" onclick="abrirModalEditarDocumentoDinamico('${d.id}')" style="display:inline-flex !important; position:static !important; width:30px; height:30px; min-width:30px; border-radius:50%; background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color:#ffffff !important; border:1.5px solid #93c5fd !important; box-shadow:0 2px 8px rgba(37,99,235,0.4) !important; cursor:pointer; align-items:center; justify-content:center; transition:all 0.2s ease;" title="Editar documento: ${escT}">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <div style="display:flex; justify-content:flex-end; gap:6px; margin-bottom:10px; padding-bottom:8px; border-bottom:1px dashed #e2e8f0;">
+            <button type="button" onclick="abrirModalEditarDocumentoDinamico('${d.id}')" style="display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:7px; background:#2563eb; color:#ffffff; border:none; font-size:0.76rem; font-weight:700; cursor:pointer; box-shadow:0 2px 6px rgba(37,99,235,0.28);" title="Editar título, descripción o enlace PDF">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Editar
             </button>
-            <button type="button" onclick="eliminarDocumentoDinamico('${d.id}')" style="background:#ef4444; color:#fff; border:none; border-radius:50%; width:30px; height:30px; min-width:30px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 6px rgba(239,68,68,0.3); transition:all 0.2s ease;" title="Eliminar documento">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <button type="button" onclick="eliminarDocumentoDinamico('${d.id}')" style="display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:7px; background:#ef4444; color:#ffffff; border:none; font-size:0.76rem; font-weight:700; cursor:pointer; box-shadow:0 2px 6px rgba(239,68,68,0.28);" title="Quitar este documento del Inicio">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Quitar
             </button>
           </div>
         ` : ''}
         <div>
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-            <div style="width:34px; height:34px; min-width:34px; border-radius:50%; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); border:1.5px solid #86efac; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 2px 6px rgba(6,60,23,0.25);">
+            <div style="width:36px; height:36px; min-width:36px; border-radius:50%; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); border:1.5px solid #86efac; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 2px 6px rgba(6,60,23,0.25);">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
-            <h4 style="margin:0; font-size:0.98rem; font-weight:850; color:var(--text-main, #0f172a); line-height:1.25; padding-right:${isDirector ? '60px' : '0'}">${escT}</h4>
+            <h4 style="margin:0; font-size:1rem; font-weight:800; color:var(--text-main, #0f172a); line-height:1.25;">${escT}</h4>
           </div>
-          <p style="margin:0 0 12px 0; font-size:0.84rem; color:var(--text-sec, #64748b); line-height:1.38;">${escD}</p>
+          <p style="margin:0 0 14px 0; font-size:0.85rem; color:var(--text-sec, #64748b); line-height:1.4;">${escD}</p>
         </div>
-        <a href="${escU}" target="_blank" rel="noopener" style="width:100%; text-align:center; padding:9px 16px; font-size:0.85rem; font-weight:800; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:7px; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); color:#ffffff; border:1px solid #16a34a; text-decoration:none; box-shadow:0 3px 8px rgba(6,60,23,0.22); transition:all 0.2s ease;">
+        <a href="${escU}" target="_blank" rel="noopener" ${esNoLink ? `onclick="event.preventDefault(); if (esSesionDirectorActiva()) { abrirModalEditarDocumentoDinamico('${d.id}'); } else if (typeof mostrarAlertaModal === 'function') { mostrarAlertaModal('El enlace oficial a este documento será publicado próximamente o puedes solicitarlo en Dirección.', 'Documento Oficial CEA', 'info'); }"` : ''} style="width:100%; text-align:center; padding:10px 16px; font-size:0.86rem; font-weight:800; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:7px; background:linear-gradient(135deg, #0c5825 0%, #063c17 100%); color:#ffffff; border:1px solid #16a34a; text-decoration:none; box-shadow:0 3px 8px rgba(6,60,23,0.22); transition:all 0.2s ease;">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Descargar Documento (PDF)
+          ${esNoLink && isDirector ? 'Configurar Enlace / Editar PDF' : 'Descargar Documento (PDF)'}
         </a>
       </div>`;
   }).join('');
@@ -9649,14 +10215,8 @@ function guardarDocumentoDinamicoModal(e) {
   let desc = (document.getElementById('modal-inp-doc-desc')?.value || '').trim();
   let url = (document.getElementById('modal-inp-doc-url')?.value || '').trim();
 
-  // Si el usuario solo pegó el enlace, auto-asignar título y descripción si están vacíos
   if (!url) {
-    if (typeof mostrarAlertaModal === 'function') {
-      mostrarAlertaModal('Por favor ingresa o pega el enlace del documento (Google Drive, enlace PDF o web).', 'Enlace Requerido', 'warning');
-    } else {
-      alert('Por favor ingresa o pega el enlace del documento.');
-    }
-    return;
+    url = '#';
   }
 
   if (!titulo) {
@@ -9682,18 +10242,10 @@ function guardarDocumentoDinamicoModal(e) {
     docs.push(newDoc);
   }
 
-  // Actualizar también en cea_drive si corresponde
-  try {
-    const d = typeof lsGet === 'function' ? lsGet('cea_drive', {}) : {};
-    if (id === 'doc-reglamento' || id === 'reglamento' || titulo.toLowerCase().includes('reglamento')) d.reglamento = url;
-    if (id === 'doc-mallas' || id === 'mallas' || titulo.toLowerCase().includes('malla')) d.mallas = url;
-    if (typeof lsSet === 'function') lsSet('cea_drive', d);
-  } catch (eDrv) {}
-
   guardarDocumentosDinamicos(docs);
   cerrarModalDocumentoDinamico();
   if (typeof mostrarAlertaModal === 'function') {
-    mostrarAlertaModal('¡Documento guardado y actualizado con éxito!', 'Documento Guardado', 'success');
+    mostrarAlertaModal('¡Documento guardado y actualizado en el Inicio con éxito!', 'Documento Guardado', 'success');
   }
 }
 
@@ -9702,20 +10254,13 @@ async function eliminarDocumentoDinamico(id) {
 
   let conf = false;
   if (typeof mostrarConfirmModal === 'function') {
-    conf = await mostrarConfirmModal('¿Estás seguro de eliminar este documento de la lista pública?', 'Eliminar Documento', 'Eliminar', true);
-  } else if (typeof mostrarConfirmacionModal === 'function') {
-    mostrarConfirmacionModal('¿Estás seguro de eliminar este documento de la lista pública?', 'Eliminar Documento', (c) => {
-      if (c) {
-        let docs = obtenerDocumentosDinamicos();
-        docs = docs.filter(item => item.id !== id);
-        guardarDocumentosDinamicos(docs);
-      }
-    });
-    return;
+    conf = await mostrarConfirmModal('¿Estás seguro de quitar este documento de la página de Inicio?', 'Quitar Documento', 'Sí, Quitar', true);
+  } else {
+    conf = window.confirm('¿Estás seguro de quitar este documento de la página de Inicio?');
   }
   if (conf) {
     let docs = obtenerDocumentosDinamicos();
-    docs = docs.filter(item => item.id !== id);
+    docs = docs.filter(item => item.id !== id && item.key !== id);
     guardarDocumentosDinamicos(docs);
   }
 }
@@ -9792,6 +10337,7 @@ function inicializarScrollSpyNavegacion() {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     vincularFormularioInscripcionOptimizado();
+    inicializarIndicadoresCamposLlenos();
     arreglarListaCarrerasTecnicasPunto();
     renderDocumentosDinamicos();
     renderizarBarraSedesHorarios();
@@ -9799,6 +10345,7 @@ if (document.readyState === 'loading') {
   });
 } else {
   vincularFormularioInscripcionOptimizado();
+  inicializarIndicadoresCamposLlenos();
   arreglarListaCarrerasTecnicasPunto();
   renderDocumentosDinamicos();
   renderizarBarraSedesHorarios();
@@ -9807,6 +10354,186 @@ if (document.readyState === 'loading') {
 setInterval(arreglarListaCarrerasTecnicasPunto, 1000);
 
 window.manejarFormInscripcion = manejarFormInscripcionOptimizado;
+
+/* ─── SISTEMA DE RETROALIMENTACIÓN VISUAL EN FORMULARIO DE PRE-INSCRIPCIÓN ─── */
+function marcarCampoVisualLleno(elementoId, labelId, estaLleno) {
+  const el = document.getElementById(elementoId);
+  const lbl = document.getElementById(labelId);
+  if (el) {
+    el.classList.toggle('input-completado-ok', Boolean(estaLleno));
+    if (estaLleno) el.classList.remove('campo-faltante-alerta');
+  }
+  if (lbl) {
+    let badge = lbl.querySelector('.badge-completado-ok');
+    if (estaLleno) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'badge-completado-ok';
+        badge.textContent = '✓ Lleno';
+        lbl.appendChild(badge);
+      }
+    } else {
+      if (badge) badge.remove();
+    }
+  }
+}
+
+function inicializarIndicadoresCamposLlenos() {
+  const campos = [
+    { id: 'fi-nombre', lbl: 'lbl-fi-nombre' },
+    { id: 'fi-ci', lbl: 'lbl-fi-ci' },
+    { id: 'fi-fnac-display', lbl: 'lbl-fi-fnac' },
+    { id: 'fi-tel', lbl: 'lbl-fi-tel' },
+    { id: 'fi-comunidad', lbl: 'lbl-fi-comunidad' }
+  ];
+
+  campos.forEach(c => {
+    const el = document.getElementById(c.id);
+    if (el) {
+      const fnActualizar = () => {
+        const lleno = Boolean((el.value || '').trim());
+        marcarCampoVisualLleno(c.id, c.lbl, lleno);
+      };
+      el.addEventListener('input', fnActualizar);
+      el.addEventListener('change', fnActualizar);
+      el.addEventListener('blur', fnActualizar);
+      fnActualizar();
+    }
+  });
+
+  // Manejo de tecla Enter / Siguiente en teclado de celular
+  const inputsOrden = ['fi-nombre', 'fi-ci', 'fi-fnac-display', 'fi-tel'];
+  inputsOrden.forEach((inpId, i) => {
+    const el = document.getElementById(inpId);
+    if (el) {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (i < inputsOrden.length - 1) {
+            const nextEl = document.getElementById(inputsOrden[i + 1]);
+            if (nextEl) nextEl.focus();
+          } else {
+            // Último input de datos personales: abrir selección de área
+            const areaTrigger = document.getElementById('fi-area-trigger');
+            if (areaTrigger) {
+              areaTrigger.focus();
+              toggleDropdownSelect('area');
+            }
+          }
+        }
+      });
+    }
+  });
+
+  actualizarEstadoVisualSelects();
+}
+
+function actualizarEstadoVisualSelects() {
+  const selArea = document.getElementById('fi-area');
+  const trigArea = document.getElementById('fi-area-trigger');
+  const lblArea = document.getElementById('lbl-fi-area');
+  if (selArea && trigArea) {
+    const tieneArea = Boolean(selArea.value || selArea.dataset.selectedValue);
+    trigArea.classList.toggle('trigger-completado-ok', tieneArea);
+    if (lblArea) {
+      let badge = lblArea.querySelector('.badge-completado-ok');
+      if (tieneArea) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'badge-completado-ok';
+          badge.textContent = '✓ Lleno';
+          lblArea.appendChild(badge);
+        }
+      } else if (badge) {
+        badge.remove();
+      }
+    }
+  }
+
+  const selNivel = document.getElementById('fi-nivel');
+  const trigNivel = document.getElementById('fi-nivel-trigger');
+  const lblNivel = document.getElementById('lbl-fi-nivel');
+  if (selNivel && trigNivel) {
+    const tieneNivel = Boolean(selNivel.value || selNivel.dataset.selectedValue);
+    trigNivel.classList.toggle('trigger-completado-ok', tieneNivel);
+    if (lblNivel) {
+      let badge = lblNivel.querySelector('.badge-completado-ok');
+      if (tieneNivel) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'badge-completado-ok';
+          badge.textContent = '✓ Lleno';
+          lblNivel.appendChild(badge);
+        }
+      } else if (badge) {
+        badge.remove();
+      }
+    }
+  }
+
+  const selSede = document.getElementById('fi-sede-select');
+  const trigSede = document.getElementById('fi-sede-trigger');
+  const lblSede = document.getElementById('lbl-fi-sede');
+  if (selSede && trigSede) {
+    const tieneSede = Boolean(selSede.value || selSede.dataset.selectedValue);
+    trigSede.classList.toggle('trigger-completado-ok', tieneSede);
+    if (lblSede) {
+      let badge = lblSede.querySelector('.badge-completado-ok');
+      if (tieneSede) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'badge-completado-ok';
+          badge.textContent = '✓ Lleno';
+          lblSede.appendChild(badge);
+        }
+      } else if (badge) {
+        badge.remove();
+      }
+    }
+  }
+}
+
+function mostrarModalExitoPreinscripcionDirecto(data) {
+  // La ventana emergente solo debe mostrarse en dispositivos móviles
+  if (!esDispositivoMovilCEA()) return;
+
+  const modal = document.getElementById('modal-exito-preinscripcion-directa');
+  const resumen = document.getElementById('modal-exito-datos-resumen');
+  if (!modal || !resumen) return;
+
+  const esc = (s) => (typeof escapeHTML === 'function' ? escapeHTML(s || '') : (s || ''));
+  resumen.innerHTML = `
+    <div style="margin-bottom:8px;">
+      <strong style="color:#14532d;">Postulante:</strong> ${esc(data.nombre)}<br>
+      <strong style="color:#14532d;">Cédula de Identidad:</strong> ${esc(data.ci)} | <strong style="color:#14532d;">Edad:</strong> ${data.edad ? `${data.edad} años` : '—'}<br>
+      <strong style="color:#14532d;">Área / Carrera:</strong> ${esc(data.carrera)}<br>
+      <strong style="color:#14532d;">Sede Oficial:</strong> ${esc(data.sede)}<br>
+      <strong style="color:#14532d;">Semestre Asignado:</strong> <span style="background:#15803d;color:#fff;font-weight:800;padding:2px 8px;border-radius:6px;font-size:0.80rem;">${esc(data.semestre)} (${data.gestion})</span>
+    </div>
+    <div style="font-size:0.82rem;color:#166534;background:#f0fdf4;padding:8px 12px;border-radius:8px;border:1px solid #86efac;">
+      ✓ Tu matrícula ha quedado formalmente registrada. Ya puedes descargar tu <strong>Ficha Oficial en PDF</strong> con tu código QR oficial.
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+}
+
+function cerrarModalExitoPreinscripcion() {
+  const modal = document.getElementById('modal-exito-preinscripcion-directa');
+  if (modal) modal.style.display = 'none';
+
+  const voucherWrap = document.getElementById('resultado-inscripcion-voucher');
+  if (voucherWrap) {
+    voucherWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// Vincular funciones globalmente
+window.inicializarIndicadoresCamposLlenos = inicializarIndicadoresCamposLlenos;
+window.actualizarEstadoVisualSelects = actualizarEstadoVisualSelects;
+window.mostrarModalExitoPreinscripcionDirecto = mostrarModalExitoPreinscripcionDirecto;
+window.cerrarModalExitoPreinscripcion = cerrarModalExitoPreinscripcion;
+
 window.ejecutarAccionEnviarPreInscripcion = ejecutarAccionEnviarPreInscripcion;
 window.renderDocumentosDinamicos = renderDocumentosDinamicos;
 window.abrirModalAgregarDocumentoDinamico = abrirModalAgregarDocumentoDinamico;
@@ -9828,7 +10555,7 @@ window.ejecutarEliminacionInscripciones = ejecutarEliminacionInscripciones;
 <script src="kardex-diseno2.js?v=2026.1"></script>
 <script src="print-kardex.js?v=2026.66"></script>
 <script src="qrcode.min.js"></script>
-<script src="print-comprobante.js?v=2026.277"></script>
+<script src="print-comprobante.js?v=2026.310"></script>
 <script src="print-estadisticas.js?v=2026.248"></script>
 <script src="print-reporte.js?v=2026.244"></script>
 <script src="print-preinscripciones.js?v=2026.244"></script>
