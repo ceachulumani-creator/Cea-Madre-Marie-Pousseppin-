@@ -3237,6 +3237,71 @@
       margin-top: 4px;
     }
 
+    /* Estilos del Selector y Zona de Carga de Archivos */
+    .drag-drop-zone {
+      border: 2.5px dashed var(--verde, #16a34a) !important;
+      border-radius: 10px !important;
+      padding: 22px 16px !important;
+      background: var(--verde-light, #f0fdf4) !important;
+      text-align: center !important;
+      cursor: pointer !important;
+      transition: all 0.25s ease !important;
+      box-sizing: border-box !important;
+    }
+    .drag-drop-zone:hover {
+      border-color: var(--verde-dark, #15803d) !important;
+      background: rgba(22, 163, 74, 0.12) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    /* Botones de acción de fotografía compactos y proporcionados */
+    .photo-director-overlay {
+      position: absolute !important;
+      top: 8px !important;
+      right: 8px !important;
+      display: inline-flex !important;
+      gap: 6px !important;
+      z-index: 10 !important;
+      background: rgba(15, 23, 42, 0.85) !important;
+      backdrop-filter: blur(6px) !important;
+      padding: 4px 6px !important;
+      border-radius: 8px !important;
+      border: 1px solid rgba(255, 255, 255, 0.25) !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    }
+    .btn-photo-action {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 5px !important;
+      font-size: 0.74rem !important;
+      font-weight: 700 !important;
+      padding: 4px 9px !important;
+      height: 28px !important;
+      line-height: 1 !important;
+      border-radius: 6px !important;
+      border: none !important;
+      cursor: pointer !important;
+      transition: all 0.2s ease !important;
+      white-space: nowrap !important;
+    }
+    .btn-photo-action.btn-photo-upload {
+      background: var(--verde, #16a34a) !important;
+      color: #ffffff !important;
+    }
+    .btn-photo-action.btn-photo-upload:hover {
+      background: var(--verde-dark, #15803d) !important;
+      transform: translateY(-1px) !important;
+    }
+    .btn-photo-action.btn-photo-delete {
+      background: #dc2626 !important;
+      color: #ffffff !important;
+    }
+    .btn-photo-action.btn-photo-delete:hover {
+      background: #b91c1c !important;
+      transform: translateY(-1px) !important;
+    }
+
   </style>
   <link rel="stylesheet" href="print-horario.css?v=2026.190" />
   <link rel="stylesheet" href="print-kardex.css?v=2026.66" />
@@ -6126,13 +6191,13 @@
                 + Nuevo Docente Área Técnica
               </button>
               <!-- Switch y Botón interactivo de Mostrar Contraseñas -->
-              <div id="btn-toggle-mostrar-pass-wrapper" onclick="toggleMostrarContrasenasDocentes()" style="display:inline-flex;align-items:center;gap:10px;padding:7px 16px;background:var(--bg-body);border:1.5px solid var(--verde);border-radius:8px;cursor:pointer;user-select:none;box-shadow:0 1px 3px rgba(0,0,0,0.06);transition:all 0.2s" title="Haga clic aquí para mostrar u ocultar todas las contraseñas">
+              <div id="btn-toggle-mostrar-pass-wrapper" onclick="toggleMostrarContrasenasDocentes(null, event)" style="display:inline-flex;align-items:center;gap:10px;padding:7px 16px;background:var(--bg-body);border:1.5px solid var(--verde);border-radius:8px;cursor:pointer;user-select:none;box-shadow:0 1px 3px rgba(0,0,0,0.06);transition:all 0.2s" title="Haga clic aquí para mostrar u ocultar todas las contraseñas">
                 <span id="icono-ojo-pass" style="display:inline-flex;align-items:center;color:var(--verde-dark)">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </span>
                 <span id="texto-ojo-pass" style="font-size:0.86rem;font-weight:800;color:var(--text-main)">Mostrar Contraseñas</span>
                 <label class="toggle-unificada-switch" style="cursor:pointer;margin:0;pointer-events:none" title="Estado de visibilidad">
-                  <input type="checkbox" id="switch-mostrar-pass-docentes" />
+                  <input type="checkbox" id="switch-mostrar-pass-docentes" tabindex="-1" />
                   <span class="switch-slider-track"><span class="switch-slider-thumb"></span></span>
                 </label>
               </div>
@@ -6215,19 +6280,19 @@
             <div class="form-grid" style="grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:14px;margin-bottom:16px">
               <div class="form-group">
                 <label style="font-weight:700;display:block;margin-bottom:6px">Nombre del Director(a) *</label>
-                <input type="text" id="adm-director-nombre" placeholder="Ej: Lic. José Luis Alanoca Mamani" style="width:100%;padding:9px 12px;border:2px solid var(--border-col);border-radius:8px;background:var(--bg-card);color:var(--text-main);font-family:inherit" />
+                <input type="text" id="adm-director-nombre" placeholder="Ej: Lic. José Luis Alanoca Mamani" oninput="autoGuardarDatosDirector(this)" onclick="this.select()" onfocus="this.select()" style="width:100%;padding:9px 12px;border:2px solid var(--border-col);border-radius:8px;background:var(--bg-card);color:var(--text-main);font-family:inherit" />
               </div>
               <div class="form-group">
                 <label style="font-weight:700;display:block;margin-bottom:6px">Cargo / Título</label>
-                <input type="text" id="adm-director-titulo" placeholder="Ej: Director CEA Madre Marie Poussepín" style="width:100%;padding:9px 12px;border:2px solid var(--border-col);border-radius:8px;background:var(--bg-card);color:var(--text-main);font-family:inherit" />
+                <input type="text" id="adm-director-titulo" placeholder="Ej: Director CEA Madre Marie Poussepín" oninput="autoGuardarDatosDirector(this)" onclick="this.select()" onfocus="this.select()" style="width:100%;padding:9px 12px;border:2px solid var(--border-col);border-radius:8px;background:var(--bg-card);color:var(--text-main);font-family:inherit" />
               </div>
               <div class="form-group">
                 <label style="font-weight:700;display:block;margin-bottom:6px">Teléfono / WhatsApp *</label>
-                <input type="tel" id="adm-director-tel" placeholder="Ej: +591 71580845" style="width:100%;padding:9px 12px;border:2px solid var(--border-col);border-radius:8px;background:var(--bg-card);color:var(--text-main);font-family:inherit" />
+                <input type="tel" id="adm-director-tel" placeholder="Ej: +591 71580845" oninput="autoGuardarDatosDirector(this)" onclick="this.select()" onfocus="this.select()" style="width:100%;padding:9px 12px;border:2px solid var(--border-col);border-radius:8px;background:var(--bg-card);color:var(--text-main);font-family:inherit" />
               </div>
               <div class="form-group">
                 <label style="font-weight:700;display:block;margin-bottom:6px">Correo Electrónico Oficial</label>
-                <input type="email" id="adm-director-correo" placeholder="Ej: ceachulumani@gmail.com" style="width:100%;padding:9px 12px;border:2px solid var(--border-col);border-radius:8px;background:var(--bg-card);color:var(--text-main);font-family:inherit" />
+                <input type="email" id="adm-director-correo" placeholder="Ej: ceachulumani@gmail.com" oninput="autoGuardarDatosDirector(this)" onclick="this.select()" onfocus="this.select()" style="width:100%;padding:9px 12px;border:2px solid var(--border-col);border-radius:8px;background:var(--bg-card);color:var(--text-main);font-family:inherit" />
               </div>
             </div>
             <button type="button" class="btn-submit" onclick="guardarDatosDirectorDesdePanel()" style="display:inline-flex;align-items:center;gap:8px">
@@ -6394,48 +6459,66 @@
             <h3 style="color:#1565c0;display:flex;align-items:center;gap:8px"><svg class="svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg> Publicar Actividades y Noticias (Muro Cronológico)</h3>
             <p style="color:var(--text-sec);font-size:0.88rem;margin-bottom:16px">Publica fotos, videos de YouTube, enlaces de TikTok o noticias de acontecimientos en el CEA.</p>
             
-            <div class="form-grid">
-              <div class="form-group">
-                <label>Título de la Actividad / Noticia *</label>
-                <input type="text" id="act-titulo" placeholder="Ej: Feria Gastronómica 2026" />
+            <!-- Formulario Reorganizado por Filas -->
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <!-- Fila 1: Título, Gestión, Mes, Día, Tipo de Multimedia -->
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+                <div class="form-group" style="flex:2.2;min-width:200px;margin:0">
+                  <label style="font-weight:700">Título de la Actividad / Noticia *</label>
+                  <input type="text" id="act-titulo" placeholder="Ej: Feria Gastronómica 2026" style="width:100%;box-sizing:border-box" />
+                </div>
+                <div class="form-group" style="flex:0.8;min-width:90px;margin:0">
+                  <label style="font-weight:700">Gestión *</label>
+                  <input type="number" id="act-gestion" value="2026" style="width:100%;box-sizing:border-box" />
+                </div>
+                <div class="form-group" style="flex:1.1;min-width:120px;margin:0">
+                  <label style="font-weight:700">Mes *</label>
+                  <select id="act-mes" style="width:100%;box-sizing:border-box">
+                    <option value="Enero">Enero</option><option value="Febrero">Febrero</option><option value="Marzo">Marzo</option>
+                    <option value="Abril">Abril</option><option value="Mayo">Mayo</option><option value="Junio">Junio</option>
+                    <option value="Julio">Julio</option><option value="Agosto">Agosto</option><option value="Septiembre">Septiembre</option>
+                    <option value="Octubre">Octubre</option><option value="Noviembre">Noviembre</option><option value="Diciembre">Diciembre</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex:0.8;min-width:75px;margin:0">
+                  <label style="font-weight:700">Día *</label>
+                  <input type="number" id="act-dia" min="1" max="31" placeholder="Ej: 15" value="15" style="width:100%;box-sizing:border-box" />
+                </div>
+                <div class="form-group" style="flex:1.3;min-width:150px;margin:0">
+                  <label style="font-weight:700">Tipo de Multimedia *</label>
+                  <select id="act-tipo-media" style="width:100%;box-sizing:border-box">
+                    <option value="ninguno">Sin multimedia (Solo Texto)</option>
+                    <option value="imagen">Foto / Imagen (Subir o URL)</option>
+                    <option value="youtube">Video de YouTube (Enlace / ID)</option>
+                    <option value="tiktok">Video / Enlace de TikTok (URL)</option>
+                  </select>
+                </div>
               </div>
-              <div class="form-group">
-                <label>Gestión (Año) *</label>
-                <input type="number" id="act-gestion" value="2026" />
+
+              <!-- Fila 2: Descripción / Detalle de la actividad -->
+              <div class="form-group" style="margin:0">
+                <label style="font-weight:700">Descripción / Detalle de lo realizado *</label>
+                <textarea id="act-desc" rows="3" placeholder="Describe lo que se hizo, logros, participantes..." style="width:100%;box-sizing:border-box"></textarea>
               </div>
-              <div class="form-group">
-                <label>Mes *</label>
-                <select id="act-mes">
-                  <option value="Enero">Enero</option><option value="Febrero">Febrero</option><option value="Marzo">Marzo</option>
-                  <option value="Abril">Abril</option><option value="Mayo">Mayo</option><option value="Junio">Junio</option>
-                  <option value="Julio">Julio</option><option value="Agosto">Agosto</option><option value="Septiembre">Septiembre</option>
-                  <option value="Octubre">Octubre</option><option value="Noviembre">Noviembre</option><option value="Diciembre">Diciembre</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Tipo de Multimedia</label>
-                <select id="act-tipo-media">
-                  <option value="ninguno">Sin multimedia (Solo Texto)</option>
-                  <option value="imagen">Foto / Imagen (URL)</option>
-                  <option value="youtube">Video de YouTube (Enlace / ID)</option>
-                  <option value="tiktok">Video / Enlace de TikTok (URL)</option>
-                </select>
-              </div>
-              <div class="form-group full">
-                <label>Subir Foto o Video directamente desde tu PC / Celular</label>
-                <div class="drag-drop-zone" id="admin-drop-zone" onclick="document.getElementById('admin-file-input').click()">
-                  <p style="margin:0;font-weight:600;color:var(--verde-dark);display:flex;align-items:center;justify-content:center;gap:6px"><svg class="svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Haz clic para seleccionar archivo o arrástralo desde tu PC / Celular</p>
-                  <span id="admin-file-preview-name" style="display:block;font-size:0.85rem;color:var(--verde);font-weight:700;margin-top:6px"></span>
+
+              <!-- Fila 3: Subir Foto o Video con Borde Punteado Delimitado -->
+              <div class="form-group" style="margin:0">
+                <label style="font-weight:700;color:var(--verde-dark);display:block;margin-bottom:6px">Subir Foto o Video directamente desde tu PC / Celular:</label>
+                <div class="drag-drop-zone" id="admin-drop-zone" onclick="document.getElementById('admin-file-input').click()"
+                  style="border:2.5px dashed var(--verde);border-radius:10px;padding:22px 16px;background:var(--verde-light);text-align:center;cursor:pointer;transition:all 0.25s ease">
+                  <p style="margin:0;font-weight:700;color:var(--verde-dark);display:flex;align-items:center;justify-content:center;gap:8px;font-size:0.95rem">
+                    <svg class="svg-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    Haz clic para seleccionar archivo o arrástralo aquí
+                  </p>
+                  <span id="admin-file-preview-name" style="display:block;font-size:0.85rem;color:var(--verde);font-weight:700;margin-top:8px"></span>
                 </div>
                 <input type="file" id="admin-file-input" accept="image/*,video/*" style="display:none" onchange="procesarArchivoSeleccionado(this, 'act-url-media', 'act-tipo-media', 'admin-file-preview-name')" />
               </div>
-              <div class="form-group full">
-                <label>O pega el Enlace del Multimedia (URL / YouTube / TikTok)</label>
-                <input type="url" id="act-url-media" placeholder="Ej: https://youtube.com/watch?v=... o https://tiktok.com/@... o URL de foto" />
-              </div>
-              <div class="form-group full">
-                <label>Descripción / Detalle de lo realizado *</label>
-                <textarea id="act-desc" rows="3" placeholder="Describe lo que se hizo, logros, participantes..."></textarea>
+
+              <!-- Fila 4: Pegar Enlace Multimedia (YouTube, TikTok o URL) -->
+              <div class="form-group" style="margin:0">
+                <label style="font-weight:700">O pegar el enlace multimedia URL de video de YouTube o TikTok</label>
+                <input type="url" id="act-url-media" placeholder="Ej: https://youtube.com/watch?v=... o https://tiktok.com/@... o URL de foto" style="width:100%;box-sizing:border-box" />
               </div>
             </div>
 
@@ -6832,11 +6915,11 @@
               <div class="form-grid" style="grid-template-columns:1fr;gap:14px;padding:20px">
                 <div class="form-group">
                   <label style="font-weight:700">Título Principal del Centro Educativo</label>
-                  <textarea id="adm-txt-hero-titulo" rows="2" placeholder="Centro de Educación Alternativa Madre Marie Poussepin" style="font-size:0.95rem;font-weight:700"></textarea>
+                  <textarea id="adm-txt-hero-titulo" rows="2" placeholder="Centro de Educación Alternativa Madre Marie Poussepin" style="font-size:0.95rem;font-weight:700" oninput="autoGuardarContenidoDebounced(this)"></textarea>
                 </div>
                 <div class="form-group">
                   <label style="font-weight:700">Subtítulo Descriptivo de Portada</label>
-                  <input type="text" id="adm-txt-hero-subtitulo" placeholder="Formación técnica y humanística de calidad en Chulumani..." />
+                  <input type="text" id="adm-txt-hero-subtitulo" placeholder="Formación técnica y humanística de calidad en Chulumani..." oninput="autoGuardarContenidoDebounced(this)" />
                 </div>
               </div>
             </div>
@@ -6850,11 +6933,11 @@
               <div class="form-grid" style="grid-template-columns:1fr;gap:14px;padding:20px">
                 <div class="form-group">
                   <label style="font-weight:700">Título de Bienvenida</label>
-                  <input type="text" id="adm-txt-bienvenida-titulo" placeholder="Bienvenidos al CEA Madre Marie Poussepin" style="font-size:0.95rem;font-weight:700" />
+                  <input type="text" id="adm-txt-bienvenida-titulo" placeholder="Bienvenidos al CEA Madre Marie Poussepin" style="font-size:0.95rem;font-weight:700" oninput="autoGuardarContenidoDebounced(this)" />
                 </div>
                 <div class="form-group">
                   <label style="font-weight:700">Mensaje Completo de Bienvenida a la Comunidad</label>
-                  <textarea id="adm-txt-bienvenida" rows="4" placeholder="Escribe el texto de bienvenida institucional..."></textarea>
+                  <textarea id="adm-txt-bienvenida" rows="4" placeholder="Escribe el texto de bienvenida institucional..." oninput="autoGuardarContenidoDebounced(this)"></textarea>
                 </div>
               </div>
             </div>
@@ -6868,11 +6951,11 @@
               <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px;padding:20px">
                 <div class="form-group">
                   <label style="font-weight:700">Descripción del Área Humanística (EPA / ESA)</label>
-                  <textarea id="adm-txt-humanistica" rows="4" placeholder="Escribe la descripción de humanística..."></textarea>
+                  <textarea id="adm-txt-humanistica" rows="4" placeholder="Escribe la descripción de humanística..." oninput="autoGuardarContenidoDebounced(this)"></textarea>
                 </div>
                 <div class="form-group">
                   <label style="font-weight:700">Descripción del Área Técnica (ETA)</label>
-                  <textarea id="adm-txt-tecnica" rows="4" placeholder="Escribe la descripción de técnica..."></textarea>
+                  <textarea id="adm-txt-tecnica" rows="4" placeholder="Escribe la descripción de técnica..." oninput="autoGuardarContenidoDebounced(this)"></textarea>
                 </div>
               </div>
             </div>
@@ -6886,15 +6969,15 @@
               <div class="form-grid" style="grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:14px;padding:20px">
                 <div class="form-group">
                   <label style="font-weight:700">Nombre del Director(a)</label>
-                  <input type="text" id="adm-txt-director-nom" placeholder="Lic. José Luis Alanoca Mamani" style="font-weight:700" />
+                  <input type="text" id="adm-txt-director-nom" placeholder="Lic. José Luis Alanoca Mamani" style="font-weight:700" oninput="autoGuardarContenidoDebounced(this)" onclick="this.select()" onfocus="this.select()" />
                 </div>
                 <div class="form-group">
                   <label style="font-weight:700">Teléfono / WhatsApp Oficial</label>
-                  <input type="text" id="adm-txt-director-tel" placeholder="+591 71580845" />
+                  <input type="text" id="adm-txt-director-tel" placeholder="+591 71580845" oninput="autoGuardarContenidoDebounced(this)" onclick="this.select()" onfocus="this.select()" />
                 </div>
                 <div class="form-group full">
                   <label style="font-weight:700">Correo Electrónico Institucional</label>
-                  <input type="email" id="adm-txt-director-correo" placeholder="ceachulumani@gmail.com" />
+                  <input type="email" id="adm-txt-director-correo" placeholder="ceachulumani@gmail.com" oninput="autoGuardarContenidoDebounced(this)" onclick="this.select()" onfocus="this.select()" />
                 </div>
               </div>
             </div>
@@ -6996,6 +7079,10 @@
               <button type="button" class="btn-subtle" onclick="prepararEImprimirTodosLosKardex(true, 2)" title="Imprimir lote de kárdex (Diseño 2 Verde Institucional)" style="display:inline-flex;align-items:center;gap:6px;background:#15803d;color:#ffffff;border:none;font-weight:800;padding:8px 14px;border-radius:8px;font-size:0.84rem">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ffffff" stroke-width="2.3"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                 <span>Imprimir Todos (Diseño 2)</span>
+              </button>
+              <button type="button" class="btn-subtle" onclick="abrirModalElegirDisenoPDFLote()" title="Guardar todos los registros de kárdex en PDF" style="display:inline-flex;align-items:center;gap:6px;background:#0284c7;color:#ffffff;border:none;font-weight:800;padding:8px 14px;border-radius:8px;font-size:0.84rem">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ffffff" stroke-width="2.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                <span>Guardar Todos en PDF</span>
               </button>
               <button type="button" class="btn-adm-add" onclick="abrirEditorKardex('nuevo', true)" style="display:inline-flex;align-items:center;gap:6px">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -8594,20 +8681,8 @@
           <span style="font-size:0.8rem;color:var(--text-sec)" id="kardex-modal-subtitulo">Personal: Lic. Marcela Choque Mamani</span>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button type="button" class="btn-submit" onclick="guardarKardexActual()" style="padding:7px 15px;font-size:0.84rem;background:var(--verde);display:inline-flex;align-items:center;gap:6px">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>Guardar Datos</span>
-        </button>
-        <button type="button" class="btn-submit" onclick="imprimirKardexActual(1)" style="padding:7px 13px;font-size:0.84rem;background:#b45309;display:inline-flex;align-items:center;gap:6px">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          <span>Imprimir (Diseño 1)</span>
-        </button>
-        <button type="button" class="btn-submit" onclick="imprimirKardexActual(2)" style="padding:7px 13px;font-size:0.84rem;background:#15803d;display:inline-flex;align-items:center;gap:6px">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          <span>Imprimir (Diseño 2)</span>
-        </button>
-        <button type="button" class="btn-popover-close" onclick="cerrarModalKardexEditor()" aria-label="Cerrar">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button type="button" class="btn-popover-close" onclick="cerrarModalKardexEditor()" aria-label="Cerrar modal">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -9140,25 +9215,89 @@
         <!-- BARRA FLOTANTE / INFERIOR DE ACCIONES -->
         <div class="kardex-modal-footer">
           <div id="kardex-msg-guardado" style="font-size:0.84rem;font-weight:700"></div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <button type="button" class="btn-submit" onclick="cerrarModalKardexEditor()" style="background:var(--bg-body);color:var(--text-main);border:1.5px solid var(--border-col);padding:8px 18px">
+          <div class="kardex-modal-footer-btns">
+            <button type="button" class="btn-submit btn-kardex-cerrar" onclick="cerrarModalKardexEditor()" style="background:var(--bg-body);color:var(--text-main);border:1.5px solid var(--border-col);padding:8px 16px;font-weight:700">
               Cerrar
             </button>
-            <button type="button" class="btn-submit" onclick="imprimirKardexActual(1)" style="background:#b45309;padding:8px 18px;display:inline-flex;align-items:center;gap:6px">
+            <button type="button" class="btn-submit btn-kardex-imprimir-modal" onclick="abrirModalElegirDisenoImpresionKardex()" style="background:#b45309;padding:8px 16px;display:inline-flex;align-items:center;gap:6px;font-weight:800">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-              <span>Imprimir (Diseño 1)</span>
+              <span>Imprimir</span>
             </button>
-            <button type="button" class="btn-submit" onclick="imprimirKardexActual(2)" style="background:#15803d;padding:8px 18px;display:inline-flex;align-items:center;gap:6px">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-              <span>Imprimir (Diseño 2)</span>
+            <button type="button" class="btn-submit btn-kardex-pdf-modal" onclick="abrirModalElegirDisenoPDFKardex()" style="background:#0284c7;padding:8px 16px;display:inline-flex;align-items:center;gap:6px;font-weight:800">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              <span>Guardar PDF</span>
             </button>
-            <button type="submit" class="btn-submit" style="background:var(--verde);padding:8px 22px;display:inline-flex;align-items:center;gap:6px">
+            <button type="submit" id="btn-guardar-kardex-modal" class="btn-submit btn-guardar-kardex" style="background:var(--verde);padding:8px 22px;display:inline-flex;align-items:center;gap:6px;font-weight:800">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              <span>Guardar Todo el Kardex</span>
+              <span>Guardar Todo el Kárdex</span>
             </button>
           </div>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SELECTOR DE DISEÑO PARA KÁRDEX (IMPRIMIR O GUARDAR PDF) -->
+<div class="modal-celda-overlay" id="modal-kardex-selector-diseno" style="display:none;z-index:100000" onclick="cerrarModalSelectorDisenoKardex()">
+  <div class="modal-card" style="max-width:480px;width:92%;background:var(--bg-card);border:1.5px solid var(--border-col);border-radius:14px;padding:22px;box-shadow:0 12px 35px rgba(0,0,0,0.3)" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border-col);padding-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="kardex-selector-icon" style="width:36px;height:36px;border-radius:8px;background:var(--verde-light);color:var(--verde-dark);display:flex;align-items:center;justify-content:center">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        </div>
+        <div>
+          <h3 id="kardex-selector-titulo" style="margin:0;font-size:1.05rem;font-weight:900;color:var(--text-main)">Seleccionar Formato de Kárdex</h3>
+          <span id="kardex-selector-subtitulo" style="font-size:0.78rem;color:var(--text-sec)">Elige el diseño oficial deseado</span>
+        </div>
+      </div>
+      <button type="button" class="btn-popover-close" onclick="cerrarModalSelectorDisenoKardex()" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <p style="font-size:0.84rem;color:var(--text-sec);margin:0 0 16px 0">
+      Selecciona la presentación oficial que deseas aplicar para este documento de 2 páginas:
+    </p>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+      <!-- OPCIÓN 1: DISEÑO 1 OFICIAL MINISTERIAL -->
+      <div class="kardex-opcion-diseno" onclick="ejecutarAccionDisenoKardex(1)" style="border:1.8px solid #f59e0b;border-radius:10px;padding:12px 14px;background:rgba(245,158,11,0.06);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:all 0.2s ease">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;height:32px;border-radius:6px;background:#fef3c7;color:#b45309;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.95rem">
+            1
+          </div>
+          <div>
+            <div style="font-weight:800;font-size:0.92rem;color:var(--text-main)">Diseño 1: Oficial Ministerial</div>
+            <div style="font-size:0.76rem;color:var(--text-sec)">Encabezados dorados oficiales y formato estándar del Ministerio.</div>
+          </div>
+        </div>
+        <button type="button" class="btn-submit" style="background:#b45309;padding:6px 14px;font-size:0.80rem;font-weight:800;white-space:nowrap;border:none">
+          Elegir D1
+        </button>
+      </div>
+
+      <!-- OPCIÓN 2: DISEÑO 2 VERDE INSTITUCIONAL -->
+      <div class="kardex-opcion-diseno" onclick="ejecutarAccionDisenoKardex(2)" style="border:1.8px solid var(--verde);border-radius:10px;padding:12px 14px;background:var(--verde-light);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:all 0.2s ease">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;height:32px;border-radius:6px;background:#dcfce7;color:#15803d;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.95rem">
+            2
+          </div>
+          <div>
+            <div style="font-weight:800;font-size:0.92rem;color:var(--text-main)">Diseño 2: Verde Institucional</div>
+            <div style="font-size:0.76rem;color:var(--text-sec)">Identidad visual verde del CEA Madre Marie Pousseppin.</div>
+          </div>
+        </div>
+        <button type="button" class="btn-submit" style="background:#15803d;padding:6px 14px;font-size:0.80rem;font-weight:800;white-space:nowrap;border:none">
+          Elegir D2
+        </button>
+      </div>
+    </div>
+
+    <div style="text-align:right">
+      <button type="button" class="btn-submit" onclick="cerrarModalSelectorDisenoKardex()" style="background:var(--bg-body);color:var(--text-main);border:1.5px solid var(--border-col);padding:7px 16px;font-size:0.82rem">
+        Cancelar
+      </button>
     </div>
   </div>
 </div>

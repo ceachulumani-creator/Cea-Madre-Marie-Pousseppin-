@@ -218,7 +218,8 @@ function doGet(e) {
             nombre: dataCarreras[i][1],
             docente: dataCarreras[i][2],
             color: dataCarreras[i][3] || "#1a6b2e",
-            resumen: dataCarreras[i][4] || ""
+            resumen: dataCarreras[i][4] || "",
+            foto: dataCarreras[i][5] || ""
           });
         }
       }
@@ -390,6 +391,7 @@ function doGet(e) {
         if (key) {
           usuariosDocentesObj[key] = { 
             user: user || "",
+            pass: String(dataUsuarios[i][2] || '').trim(),
             comision: esComision
           };
         }
@@ -602,6 +604,22 @@ function doGet(e) {
       try { horariosMerges = JSON.parse(textosObj.horarios_merges_json); } catch(e){}
     }
 
+    // 17. Kardex Docentes (Carga segura y sincronizada)
+    const kardexDocentesObj = {};
+    const sheetKardex = ss.getSheetByName("Kardex_Docentes");
+    if (sheetKardex) {
+      const dataKardex = sheetKardex.getDataRange().getValues();
+      for (let i = 1; i < dataKardex.length; i++) {
+        const docId = String(dataKardex[i][0] || '').trim();
+        const jsonStr = String(dataKardex[i][6] || '').trim();
+        if (docId && jsonStr) {
+          try {
+            kardexDocentesObj[docId] = JSON.parse(jsonStr);
+          } catch(eK) {}
+        }
+      }
+    }
+
     return responseJSON({
       status: "success",
       data: {
@@ -615,6 +633,7 @@ function doGet(e) {
         documentos: documentosList,
         mallas: mallasObj,
         usuariosDocentes: usuariosDocentesObj,
+        kardexDocentes: kardexDocentesObj,
         visitas: visitasObj,
         actividades: actividadesList,
         docNiveles: docNivelesObj,
@@ -931,9 +950,15 @@ function doPost(e) {
         if (postData.carreras && Array.isArray(postData.carreras)) {
           let sheetCarreras = ss.getSheetByName("Carreras_Tecnicas") || ss.insertSheet("Carreras_Tecnicas");
           sheetCarreras.clearContents();
-          sheetCarreras.appendRow(["Codigo", "Nombre", "DocenteCodigo", "Color", "Resumen"]);
+          sheetCarreras.appendRow(["Codigo", "Nombre", "DocenteCodigo", "Color", "Resumen", "Foto"]);
           postData.carreras.forEach(carr => {
-            sheetCarreras.appendRow([carr.key || "tec-gen", carr.nombre || "", carr.docente || carr.key || "", carr.color || "#1a6b2e", carr.resumen || ""]);
+            let cFoto = String(carr.foto || "").trim();
+            if (cFoto && cFoto.indexOf("data:") === 0) {
+              try {
+                cFoto = guardarMediaEnDrive(cFoto, "Foto_" + (carr.key || "tec"));
+              } catch(eFoto) {}
+            }
+            sheetCarreras.appendRow([carr.key || "tec-gen", carr.nombre || "", carr.docente || carr.key || "", carr.color || "#1a6b2e", carr.resumen || "", cFoto]);
           });
         }
 
@@ -954,11 +979,64 @@ function doPost(e) {
       let sheetCarreras = ss.getSheetByName("Carreras_Tecnicas") || ss.insertSheet("Carreras_Tecnicas");
       if (postData.carreras && Array.isArray(postData.carreras)) {
         sheetCarreras.clearContents();
-        sheetCarreras.appendRow(["Codigo", "Nombre", "DocenteCodigo", "Color", "Resumen"]);
+        sheetCarreras.appendRow(["Codigo", "Nombre", "DocenteCodigo", "Color", "Resumen", "Foto"]);
+
+        let sheetDocentes = ss.getSheetByName("Docentes") || ss.insertSheet("Docentes");
+        if (sheetDocentes.getLastRow() === 0) {
+          sheetDocentes.appendRow(["Codigo", "Nombre", "Materia_Carrera", "Area"]);
+        }
+        let dataDoc = sheetDocentes.getDataRange().getValues();
+        let mapDoc = {};
+        for (let d = 1; d < dataDoc.length; d++) {
+          const kDoc = String(dataDoc[d][0] || '').trim();
+          if (kDoc) mapDoc[kDoc] = d + 1;
+        }
+
+        let sheetU = ss.getSheetByName("Usuarios_Docentes") || ss.insertSheet("Usuarios_Docentes");
+        if (sheetU.getLastRow() === 0) {
+          sheetU.appendRow(["AreaKey", "Usuario", "Contrasena", "Comision"]);
+        }
+        let dataU = sheetU.getDataRange().getValues();
+        let mapU = {};
+        for (let u = 1; u < dataU.length; u++) {
+          const kU = String(dataU[u][0] || '').trim();
+          if (kU) mapU[kU] = u + 1;
+        }
+
         postData.carreras.forEach(carr => {
-          sheetCarreras.appendRow([carr.key || "tec-gen", carr.nombre || "", carr.docente || carr.key || "", carr.color || "#1a6b2e", carr.resumen || ""]);
+          const cKey = String(carr.key || "tec-gen").trim();
+          const cNom = String(carr.nombre || "").trim();
+          const cDoc = String(carr.docente || "").trim();
+          const cCol = carr.color || "#1a6b2e";
+          const cRes = carr.resumen || "";
+          let cFoto = String(carr.foto || "").trim();
+          if (cFoto && cFoto.indexOf("data:") === 0) {
+            try {
+              cFoto = guardarMediaEnDrive(cFoto, "Foto_" + cKey);
+            } catch(eFoto) {}
+          }
+          sheetCarreras.appendRow([cKey, cNom, cDoc || cKey, cCol, cRes, cFoto]);
+
+          // Crear o sincronizar en hoja Docentes automáticamente
+          if (!mapDoc[cKey]) {
+            const nomDocente = cDoc || ("Docente de " + cNom);
+            sheetDocentes.appendRow([cKey, nomDocente, cNom, "Técnica"]);
+            mapDoc[cKey] = sheetDocentes.getLastRow();
+          } else if (cDoc) {
+            sheetDocentes.getRange(mapDoc[cKey], 2).setValue(cDoc);
+            sheetDocentes.getRange(mapDoc[cKey], 3).setValue(cNom);
+          }
+
+          // Crear en Usuarios_Docentes con usuario y contraseña oficial si no existía
+          if (!mapU[cKey]) {
+            const cleanSlug = cNom.toLowerCase().replace(/[^a-z0-9]/g, '') || cKey.replace('tec-', '');
+            const defUser = 'profe.' + cleanSlug;
+            const defPass = 'cea' + Math.floor(1000 + Math.random() * 9000);
+            sheetU.appendRow([cKey, defUser, defPass, "NO"]);
+            mapU[cKey] = sheetU.getLastRow();
+          }
         });
-        return responseJSON({ status: "success", message: "Carreras actualizadas en Google Sheets." });
+        return responseJSON({ status: "success", message: "Carreras y sus docentes asignados guardados exitosamente en Google Sheets." });
       }
     }
 
@@ -1974,14 +2052,14 @@ function inicializarHojas() {
   // 3. Carreras_Tecnicas
   let sheetC = ss.getSheetByName("Carreras_Tecnicas") || ss.insertSheet("Carreras_Tecnicas");
   if (sheetC.getLastRow() === 0) {
-    sheetC.appendRow(["Codigo", "Nombre", "DocenteCodigo", "Color", "Resumen"]);
-    aplicarEstiloEncabezado(sheetC, 5);
-    sheetC.appendRow(["tec-sis", "Sistemas Informáticos", "tec-sis", "#1565c0", "Instalación y mantenimiento de equipos, redes, bases de datos y desarrollo de software moderno."]);
-    sheetC.appendRow(["tec-sec", "Secretariado Ejecutivo", "tec-sec", "#6a1b9a", "Gestión documental, redacción profesional, ofimática avanzada y administración eficiente de oficinas."]);
-    sheetC.appendRow(["tec-bel", "Belleza Integral", "tec-bel", "#ad1457", "Corte, estilismo capilar, colorimetría, tratamientos estéticos, cuidado dérmico y maquillaje profesional."]);
-    sheetC.appendRow(["tec-tex", "Confección Textil", "tec-tex", "#2e7d32", "Patronaje industrial, corte y confección de prendas, operatividad de máquinas y acabados de calidad."]);
-    sheetC.appendRow(["tec-gas", "Gastronomía y Alimentación", "tec-gas", "#e64a19", "Arte culinario boliviano e internacional, pastelería, panadería, inocuidad alimentaria y gestión gastronómica."]);
-    sheetC.appendRow(["tec-agr", "Agropecuaria", "tec-agr", "#558b2f", "Cultivos sostenibles, sistemas de riego, producción agroecológica y manejo pecuario regional."]);
+    sheetC.appendRow(["Codigo", "Nombre", "DocenteCodigo", "Color", "Resumen", "Foto"]);
+    aplicarEstiloEncabezado(sheetC, 6);
+    sheetC.appendRow(["tec-sis", "Sistemas Informáticos", "tec-sis", "#1565c0", "Instalación y mantenimiento de equipos, redes, bases de datos y desarrollo de software moderno.", "FOTOGRAFIA DE SISTEMAS.jpg"]);
+    sheetC.appendRow(["tec-sec", "Secretariado Ejecutivo", "tec-sec", "#6a1b9a", "Gestión documental, redacción profesional, ofimática avanzada y administración eficiente de oficinas.", ""]);
+    sheetC.appendRow(["tec-bel", "Belleza Integral", "tec-bel", "#ad1457", "Corte, estilismo capilar, colorimetría, tratamientos estéticos, cuidado dérmico y maquillaje profesional.", ""]);
+    sheetC.appendRow(["tec-tex", "Confección Textil", "tec-tex", "#2e7d32", "Patronaje industrial, corte y confección de prendas, operatividad de máquinas y acabados de calidad.", ""]);
+    sheetC.appendRow(["tec-gas", "Gastronomía y Alimentación", "tec-gas", "#e64a19", "Arte culinario boliviano e internacional, pastelería, panadería, inocuidad alimentaria y gestión gastronómica.", ""]);
+    sheetC.appendRow(["tec-agr", "Agropecuaria", "tec-agr", "#558b2f", "Cultivos sostenibles, sistemas de riego, producción agroecológica y manejo pecuario regional.", ""]);
   }
 
   // 4. Materias_Humanistica
