@@ -10331,7 +10331,7 @@ html.dark .eta-badge-cert.medio {
   position: absolute;
   bottom: 12px;
   right: 12px;
-  display: flex;
+  display: none;
   gap: 8px;
   z-index: 10;
   background: rgba(15, 23, 42, 0.85);
@@ -10340,6 +10340,11 @@ html.dark .eta-badge-cert.medio {
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+body.modo-director .photo-director-overlay,
+body.modo-comision .photo-director-overlay {
+  display: inline-flex !important;
 }
 
 .btn-photo-action {

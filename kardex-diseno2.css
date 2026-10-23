@@ -335,19 +335,4 @@
     padding-top: 2px !important;
     letter-spacing: 0.2px !important;
   }
-
-  /* Cierre inferior horizontal plomo físico */
-  .kardex-d2-cierre-plomo {
-    width: 100% !important;
-    height: 1.5px !important;
-    min-height: 1.5px !important;
-    background: #cbd5e1 !important;
-    background-color: #cbd5e1 !important;
-    margin-top: -1.5px !important;
-    display: block !important;
-    clear: both !important;
-    box-sizing: border-box !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
 }

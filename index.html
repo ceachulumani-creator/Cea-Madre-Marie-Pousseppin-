@@ -46,7 +46,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2026.310" />
+  <link rel="stylesheet" href="styles.css?v=2026.418" />
   <script>
     document.documentElement.classList.remove('dark', 'dark-mode');
     try {
@@ -3254,12 +3254,12 @@
       transform: translateY(-1px) !important;
     }
 
-    /* Botones de acción de fotografía compactos y proporcionados */
+    /* Botones de acción de fotografía compactos y proporcionados (Solo Director o Comisión) */
     .photo-director-overlay {
       position: absolute !important;
       top: 8px !important;
       right: 8px !important;
-      display: inline-flex !important;
+      display: none !important;
       gap: 6px !important;
       z-index: 10 !important;
       background: rgba(15, 23, 42, 0.85) !important;
@@ -3268,6 +3268,10 @@
       border-radius: 8px !important;
       border: 1px solid rgba(255, 255, 255, 0.25) !important;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    }
+    body.modo-director .photo-director-overlay,
+    body.modo-comision .photo-director-overlay {
+      display: inline-flex !important;
     }
     .btn-photo-action {
       display: inline-flex !important;
@@ -3320,9 +3324,9 @@
 
   </style>
   <link rel="stylesheet" href="print-horario.css?v=2026.190" />
-  <link rel="stylesheet" href="print-kardex.css?v=2026.417" />
-  <link rel="stylesheet" href="kardex-diseno1.css?v=2026.417" />
-  <link rel="stylesheet" href="kardex-diseno2.css?v=2026.417" />
+  <link rel="stylesheet" href="print-kardex.css?v=2026.418" />
+  <link rel="stylesheet" href="kardex-diseno1.css?v=2026.418" />
+  <link rel="stylesheet" href="kardex-diseno2.css?v=2026.418" />
   <link rel="stylesheet" href="print-comprobante.css?v=2026.180" />
   <link rel="stylesheet" href="print-reporte.css?v=2026.246" />
   <link rel="stylesheet" href="print-preinscripciones.css?v=2026.246" />
@@ -3659,7 +3663,7 @@
         </div>
         <div class="oferta-preview-image-box" id="box-img-hum">
           <img src="FOTOGRAFIA DEL CEA .jpeg" alt="Área Humanística CEA" class="oferta-preview-img" id="img-oferta-hum" />
-          <div class="photo-director-overlay btn-admin-only" id="overlay-foto-hum" style="display:none">
+          <div class="photo-director-overlay btn-admin-only" id="overlay-foto-hum" style="display:none !important">
             <button type="button" class="btn-photo-action btn-photo-upload" onclick="triggerSubirFotoOferta('hum')" title="Cambiar fotografía del Área Humanística">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <span>Subir otra foto</span>
@@ -4008,7 +4012,7 @@
         </div>
         <div class="oferta-preview-image-box" id="box-img-tec">
           <img src="FOTOGRAFIA DE SISTEMAS.jpg" alt="Área Técnica CEA" class="oferta-preview-img" id="img-oferta-tec" />
-          <div class="photo-director-overlay btn-admin-only" id="overlay-foto-tec" style="display:none">
+          <div class="photo-director-overlay btn-admin-only" id="overlay-foto-tec" style="display:none !important">
             <button type="button" class="btn-photo-action btn-photo-upload" onclick="triggerSubirFotoOferta('tec')" title="Cambiar fotografía del Área Técnica">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <span>Subir otra foto</span>
@@ -9414,7 +9418,7 @@
 <div id="reporte-inscritos-print-area" style="display:none"></div>
 <div id="reporte-estadistico-print-area" style="display:none"></div>
 
-<script src="app.js?v=2026.417"></script>
+<script src="app.js?v=2026.418"></script>
 <script>
 // Sobrescribir manejarFormInscripcion con respuesta instantánea y descarga de PDF garantizada
 /* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (SOLO MÓVIL, AUTO-CIERRA EN 5s) ─── */
@@ -10708,9 +10712,9 @@ window.ejecutarEliminacionInscripciones = ejecutarEliminacionInscripciones;
 <script>if(typeof window.html2pdf==='undefined'){document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>');}</script>
 <script src="kardex-logo-base64.js?v=2026.405"></script>
 <script src="print-horario.js?v=2026.266"></script>
-<script src="kardex-diseno1.js?v=2026.417"></script>
-<script src="kardex-diseno2.js?v=2026.417"></script>
-<script src="print-kardex.js?v=2026.417"></script>
+<script src="kardex-diseno1.js?v=2026.418"></script>
+<script src="kardex-diseno2.js?v=2026.418"></script>
+<script src="print-kardex.js?v=2026.418"></script>
 <script src="qrcode.min.js"></script>
 <script src="print-comprobante.js?v=2026.310"></script>
 <script src="print-estadisticas.js?v=2026.248"></script>

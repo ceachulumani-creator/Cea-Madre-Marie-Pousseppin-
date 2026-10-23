@@ -330,13 +330,12 @@
             <th colspan="8" class="k-banner">ACLARACIONES (SI CONSIDERA NECESARIO)</th>
           </tr>
           <tr style="height: 73px !important;">
-            <td colspan="8" class="kardex-aclaraciones-celda" style="text-align:left; vertical-align:top; padding:8px 10px; height:73px !important; min-height:73px !important; word-break:break-word; overflow-wrap:break-word; white-space:normal; font-size:7.5pt; color:#000000; background:#ffffff; border:1px solid #000000 !important; border-bottom:1.5px solid #000000 !important; box-sizing:border-box !important;">
+            <td colspan="8" class="kardex-aclaraciones-celda" style="text-align:left; vertical-align:top; padding:8px 10px; height:73px !important; min-height:73px !important; word-break:break-word; overflow-wrap:break-word; white-space:normal; font-size:7.5pt; color:#000000; background:#ffffff; border:1px solid #000000 !important; box-sizing:border-box !important;">
               ${escapeHTML(data.aclaracionesV || '')}
             </td>
           </tr>
         </tbody>
       </table>
-      <div class="kardex-d1-cierre-negro" style="width:100% !important; height:2px !important; min-height:2px !important; background:#000000 !important; background-color:#000000 !important; margin-top:-1.5px !important; display:block !important; clear:both !important; box-sizing:border-box !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;"></div>
     `;
 
     /* ══════════ PÁGINA 2: DISEÑO 1 OFICIAL TRADICIONAL ══════════ */

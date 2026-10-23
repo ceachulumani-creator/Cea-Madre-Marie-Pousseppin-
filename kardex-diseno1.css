@@ -218,19 +218,4 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-
-  /* Cierre inferior horizontal negro físico */
-  .kardex-d1-cierre-negro {
-    width: 100% !important;
-    height: 1.5px !important;
-    min-height: 1.5px !important;
-    background: #000000 !important;
-    background-color: #000000 !important;
-    margin-top: -1.5px !important;
-    display: block !important;
-    clear: both !important;
-    box-sizing: border-box !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
 }

@@ -1581,14 +1581,8 @@ function abrirModalCarrera(key) {
   const session = lsGet('cea_session', null);
   const isDirector = Boolean(session && (session.role === 'director' || session.role === 'admin'));
   const isDocente = Boolean(session && session.role === 'docente');
-  const esDocenteDeEstaCarrera = isDocente && (
-    session.areaKey === area.key ||
-    session.areaKey === area.docente ||
-    (session.nombre && docNombre && session.nombre.toLowerCase().trim() === docNombre.toLowerCase().trim()) ||
-    (session.area && area.nombre && session.area.toLowerCase().includes(area.nombre.toLowerCase())) ||
-    (session.areaKey && area.key && session.areaKey.replace('tec-', '') === area.key.replace('tec-', ''))
-  );
-  const puedeEditarFoto = isDirector || esDocenteDeEstaCarrera;
+  const esComisionDocente = isDocente && (session && (session.comision === true || String(session.comision).toUpperCase() === 'SI'));
+  const puedeEditarFoto = Boolean(isDirector || esComisionDocente);
   const fotoUrl = (typeof obtenerFotoCarreraTec === 'function')
     ? obtenerFotoCarreraTec(area.key, area)
     : (area.foto || (area.key === 'tec-sis' ? 'FOTOGRAFIA DE SISTEMAS.jpg' : null));
@@ -12660,16 +12654,9 @@ function cargarAreasTecSilencioso() {
       const docenteActual = docentes[a.key] || docentes[a.docente] || a.docente || '—';
 
       // Permisos de edición de fotografía:
-      // - El Director puede editar cualquier carrera
-      // - El Docente puede editar la foto de su propia carrera técnica asignada
-      const esDocenteDeEstaCarrera = isDocente && (
-        docenteAreaKey === a.key ||
-        docenteAreaKey === a.docente ||
-        (session && session.nombre && docenteActual && session.nombre.toLowerCase().trim() === docenteActual.toLowerCase().trim()) ||
-        (session && session.area && a.nombre && session.area.toLowerCase().includes(a.nombre.toLowerCase())) ||
-        (session && session.areaKey && a.key && session.areaKey.replace('tec-', '') === a.key.replace('tec-', ''))
-      );
-      const puedeEditarFoto = isDirector || esDocenteDeEstaCarrera;
+      // Exclusivo para el Director y la Comisión Pedagógica
+      const esComisionDocente = isDocente && (session && (session.comision === true || String(session.comision).toUpperCase() === 'SI'));
+      const puedeEditarFoto = Boolean(isDirector || esComisionDocente);
 
       let fotoHTML = '';
       if (fotoUrl) {
@@ -20069,6 +20056,22 @@ function renderLapicesDirectosDirector() {
     btn.style.display = puedeEditarHorarios ? 'inline-flex' : 'none';
   });
 
+  // Clases en body y visibilidad estricta de overlays de fotos en Oferta Académica (Solo Director o Comisión)
+  const puedeEditarFotosOferta = Boolean(esDirectorReal || esComision);
+  if (puedeEditarFotosOferta) {
+    document.body.classList.add(esDirectorReal ? 'modo-director' : 'modo-comision');
+  } else {
+    document.body.classList.remove('modo-director', 'modo-comision');
+  }
+  const overlayHum = document.getElementById('overlay-foto-hum');
+  if (overlayHum) {
+    overlayHum.style.setProperty('display', puedeEditarFotosOferta ? 'inline-flex' : 'none', 'important');
+  }
+  const overlayTec = document.getElementById('overlay-foto-tec');
+  if (overlayTec) {
+    overlayTec.style.setProperty('display', puedeEditarFotosOferta ? 'inline-flex' : 'none', 'important');
+  }
+
   // Los lápices globales de TARGETS_EDICION_DIRECTOR (INICIO, Cabecera, Título Web, Bienvenida, Pie de página)
   // corresponden ÚNICA Y EXCLUSIVAMENTE al Director. En modo docente NUNCA se muestran.
   TARGETS_EDICION_DIRECTOR.forEach(t => {
@@ -20761,6 +20764,7 @@ function restaurarSesion() {
   if (typeof renderFeedActividades === 'function') renderFeedActividades();
   if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
   if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
+  if (typeof cargarAreasTecSilencioso === 'function') cargarAreasTecSilencioso();
   if (!session) return;
   if (session.role === 'director') {
     mostrarPanelAdmin();
@@ -20803,6 +20807,7 @@ function adminLogout() {
   if (typeof renderFeedActividades === 'function') renderFeedActividades();
   if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
   if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
+  if (typeof cargarAreasTecSilencioso === 'function') cargarAreasTecSilencioso();
   mostrarToastLive('Sesión cerrada.');
 }
 
@@ -25343,42 +25348,14 @@ const KARDEX_PDF_INLINE_STYLES = `
     overflow: visible !important;
   }
 
-  /* Borde estándar y cierre inferior físico garantizado para celda de aclaraciones */
+  /* Borde estándar con grosor normal idéntico a las celdas del kardex */
   .kardex-aclaraciones-celda {
-    border: 1px solid #cbd5e1 !important;
-    border-bottom: 1.5px solid #cbd5e1 !important;
+    border: 0.8px solid #cbd5e1 !important;
     box-sizing: border-box !important;
   }
   .kardex-d1-grid .kardex-aclaraciones-celda {
     border: 1px solid #000000 !important;
-    border-bottom: 1.5px solid #000000 !important;
     box-sizing: border-box !important;
-  }
-  .kardex-d2-cierre-plomo {
-    width: 100% !important;
-    height: 2px !important;
-    min-height: 2px !important;
-    background: #cbd5e1 !important;
-    background-color: #cbd5e1 !important;
-    margin-top: -1.5px !important;
-    display: block !important;
-    clear: both !important;
-    box-sizing: border-box !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  .kardex-d1-cierre-negro {
-    width: 100% !important;
-    height: 2px !important;
-    min-height: 2px !important;
-    background: #000000 !important;
-    background-color: #000000 !important;
-    margin-top: -1.5px !important;
-    display: block !important;
-    clear: both !important;
-    box-sizing: border-box !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
   }
   .kardex-linea-cierre-ploma-td {
     height: 2px !important;
@@ -25784,7 +25761,7 @@ const KARDEX_PDF_INLINE_STYLES = `
     table-layout: fixed !important;
     margin: 0 !important;
     padding: 0 !important;
-    border-bottom: 1.5px solid #cbd5e1 !important;
+    border-bottom: 0.8px solid #cbd5e1 !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
   }
   .kardex-d2-grid tr {
