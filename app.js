@@ -16794,6 +16794,13 @@ function cerrarModalVerificacionQR(e) {
   const modal = document.getElementById('modal-verificacion-qr');
   if (modal) modal.classList.remove('activo');
   _qrVerificacionPendiente = null;
+  // Limpiar parámetros de consulta de la URL para que recargar no vuelva a abrir la verificación
+  if (window.history && typeof window.history.replaceState === 'function') {
+    try {
+      const cleanUrl = window.location.pathname + (window.location.hash || '');
+      window.history.replaceState({}, document.title, cleanUrl);
+    } catch (err) {}
+  }
 }
 
 function verificarParametrosConsultaQR() {
@@ -16801,8 +16808,22 @@ function verificarParametrosConsultaQR() {
   const params = new URLSearchParams(window.location.search);
   const ci = (params.get('ci') || params.get('CI') || params.get('verificar') || params.get('consulta') || '').trim();
   const reg = (params.get('reg') || params.get('folio') || params.get('codigo') || '').trim();
+
+  // Limpiar de inmediato los parámetros de la URL para evitar que en futuros refrescos (F5) se dispare automáticamente la consulta
   if (ci || reg) {
+    if (window.history && typeof window.history.replaceState === 'function') {
+      try {
+        const cleanUrl = window.location.pathname + (window.location.hash || '');
+        window.history.replaceState({}, document.title, cleanUrl);
+      } catch (err) {}
+    }
     ejecutarVerificacionQR(ci, reg);
+  } else {
+    // Si no hay parámetros en la URL, asegurarse de que el input de consulta y resultado estén limpios
+    const inpCons = document.getElementById('ci-consulta-inp');
+    if (inpCons) inpCons.value = '';
+    const resBox = document.getElementById('resultado-consulta-box');
+    if (resBox) resBox.style.display = 'none';
   }
 }
 
@@ -25153,18 +25174,118 @@ function prepararEImprimirKardex(docenteId, diseno = 1) {
   }, 100);
 }
 
+/* ─── ASEGURAR CARGA DE MOTOR HTML2PDF ─── */
+function asegurarHtml2PdfCargado() {
+  if (typeof window.html2pdf !== 'undefined') {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    // Intentar primero con el bundle local
+    const script = document.createElement('script');
+    script.src = 'html2pdf.bundle.min.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      // Respaldo CDN si el archivo local no estuviera accesible
+      const scriptCdn = document.createElement('script');
+      scriptCdn.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      scriptCdn.async = true;
+      scriptCdn.onload = () => resolve();
+      scriptCdn.onerror = (err) => reject(err);
+      document.head.appendChild(scriptCdn);
+    };
+    document.head.appendChild(script);
+  });
+}
+
+/* ─── PRECARGA DE LOGO INSTITUCIONAL EN BASE64 PARA KÁRDEX PDF ─── */
+let _cachedKardexLogoDataUrl = null;
+function precargarLogoInstitucionalKardex() {
+  if (typeof window !== 'undefined' && window.KARDEX_LOGO_BASE64) {
+    _cachedKardexLogoDataUrl = window.KARDEX_LOGO_BASE64;
+    return;
+  }
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const cvs = document.createElement('canvas');
+        cvs.width = img.naturalWidth || img.width || 120;
+        cvs.height = img.naturalHeight || img.height || 120;
+        const ctx = cvs.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        _cachedKardexLogoDataUrl = cvs.toDataURL('image/png');
+      } catch (e) {}
+    };
+    img.src = 'logo%20cea%20madre%20marie%20poussepin.png';
+  } catch (e) {}
+}
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', precargarLogoInstitucionalKardex);
+  } else {
+    precargarLogoInstitucionalKardex();
+  }
+}
+
 /* ─── HELPER: CONVERSIÓN DE IMÁGENES A BASE64 PARA DESCARGA AUTOMÁTICA EN PDF ─── */
 async function convertirImagenesABase64(container) {
+  if (!container) return;
   const imgs = Array.from(container.querySelectorAll('img'));
-  const promises = imgs.map(img => {
-    return new Promise((resolve) => {
-      if (!img.src || img.src.startsWith('data:')) {
-        resolve();
-        return;
+  await Promise.all(imgs.map(async (img) => {
+    const src = img.getAttribute('src') || img.src;
+    if (!src) return;
+
+    // Si es el logo institucional, asignar versión precargada o constante global en Base64
+    const logoBase64 = (typeof window !== 'undefined' && window.KARDEX_LOGO_BASE64) ? window.KARDEX_LOGO_BASE64 : _cachedKardexLogoDataUrl;
+    if (logoBase64 && (src.includes('logo') || src.includes('poussepin'))) {
+      img.src = logoBase64;
+      return;
+    }
+
+    if (src.startsWith('data:')) return;
+
+    const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const timeoutId = setTimeout(() => { if (controller) controller.abort(); }, 1500);
+
+    // 1. Intentar vía fetch + FileReader (soporte de caché y CORS óptimo)
+    try {
+      const fetchOpts = { mode: 'cors', cache: 'force-cache' };
+      if (controller) fetchOpts.signal = controller.signal;
+      const res = await fetch(src, fetchOpts);
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const blob = await res.blob();
+        const dataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        });
+        if (dataUrl) {
+          img.src = dataUrl;
+          return;
+        }
       }
+    } catch (e) {
+      clearTimeout(timeoutId);
+    }
+
+    // 2. Respaldo vía Canvas Image con timeout rápido
+    await new Promise((resolve) => {
       const tempImg = new Image();
-      tempImg.crossOrigin = 'Anonymous';
+      tempImg.crossOrigin = 'anonymous';
+      let done = false;
+      const finish = () => {
+        if (!done) {
+          done = true;
+          resolve();
+        }
+      };
+      const timer = setTimeout(finish, 800);
       tempImg.onload = () => {
+        clearTimeout(timer);
         try {
           const cvs = document.createElement('canvas');
           cvs.width = tempImg.naturalWidth || tempImg.width || 120;
@@ -25173,60 +25294,980 @@ async function convertirImagenesABase64(container) {
           ctx.drawImage(tempImg, 0, 0);
           img.src = cvs.toDataURL('image/png');
         } catch (e) {
-          console.warn('Fallback en conversión de imagen:', e);
+          // Si no se puede exportar por CORS/Taint, ocultar o usar transparente para no romper exportación
+          img.style.display = 'none';
         }
-        resolve();
+        finish();
       };
-      tempImg.onerror = () => resolve();
-      tempImg.src = img.src;
+      tempImg.onerror = () => {
+        clearTimeout(timer);
+        img.style.display = 'none';
+        finish();
+      };
+      tempImg.src = src;
     });
-  });
-  await Promise.all(promises);
+  }));
 }
 
-/* ─── EXPORTACIÓN Y DESCARGA AUTOMÁTICA EN PDF DIRECTO (HTML2PDF) ─── */
-async function descargarPDFElementoDirecto(element, filename) {
-  if (typeof html2pdf !== 'undefined') {
-    mostrarToastLive('Generando y descargando PDF automáticamente...');
+/* ─── ESTILOS INLINE OFICIALES DE ALTA DEFINICIÓN PARA EXPORTACIÓN DIRECTA KÁRDEX A PDF ─── */
+const KARDEX_PDF_INLINE_STYLES = `
+<style>
+  /* Reset y contenedor general de exportación */
+  #kardex-pdf-render-sandbox {
+    position: fixed !important;
+    left: -9999px !important;
+    top: 0 !important;
+    width: 664px !important;
+    z-index: -99999 !important;
+    background: #ffffff !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .kardex-pdf-page-box {
+    width: 664px !important;
+    min-width: 664px !important;
+    max-width: 664px !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 0 8px 0 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: geometricPrecision !important;
+    overflow: visible !important;
+  }
 
-    await convertirImagenesABase64(element);
+  /* Borde estándar y cierre inferior físico garantizado para celda de aclaraciones */
+  .kardex-aclaraciones-celda {
+    border: 1px solid #cbd5e1 !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+    box-sizing: border-box !important;
+  }
+  .kardex-d1-grid .kardex-aclaraciones-celda {
+    border: 1px solid #000000 !important;
+    border-bottom: 1.5px solid #000000 !important;
+    box-sizing: border-box !important;
+  }
+  .kardex-d2-cierre-plomo {
+    width: 100% !important;
+    height: 2px !important;
+    min-height: 2px !important;
+    background: #cbd5e1 !important;
+    background-color: #cbd5e1 !important;
+    margin-top: -1.5px !important;
+    display: block !important;
+    clear: both !important;
+    box-sizing: border-box !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .kardex-d1-cierre-negro {
+    width: 100% !important;
+    height: 2px !important;
+    min-height: 2px !important;
+    background: #000000 !important;
+    background-color: #000000 !important;
+    margin-top: -1.5px !important;
+    display: block !important;
+    clear: both !important;
+    box-sizing: border-box !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .kardex-linea-cierre-ploma-td {
+    height: 2px !important;
+    min-height: 2px !important;
+    line-height: 1px !important;
+    font-size: 1px !important;
+    padding: 0 !important;
+    background: #cbd5e1 !important;
+    border: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .kardex-linea-cierre-negra-td {
+    height: 2px !important;
+    min-height: 2px !important;
+    line-height: 1px !important;
+    font-size: 1px !important;
+    padding: 0 !important;
+    background: #000000 !important;
+    border: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
-    document.body.classList.add('html2canvas-export-active');
-    await new Promise(r => setTimeout(r, 200));
+  /* Overlay y contenedor de html2pdf: position fixed sin scroll offset y altura amplia */
+  .html2pdf__overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 664px !important;
+    min-width: 664px !important;
+    max-width: 664px !important;
+    height: 3500px !important;
+    min-height: 3500px !important;
+    bottom: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    z-index: 99999 !important;
+  }
+  .html2pdf__container {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 664px !important;
+    min-width: 664px !important;
+    max-width: 664px !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+    max-width: 664px !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
 
-    const opt = {
-      margin: [2, 3, 2, 3],
-      filename: filename,
-      image: { type: 'jpeg', quality: 0.98 },
+  /* ══════════ ESTILOS DISEÑO 1 (OFICIAL TRADICIONAL) ══════════ */
+  .kardex-d1-page,
+  .kardex-d1-p1,
+  .kardex-d1-p2 {
+    width: 664px !important;
+    max-width: 664px !important;
+    min-width: 664px !important;
+    box-sizing: border-box !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+  .kardex-d1-header {
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    margin-bottom: 2px !important;
+    padding-top: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .kardex-d1-escudo {
+    height: 105px !important;
+    max-width: 140px !important;
+    object-fit: contain !important;
+    margin-bottom: 4px !important;
+  }
+  .kardex-d1-cod-box {
+    border: 1.5px solid #000000 !important;
+    font-size: 7.0pt !important;
+    font-weight: 900 !important;
+    padding: 1px 7px !important;
+    margin-top: 4px !important;
+    text-align: center !important;
+    display: inline-block !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .kardex-d1-tit-dep {
+    font-size: 11.0pt !important;
+    font-weight: 900 !important;
+    color: #475569 !important;
+    line-height: 1.2 !important;
+    margin-top: 14px !important;
+    text-align: center !important;
+  }
+  .kardex-d1-tit-dis {
+    font-size: 9.0pt !important;
+    font-weight: 900 !important;
+    color: #1e293b !important;
+    line-height: 1.2 !important;
+    margin-top: 4px !important;
+    text-align: center !important;
+  }
+  .kardex-d1-tit-main {
+    font-size: 13.0pt !important;
+    font-weight: 900 !important;
+    line-height: 1.25 !important;
+    margin-top: 45px !important;
+    text-align: center !important;
+    color: #000000 !important;
+  }
+  .kardex-d1-foto-frame {
+    width: 38mm !important;
+    height: 38mm !important;
+    min-width: 38mm !important;
+    min-height: 38mm !important;
+    max-width: 38mm !important;
+    max-height: 38mm !important;
+    margin-top: 24px !important;
+    border: 1.8px solid #000000 !important;
+    background: #cbd5e1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    font-size: 6.8pt !important;
+    font-weight: 900 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  .kardex-d1-grid,
+  .kardex-master-grid {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-bottom: 1.5px solid #000000 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    background: #ffffff !important;
+  }
+  .kardex-d1-grid tr,
+  .kardex-master-grid tr {
+    height: 19px !important;
+  }
+  .kardex-d1-grid th,
+  .kardex-master-grid th {
+    border: 1px solid #000000 !important;
+    padding: 1.5px 3px !important;
+    font-size: 7.0pt !important;
+    font-weight: 800 !important;
+    background: #f6c445 !important;
+    color: #000000 !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    height: 19px !important;
+  }
+  .kardex-d1-grid td,
+  .kardex-master-grid td {
+    border: 1px solid #000000 !important;
+    padding: 3.5px 4px !important;
+    font-size: 7.2pt !important;
+    line-height: 1.2 !important;
+    color: #000000 !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    height: 26px !important;
+    min-height: 26px !important;
+    font-weight: 600 !important;
+    background: #ffffff !important;
+  }
+  .kardex-d1-grid .k-banner,
+  .kardex-master-grid .k-banner {
+    background: #f6c445 !important;
+    border: 1.5px solid #000000 !important;
+    font-weight: 900 !important;
+    font-size: 7.4pt !important;
+    text-align: center !important;
+    padding: 2px 4px !important;
+    color: #000000 !important;
+  }
+  .kardex-d1-grid .k-banner-sub,
+  .kardex-master-grid .k-banner-sub {
+    background: #f6c445 !important;
+    border: 1.5px solid #000000 !important;
+    font-weight: 800 !important;
+    font-size: 7.0pt !important;
+    text-align: center !important;
+    padding: 2px 4px !important;
+    color: #000000 !important;
+  }
+  .kardex-d1-grid .k-spacer,
+  .kardex-master-grid .k-spacer {
+    background: #ffffff !important;
+    border: none !important;
+    padding: 0 !important;
+    width: 1.5% !important;
+  }
+  .k-aclaraciones-row {
+    display: flex !important;
+    border: 1.5px solid #000000 !important;
+    margin-top: 2px !important;
+    height: 38px !important;
+  }
+  .k-aclaraciones-tab {
+    background: #fde047 !important;
+    border-right: 1.5px solid #000000 !important;
+    width: 22% !important;
+    font-weight: 900 !important;
+    font-size: 6.8pt !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 2px 4px !important;
+  }
+  .k-aclaraciones-box {
+    width: 78% !important;
+    padding: 3px 6px !important;
+    font-size: 6.8pt !important;
+    color: #000000 !important;
+  }
+  .k-print-firmas-container {
+    display: flex !important;
+    border: 1.5px solid #000000 !important;
+    margin-top: 6px !important;
+    margin-bottom: 6px !important;
+    height: 108px !important;
+    min-height: 108px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .k-print-firma-column {
+    flex: 1 !important;
+    border-right: 1.5px solid #000000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    padding: 4px 6px !important;
+    box-sizing: border-box !important;
+    height: 106px !important;
+    min-height: 106px !important;
+  }
+  .k-print-firma-column:last-child {
+    border-right: none !important;
+  }
+  .k-print-firma-header {
+    text-align: center !important;
+    font-weight: 800 !important;
+    font-size: 7.2pt !important;
+    padding-top: 2px !important;
+    border-top: 1px solid #000000 !important;
+    text-transform: uppercase !important;
+  }
+  .k-print-date-row {
+    text-align: right !important;
+    font-size: 7.5pt !important;
+    font-weight: 800 !important;
+    margin-top: 8px !important;
+    padding-right: 12px !important;
+  }
+
+  /* ══════════ ESTILOS DISEÑO 2 (VERDE INSTITUCIONAL) ══════════ */
+  .kardex-d2-page,
+  .kardex-d2-p1,
+  .kardex-d2-p2 {
+    width: 664px !important;
+    max-width: 664px !important;
+    min-width: 664px !important;
+    box-sizing: border-box !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #1e293b !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  }
+  .kardex-d2-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 4px !important;
+    border-bottom: 2px solid #166534 !important;
+    box-sizing: border-box !important;
+  }
+  .kardex-d2-logo-wrap {
+    width: 105px !important;
+    min-width: 105px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  .kardex-d2-escudo {
+    height: 80px !important;
+    max-width: 100px !important;
+    object-fit: contain !important;
+  }
+  .kardex-d2-cod-box {
+    border: 1.2px solid #166534 !important;
+    background: #f0fdf4 !important;
+    color: #166534 !important;
+    font-size: 7.5pt !important;
+    font-weight: 800 !important;
+    padding: 1.5px 8px !important;
+    border-radius: 4px !important;
+    margin-top: 3px !important;
+    display: inline-block !important;
+  }
+  .kardex-d2-title-wrap {
+    flex: 1 !important;
+    text-align: center !important;
+    padding: 0 4px !important;
+  }
+  .kardex-d2-tit-sub {
+    font-size: 7.8pt !important;
+    font-weight: 800 !important;
+    color: #166534 !important;
+    letter-spacing: 0.6px !important;
+    text-transform: uppercase !important;
+    line-height: 1.2 !important;
+  }
+  .kardex-d2-tit-dep {
+    font-size: 10.2pt !important;
+    font-weight: 900 !important;
+    line-height: 1.2 !important;
+    color: #0f172a !important;
+    margin-top: 1px !important;
+    text-align: center !important;
+  }
+  .kardex-d2-tit-dis {
+    font-size: 8.8pt !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    margin-top: 1px !important;
+    color: #334155 !important;
+  }
+  .kardex-d2-tit-main {
+    font-size: 12.0pt !important;
+    font-weight: 900 !important;
+    line-height: 1.25 !important;
+    margin-top: 8px !important;
+    color: #166534 !important;
+    letter-spacing: 0.4px !important;
+    text-transform: uppercase !important;
+  }
+  .kardex-d2-tit-badge {
+    display: inline-block !important;
+    background: #166534 !important;
+    color: #ffffff !important;
+    padding: 1px 12px !important;
+    border-radius: 12px !important;
+    font-size: 9.5pt !important;
+    font-weight: 800 !important;
+    margin-top: 3px !important;
+  }
+  .kardex-d2-foto-wrap {
+    width: 105px !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+  }
+  .kardex-d2-foto-frame {
+    width: 34mm !important;
+    height: 34mm !important;
+    min-width: 34mm !important;
+    min-height: 34mm !important;
+    max-width: 34mm !important;
+    max-height: 34mm !important;
+    margin-top: 24px !important;
+    border: 1.5px solid #166534 !important;
+    border-radius: 4px !important;
+    background: #f8fafc !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    font-size: 6.8pt !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  .kardex-d2-grid {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  }
+  .kardex-d2-grid tr {
+    height: 22px !important;
+  }
+  .kardex-d2-grid th {
+    border: 0.8px solid #cbd5e1 !important;
+    padding: 2px 4px !important;
+    font-size: 7.6pt !important;
+    line-height: 1.15 !important;
+    color: #1e293b !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    height: 19px !important;
+    background: #f8fafc !important;
+  }
+  .kardex-d2-grid td {
+    border: 0.8px solid #cbd5e1 !important;
+    padding: 4.5px 4px !important;
+    font-size: 7.8pt !important;
+    line-height: 1.15 !important;
+    color: #1e293b !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    height: 30px !important;
+    background: #ffffff !important;
+  }
+  .kardex-d2-grid .k2-banner,
+  .kardex-diseno-2 .kardex-master-grid .k-banner {
+    background: #166534 !important;
+    border: 1px solid #14532d !important;
+    font-weight: 800 !important;
+    font-size: 8.0pt !important;
+    text-align: center !important;
+    padding: 2.5px 6px !important;
+    color: #ffffff !important;
+  }
+  .kardex-d2-grid .k2-banner-sub,
+  .kardex-diseno-2 .kardex-master-grid .k-banner-sub {
+    background: #15803d !important;
+    border: 1px solid #166534 !important;
+    font-weight: 800 !important;
+    font-size: 7.6pt !important;
+    text-align: center !important;
+    padding: 2.5px 6px !important;
+    color: #ffffff !important;
+  }
+  .kardex-d2-grid .k2-spacer {
+    background: #ffffff !important;
+    border: none !important;
+    padding: 0 !important;
+    width: 1.5% !important;
+  }
+  .k2-aclaraciones-row {
+    display: flex !important;
+    border: 1px solid #cbd5e1 !important;
+    margin-top: 4px !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+  }
+  .k2-aclaraciones-tab {
+    background: #f0fdf4 !important;
+    border-right: 1px solid #bbf7d0 !important;
+    color: #166534 !important;
+    font-weight: 800 !important;
+    font-size: 7.2pt !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 4px 6px !important;
+    width: 22% !important;
+    text-align: center !important;
+  }
+  .k2-aclaraciones-box {
+    padding: 4px 8px !important;
+    font-size: 7.2pt !important;
+    color: #334155 !important;
+    width: 78% !important;
+  }
+  .kardex-d2-firmas-wrap,
+  .k2-firmas-container {
+    display: flex !important;
+    border: 1.2px solid #166534 !important;
+    border-radius: 4px !important;
+    margin-top: 6px !important;
+    margin-bottom: 4px !important;
+    height: 108px !important;
+    min-height: 108px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
+  }
+  .kardex-d2-firma-col,
+  .k2-firma-col {
+    flex: 1 !important;
+    border-right: 1px solid #cbd5e1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    padding: 4px 6px !important;
+    box-sizing: border-box !important;
+    height: 106px !important;
+    min-height: 106px !important;
+  }
+  .kardex-d2-firma-col:last-child,
+  .k2-firma-col:last-child {
+    border-right: none !important;
+  }
+  .kardex-d2-firma-line,
+  .k2-firma-header {
+    border-top: 1.2px solid #0f172a !important;
+    text-align: center !important;
+    font-weight: 800 !important;
+    font-size: 7.0pt !important;
+    color: #166534 !important;
+    padding-top: 2px !important;
+    letter-spacing: 0.2px !important;
+  }
+  .kardex-d2-date-row,
+  .k2-date-row {
+    text-align: right !important;
+    font-size: 7.5pt !important;
+    font-weight: 700 !important;
+    color: #334155 !important;
+    margin-top: 6px !important;
+    padding-right: 8px !important;
+  }
+</style>
+`;
+
+/* ─── HELPER: INSTANCIACIÓN ROBUSTA DE JSPDF ─── */
+async function crearInstanciaJsPDF(optJsPdf = {}) {
+  const conf = Object.assign({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true }, optJsPdf);
+  const JsPDFClass = (typeof window.jsPDF === 'function') ? window.jsPDF :
+    (window.jspdf?.jsPDF || (typeof window.html2pdf?.jsPDF === 'function' ? window.html2pdf.jsPDF : null));
+  if (JsPDFClass) {
+    try {
+      return new JsPDFClass(conf);
+    } catch (e) {
+      console.warn('Instanciando JsPDFClass directo falló, probando worker fallback:', e);
+    }
+  }
+  if (typeof window.html2pdf !== 'undefined') {
+    try {
+      const dummy = window.html2pdf().set({ jsPDF: conf });
+      const pdf = await dummy.toPdf().get('pdf');
+      if (pdf && pdf.constructor) {
+        return new pdf.constructor(conf);
+      }
+      return pdf;
+    } catch (e) {
+      console.warn('Instanciando jsPDF vía worker fallback:', e);
+    }
+  }
+  return null;
+}
+
+/* ─── HELPER: RENDERIZAR UNA PÁGINA DE KÁRDEX A CANVAS NÍTIDO ─── */
+async function renderizarPaginaKardexACanvas(htmlContent, className, exportSandbox, scale = 2.8) {
+  const pageBox = document.createElement('div');
+  pageBox.className = `kardex-pdf-page-box ${className || ''}`;
+  pageBox.innerHTML = htmlContent;
+
+  // Reemplazo inmediato de logo institucional por versión precargada en Base64
+  if (_cachedKardexLogoDataUrl) {
+    const imgs = pageBox.querySelectorAll('img');
+    imgs.forEach(img => {
+      const src = img.getAttribute('src') || '';
+      if (src.includes('logo') || src.includes('poussepin')) {
+        img.src = _cachedKardexLogoDataUrl;
+      }
+    });
+  }
+
+  exportSandbox.appendChild(pageBox);
+
+  // Asegurar que todas las fotos o sellos estén en Base64 sin problemas de CORS
+  try {
+    await convertirImagenesABase64(pageBox);
+  } catch (e) {}
+
+  await new Promise(r => setTimeout(r, 40));
+
+  let canvas = null;
+  if (typeof window.html2canvas === 'function') {
+    canvas = await window.html2canvas(pageBox, {
+      scale: scale,
+      letterRendering: true,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: 0,
+      logging: false
+    });
+  } else if (typeof window.html2pdf !== 'undefined') {
+    const worker = window.html2pdf().set({
       html2canvas: {
-        scale: 2,
+        scale: scale,
+        letterRendering: true,
         useCORS: true,
         allowTaint: true,
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: 0,
         logging: false
-      },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
-    };
+      }
+    }).from(pageBox);
+    canvas = await worker.toCanvas().get('canvas');
+  }
 
+  if (pageBox.parentNode) {
+    pageBox.parentNode.removeChild(pageBox);
+  }
+
+  return canvas;
+}
+
+/* ─── HELPER PARA DESCARGA DIRECTA DE BLOB PDF Y GESTIÓN DE MODAL DE CONFIRMACIÓN ─── */
+let _ultimoKardexPdfBlobUrl = null;
+
+function descargarBlobArchivoPDF(blob, filename) {
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = filename || 'Kardex_Docente_2026.pdf';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
     try {
-      await html2pdf().set(opt).from(element).save();
-      mostrarToastLive('¡PDF descargado en tu carpeta de descargas!');
-    } catch (err) {
-      console.error('Error en descarga de PDF con html2pdf:', err);
-      window.print();
-    } finally {
-      document.body.classList.remove('html2canvas-export-active');
+      if (a && a.parentNode) a.parentNode.removeChild(a);
+    } catch (e) {}
+  }, 4000);
+}
+
+function abrirPdfGeneradoKardex() {
+  if (_ultimoKardexPdfBlobUrl) {
+    const win = window.open(_ultimoKardexPdfBlobUrl, '_blank');
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+      const a = document.createElement('a');
+      a.href = _ultimoKardexPdfBlobUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try { if (a && a.parentNode) a.parentNode.removeChild(a); } catch(e) {}
+      }, 1200);
     }
-  } else {
-    window.print();
   }
 }
 
+function cerrarModalAvisoDescargaPdfKardex() {
+  const modal = document.getElementById('modal-aviso-kardex-pdf-descargado');
+  if (modal) modal.style.display = 'none';
+}
+
+function mostrarModalAvisoDescargaPdfKardex(nombreArchivo, blob) {
+  if (blob) {
+    if (_ultimoKardexPdfBlobUrl) {
+      try { URL.revokeObjectURL(_ultimoKardexPdfBlobUrl); } catch (e) {}
+    }
+    _ultimoKardexPdfBlobUrl = URL.createObjectURL(blob);
+  }
+
+  let modal = document.getElementById('modal-aviso-kardex-pdf-descargado');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-aviso-kardex-pdf-descargado';
+    modal.className = 'modal-aviso-pdf-overlay';
+    document.body.appendChild(modal);
+  }
+
+  const esAndroid = /Android/i.test(navigator.userAgent);
+  const esIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const esMovil = esAndroid || esIOS || /webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
+
+  const badgeIconSvg = esMovil
+    ? `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" style="flex-shrink:0;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`
+    : `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" style="flex-shrink:0;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+  const badgeTexto = esAndroid ? 'CELULAR ANDROID' : (esMovil ? 'DISPOSITIVO MÓVIL' : 'COMPUTADORA / PC');
+  const badgeColor = esMovil ? '#166534' : '#1d4ed8';
+  const badgeBg = esMovil ? '#dcfce7' : '#eff6ff';
+  const badgeBorder = esMovil ? '#86efac' : '#93c5fd';
+
+  const mensajeDispositivo = esMovil
+    ? `Tu documento oficial en formato PDF ya fue descargado en tu <strong>celular</strong>. Puedes revisarlo con el botón <strong>"Abrir"</strong> o en tu carpeta de <strong>Descargas</strong> / barra de notificaciones.`
+    : `Tu documento oficial en formato PDF ya fue descargado en tu <strong>computadora</strong>. El archivo se encuentra guardado en tu carpeta de <strong>Descargas</strong>.`;
+
+  const escNom = typeof escapeHTML === 'function' ? escapeHTML(nombreArchivo || '') : String(nombreArchivo || '');
+
+  modal.innerHTML = `
+    <div class="modal-aviso-pdf-backdrop" onclick="cerrarModalAvisoDescargaPdfKardex()" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(4,26,11,0.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;">
+      <div class="modal-aviso-pdf-card" onclick="event.stopPropagation()" style="background:#ffffff;border:2px solid #16a34a;border-radius:16px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.35);padding:24px 22px;text-align:center;box-sizing:border-box;animation:zoomInAvisoPdf 0.22s ease-out;">
+        
+        <div style="display:inline-flex;align-items:center;gap:6px;background:${badgeBg};color:${badgeColor};border:1.5px solid ${badgeBorder};border-radius:50px;padding:4px 12px;font-size:0.75rem;font-weight:800;letter-spacing:0.5px;margin-bottom:12px;text-transform:uppercase;">
+          ${badgeIconSvg}
+          <span>${badgeTexto}</span>
+        </div>
+
+        <div style="width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg, #16a34a 0%, #15803d 100%);color:#ffffff;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 12px auto;box-shadow:0 6px 18px rgba(22,163,74,0.35);">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+
+        <h3 style="margin:0 0 8px 0;font-size:1.25rem;font-weight:900;color:#063c17;letter-spacing:-0.3px;">
+          Se descargó tu Kárdex Docente
+        </h3>
+
+        <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:0.80rem;color:#334155;font-weight:700;word-break:break-all;display:flex;align-items:center;justify-content:center;gap:7px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#16a34a" stroke-width="2.2" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>${escNom || 'Kardex_Docente_2026.pdf'}</span>
+        </div>
+
+        <p style="margin:0 0 20px 0;font-size:0.88rem;color:#475569;line-height:1.45;">
+          ${mensajeDispositivo}
+        </p>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button type="button" onclick="abrirPdfGeneradoKardex()" style="background:linear-gradient(135deg, #16a34a 0%, #15803d 100%);color:#ffffff;border:none;border-radius:50px;padding:12px 24px;font-size:0.96rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 6px 20px rgba(22,163,74,0.40);transition:all 0.2s ease;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            <span>Abrir</span>
+          </button>
+
+          <button type="button" onclick="cerrarModalAvisoDescargaPdfKardex()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:50px;padding:9px 18px;font-size:0.86rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s ease;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <span>Cerrar</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  modal.style.display = 'block';
+}
+
+/* ─── MODAL Y CONTROLADOR DE PROGRESO DE GENERACIÓN KÁRDEX PDF ─── */
+window._generandoKardexPdfEnProgreso = false;
+
+const ProgresoKardexPDF = {
+  _pctActual: 0,
+
+  _asegurarModalDOM() {
+    let modal = document.getElementById('modal-progreso-kardex-pdf');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'modal-progreso-kardex-pdf';
+    modal.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(4,26,11,0.80);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:9999999;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;pointer-events:all !important;user-select:none !important;cursor:wait !important;';
+
+    modal.innerHTML = `
+      <style>
+        @keyframes pulseKardexIcon {
+          0%, 100% { transform: scale(1); box-shadow: 0 8px 22px rgba(22,163,74,0.38); }
+          50% { transform: scale(1.09); box-shadow: 0 14px 34px rgba(22,163,74,0.70); }
+        }
+        @keyframes spinKardexBtn {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+      <div class="card-progreso-pdf" style="background:#ffffff;border:2px solid #16a34a;border-radius:18px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.40);padding:26px 24px;text-align:center;box-sizing:border-box;position:relative;animation:zoomInAvisoPdf 0.2s ease-out;">
+        
+        <div style="width:62px;height:62px;border-radius:50%;background:linear-gradient(135deg, #16a34a 0%, #15803d 100%);color:#ffffff;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 14px auto;box-shadow:0 8px 22px rgba(22,163,74,0.38);animation:pulseKardexIcon 1.5s infinite ease-in-out;">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <polyline points="9 15 12 18 15 15"/>
+          </svg>
+        </div>
+
+        <h3 id="progreso-kardex-titulo" style="margin:0 0 6px 0;font-size:1.20rem;font-weight:900;color:#063c17;letter-spacing:-0.2px;">
+          Generando Kárdex Docente Oficial
+        </h3>
+
+        <p id="progreso-kardex-mensaje" style="margin:0 0 18px 0;font-size:0.88rem;color:#475569;line-height:1.45;min-height:36px;display:flex;align-items:center;justify-content:center;">
+          Iniciando motor de alta resolución...
+        </p>
+
+        <div style="background:#e2e8f0;border-radius:50px;height:12px;overflow:hidden;position:relative;margin-bottom:12px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.12);border:1px solid #cbd5e1;">
+          <div id="progreso-kardex-barra" style="height:100%;width:15%;background:linear-gradient(90deg, #16a34a 0%, #22c55e 50%, #15803d 100%);border-radius:50px;transition:width 0.22s ease-out;"></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.84rem;font-weight:800;color:#166534;padding:0 2px;">
+          <span id="progreso-kardex-paso" style="color:#64748b;font-weight:700;font-size:0.80rem;display:inline-flex;align-items:center;gap:5px;">
+            <svg class="anim-spin" style="animation:spinKardexBtn 1.2s linear infinite;" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Paso 1 de 4</span>
+          </span>
+          <span id="progreso-kardex-pct" style="font-size:1.15rem;font-weight:900;color:#15803d;font-family:monospace;letter-spacing:0.5px;">15%</span>
+        </div>
+
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f1f5f9;font-size:0.75rem;color:#94a3b8;font-weight:600;">
+          Centro de Educación Alternativa "Madre Marie Poussepin" • Gestión 2026
+        </div>
+
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    return modal;
+  },
+
+  iniciar(titulo, mensajeInicial) {
+    this._pctActual = 15;
+    const modal = this._asegurarModalDOM();
+    if (!modal) return;
+
+    const elTit = document.getElementById('progreso-kardex-titulo');
+    const elMsg = document.getElementById('progreso-kardex-mensaje');
+    const elBar = document.getElementById('progreso-kardex-barra');
+    const elPct = document.getElementById('progreso-kardex-pct');
+    const elPaso = document.getElementById('progreso-kardex-paso');
+
+    if (elTit) elTit.textContent = titulo || 'Generando Kárdex Docente Oficial';
+    if (elMsg) elMsg.textContent = mensajeInicial || 'Iniciando proceso...';
+    if (elPaso) {
+      const span = elPaso.querySelector('span') || elPaso;
+      span.textContent = 'Paso 1 de 4';
+    }
+    if (elBar) elBar.style.width = '15%';
+    if (elPct) elPct.textContent = '15%';
+
+    modal.style.display = 'flex';
+  },
+
+  actualizar(porcentaje, mensaje, pasoTexto) {
+    const p = Math.min(100, Math.max(0, Math.round(porcentaje)));
+    this._pctActual = p;
+    const elMsg = document.getElementById('progreso-kardex-mensaje');
+    const elBar = document.getElementById('progreso-kardex-barra');
+    const elPct = document.getElementById('progreso-kardex-pct');
+    const elPaso = document.getElementById('progreso-kardex-paso');
+
+    if (elMsg && mensaje) elMsg.textContent = mensaje;
+    if (elPaso && pasoTexto) {
+      const span = elPaso.querySelector('span') || elPaso;
+      span.textContent = pasoTexto;
+    }
+    if (elBar) elBar.style.width = `${p}%`;
+    if (elPct) elPct.textContent = `${p}%`;
+  },
+
+  cerrar() {
+    const modal = document.getElementById('modal-progreso-kardex-pdf');
+    if (modal) modal.style.display = 'none';
+  }
+};
+
+/* ─── GUARDAR UN KÁRDEX EN PDF (FORMATO OFICIAL CARTA 2 PÁGINAS INDEPENDIENTES) ─── */
 async function guardarPDFUnKardex(docenteId, diseno = 1) {
-  if (typeof window.aplicarOrientacionKardex === 'function') {
-    window.aplicarOrientacionKardex(diseno);
-  } else {
-    aplicarOrientacionImpresion('portrait');
+  if (window._generandoKardexPdfEnProgreso) {
+    if (typeof mostrarToastLive === 'function') {
+      mostrarToastLive('Ya se está procesando la descarga del PDF. Por favor espera...');
+    }
+    return;
+  }
+  window._generandoKardexPdfEnProgreso = true;
+
+  // Feedback instantáneo sin demora
+  ProgresoKardexPDF.iniciar('Generando Kárdex Docente Oficial', 'Preparando documento oficial de alta resolución...');
+  ProgresoKardexPDF.actualizar(20, 'Estructurando páginas oficiales...', 'Paso 1 de 4');
+
+  try {
+    await asegurarHtml2PdfCargado();
+  } catch (e) {
+    console.warn('Cargando motor html2pdf:', e);
+  }
+
+  if (typeof window.html2pdf === 'undefined') {
+    window._generandoKardexPdfEnProgreso = false;
+    ProgresoKardexPDF.cerrar();
+    if (typeof mostrarAlertaModal === 'function') {
+      mostrarAlertaModal('No se pudo cargar el motor PDF. Por favor verifica tu conexión o recarga la página.', 'Generador PDF', 'warning');
+    } else {
+      mostrarToastLive('No se pudo cargar el motor PDF.');
+    }
+    return;
   }
 
   const kardexMap = getKardexDocentesStorage();
@@ -25234,32 +26275,120 @@ async function guardarPDFUnKardex(docenteId, diseno = 1) {
   const docentesAll = typeof obtenerDocentesParaKardex === 'function' ? obtenerDocentesParaKardex() : [];
   const docObj = docentesAll.find(d => d.id === docenteId) || {};
 
-  const printArea = document.getElementById('kardex-print-area');
-  if (!printArea) return;
-
-  if (diseno === 2) {
-    printArea.classList.add('kardex-diseno-2');
-  } else {
-    printArea.classList.remove('kardex-diseno-2');
-  }
-
-  printArea.innerHTML = `
-    <div class="kardex-print-page kardex-page-1" id="kardex-print-page-1"></div>
-    <div class="kardex-print-page kardex-page-2" id="kardex-print-page-2"></div>
-  `;
-
-  const page1 = document.getElementById('kardex-print-page-1');
-  const page2 = document.getElementById('kardex-print-page-2');
-
-  prepararContenidoKardexDOM(data, page1, page2);
-
   const nombreCompleto = (data.nombres || docObj.nombre || 'Docente').trim();
   const apellido = (data.paterno || '').trim();
   const nomLimpio = `${apellido}_${nombreCompleto}`.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_]/g, '_').replace(/\s+/g, '_');
   const disenoStr = diseno === 2 ? 'Diseno2_Verde' : 'Diseno1_Oficial';
   const filename = `Kardex_${nomLimpio}_${disenoStr}_2026.pdf`;
 
-  await descargarPDFElementoDirecto(printArea, filename);
+  // Host invisible ajustado a 664px exactos (ancho imprimible carta entre márgenes de 20mm)
+  const exportSandbox = document.createElement('div');
+  exportSandbox.id = 'kardex-pdf-render-sandbox';
+  exportSandbox.style.cssText = 'position:fixed !important; left:-9999px !important; top:0 !important; width:664px !important; opacity:1 !important; visibility:visible !important; z-index:-99999 !important; background:#ffffff !important;';
+  exportSandbox.innerHTML = KARDEX_PDF_INLINE_STYLES;
+  document.body.appendChild(exportSandbox);
+
+  try {
+    const page1Box = document.createElement('div');
+    page1Box.className = `kardex-pdf-page-box ${diseno === 2 ? 'kardex-d2-page kardex-d2-p1' : 'kardex-d1-page kardex-d1-p1'}`;
+    page1Box.style.cssText = 'width:664px !important; min-width:664px !important; max-width:664px !important; box-sizing:border-box !important; background:#ffffff !important; padding-bottom:6px !important; overflow:visible !important;';
+
+    const page2Box = document.createElement('div');
+    page2Box.className = `kardex-pdf-page-box ${diseno === 2 ? 'kardex-d2-page kardex-d2-p2' : 'kardex-d1-page kardex-d1-p2'}`;
+    page2Box.style.cssText = 'width:664px !important; min-width:664px !important; max-width:664px !important; box-sizing:border-box !important; background:#ffffff !important; padding-bottom:6px !important; overflow:visible !important;';
+
+    if (diseno === 2 && typeof window.prepararContenidoKardexDiseno2DOM === 'function') {
+      window.prepararContenidoKardexDiseno2DOM(data, page1Box, page2Box);
+    } else if (typeof window.prepararContenidoKardexDiseno1DOM === 'function') {
+      window.prepararContenidoKardexDiseno1DOM(data, page1Box, page2Box);
+    } else {
+      prepararContenidoKardexDOM(data, page1Box, page2Box);
+    }
+
+    exportSandbox.appendChild(page1Box);
+    exportSandbox.appendChild(page2Box);
+
+    // Sanitizar y asegurar imágenes en Base64
+    await convertirImagenesABase64(exportSandbox);
+
+    // Escala optimizada para máxima nitidez cristalina y alta definición (300 DPI aprox)
+    const canvasScale = 3.0;
+
+    const optBase = {
+      margin: [0, 0, 0, 0],
+      image: { type: 'jpeg', quality: 0.99 },
+      html2canvas: {
+        scale: canvasScale,
+        useCORS: true,
+        allowTaint: true,
+        letterRendering: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollX: 0,
+        scrollY: 0
+      },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait', compress: true },
+      pagebreak: { mode: [] }
+    };
+
+    ProgresoKardexPDF.actualizar(35, 'Renderizando Página 1 oficial...', 'Paso 2 de 4');
+    const worker1 = window.html2pdf().set(optBase).from(page1Box);
+    const canvas1 = await worker1.toCanvas().get('canvas');
+
+    ProgresoKardexPDF.actualizar(70, 'Renderizando Página 2 oficial...', 'Paso 3 de 4');
+    const worker2 = window.html2pdf().set(optBase).from(page2Box);
+    const canvas2 = await worker2.toCanvas().get('canvas');
+
+    ProgresoKardexPDF.actualizar(90, 'Compilando archivo PDF oficial...', 'Paso 4 de 4');
+    const pdf = await crearInstanciaJsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true });
+    if (!pdf) {
+      throw new Error('No se pudo inicializar el documento PDF');
+    }
+
+    const wMm = 175.9; // Ancho útil exacto entre márgenes laterales de 20mm (215.9 - 40 = 175.9 mm)
+    const yMmP1 = 2.5;  // PÁGINA 1: Empieza más arriba (2.5 mm del borde superior de la hoja)
+    const yMmP2 = 14.0; // PÁGINA 2: Margen superior óptimo (14 mm) asegurando espacio completo a firmas y fecha
+
+    // PÁGINA 1: Altura natural proporcional exacta (NUNCA achatada ni deformada)
+    const naturalHMm1 = (canvas1.height * wMm) / canvas1.width;
+    const maxHMm1 = 279.4 - yMmP1 - 10.0; // 259.4 mm (asegura 1 cm exacto de margen inferior en hoja Carta)
+    const hMm1 = Math.min(maxHMm1, naturalHMm1);
+    const imgData1 = canvas1.toDataURL('image/jpeg', 0.99);
+    pdf.addImage(imgData1, 'JPEG', 20, yMmP1, wMm, hMm1, undefined, 'SLOW');
+
+    // PÁGINA 2: Con espacio completo garantizado para el recuadro de firmas institucional
+    pdf.addPage('letter', 'portrait');
+    const maxHMmP2 = 279.4 - yMmP2 - 10.0;
+    const hMm2 = Math.min(maxHMmP2, (canvas2.height * wMm) / canvas2.width);
+    const imgData2 = canvas2.toDataURL('image/jpeg', 0.99);
+    pdf.addImage(imgData2, 'JPEG', 20, yMmP2, wMm, hMm2, undefined, 'SLOW');
+
+    const blob = pdf.output('blob');
+    if (blob) {
+      descargarBlobArchivoPDF(blob, filename);
+    } else if (typeof pdf.save === 'function') {
+      pdf.save(filename);
+    }
+
+    ProgresoKardexPDF.actualizar(100, '¡Documento listo! Descargando archivo...', 'Paso 4 de 4');
+    ProgresoKardexPDF.cerrar();
+    window._generandoKardexPdfEnProgreso = false;
+    mostrarModalAvisoDescargaPdfKardex(filename, blob);
+
+  } catch (err) {
+    console.error('Error al generar PDF de Kárdex:', err);
+    ProgresoKardexPDF.cerrar();
+    if (typeof mostrarAlertaModal === 'function') {
+      mostrarAlertaModal('Hubo un inconveniente al generar el archivo PDF. Por favor intenta nuevamente.', 'Descarga de Kárdex', 'error');
+    } else {
+      mostrarToastLive('No se pudo generar el PDF.');
+    }
+  } finally {
+    window._generandoKardexPdfEnProgreso = false;
+    if (exportSandbox && exportSandbox.parentNode) {
+      exportSandbox.parentNode.removeChild(exportSandbox);
+    }
+  }
 }
 
 async function guardarPDFActual(diseno = 1) {
@@ -25367,15 +26496,34 @@ function prepararEImprimirTodosLosKardex(filtradosSolamente = false, diseno = 1)
   }, 100);
 }
 
+/* ─── GUARDAR TODOS LOS KÁRDEX EN PDF (EXPEDIENTE COMPLETO SIN HOJAS EN BLANCO) ─── */
 async function guardarPDFTodosLosKardex(filtradosSolamente = false, diseno = 1) {
-  if (typeof window.aplicarOrientacionKardex === 'function') {
-    window.aplicarOrientacionKardex(diseno);
-  } else {
-    aplicarOrientacionImpresion('portrait');
+  if (window._generandoKardexPdfEnProgreso) {
+    if (typeof mostrarToastLive === 'function') {
+      mostrarToastLive('Ya se está procesando la descarga de un PDF. Por favor espera...');
+    }
+    return;
+  }
+  window._generandoKardexPdfEnProgreso = true;
+
+  try {
+    await asegurarHtml2PdfCargado();
+  } catch (e) {
+    console.warn('Cargando motor html2pdf:', e);
+  }
+
+  if (typeof window.html2pdf === 'undefined') {
+    window._generandoKardexPdfEnProgreso = false;
+    if (typeof mostrarAlertaModal === 'function') {
+      mostrarAlertaModal('No se pudo cargar el motor PDF. Por favor verifica tu conexión o recarga la página.', 'Generador PDF', 'warning');
+    } else {
+      mostrarToastLive('No se pudo cargar el motor PDF.');
+    }
+    return;
   }
 
   const kardexMap = getKardexDocentesStorage();
-  const docentesAll = obtenerDocentesParaKardex();
+  const docentesAll = typeof obtenerDocentesParaKardex === 'function' ? obtenerDocentesParaKardex() : [];
 
   let listaDocentes = docentesAll;
   if (filtradosSolamente) {
@@ -25397,59 +26545,151 @@ async function guardarPDFTodosLosKardex(filtradosSolamente = false, diseno = 1) 
   }
 
   if (listaDocentes.length === 0) {
+    window._generandoKardexPdfEnProgreso = false;
     if (typeof mostrarAlertaModal === 'function') {
       mostrarAlertaModal('No hay registros de Kardex disponibles para guardar.', 'Kardex Docente', 'warning');
-    } else if (typeof mostrarToastLive === 'function') {
+    } else {
       mostrarToastLive('No hay registros de Kardex disponibles.');
     }
     return;
   }
 
-  const printArea = document.getElementById('kardex-print-area');
-  if (!printArea) return;
-
-  if (diseno === 2) {
-    printArea.classList.add('kardex-diseno-2');
-  } else {
-    printArea.classList.remove('kardex-diseno-2');
-  }
-
-  const page1 = document.createElement('div');
-  page1.style.display = 'none';
-  const page2 = document.createElement('div');
-  page2.style.display = 'none';
-  document.body.appendChild(page1);
-  document.body.appendChild(page2);
-
-  let htmlBatch = '';
-  listaDocentes.forEach((docenteObj, idx) => {
-    const docenteId = docenteObj.id;
-    const data = kardexMap[docenteId] || JSON.parse(JSON.stringify(KARDEX_MODEL_DEFAULT));
-
-    prepararContenidoKardexDOM(data, page1, page2);
-    const p1HTML = page1.innerHTML;
-    const p2HTML = page2.innerHTML;
-
-    htmlBatch += `
-      <div class="kardex-docente-batch-wrap">
-        <div class="kardex-print-page kardex-page-1">
-          ${p1HTML}
-        </div>
-        <div class="kardex-print-page kardex-page-2" style="${idx < listaDocentes.length - 1 ? 'page-break-after:always !important; break-after:page !important;' : ''}">
-          ${p2HTML}
-        </div>
-      </div>
-    `;
-  });
-
-  page1.remove();
-  page2.remove();
-
-  printArea.innerHTML = htmlBatch;
+  const total = listaDocentes.length;
+  ProgresoKardexPDF.iniciar('Generando Expediente de Kárdex en PDF', `Preparando expedientes de ${total} docentes...`);
+  ProgresoKardexPDF.actualizar(12, `Iniciando motor de renderizado oficial...`, 'Paso 1 de 4');
 
   const disenoStr = diseno === 2 ? 'Diseno2_Verde' : 'Diseno1_Oficial';
-  const filename = `Kardex_Lote_Todos_Docentes_${disenoStr}_2026.pdf`;
-  await descargarPDFElementoDirecto(printArea, filename);
+  const filename = `Kardex_Expediente_Todos_Docentes_${disenoStr}_2026.pdf`;
+
+  // Host invisible ajustado a 664px exactos
+  const exportSandbox = document.createElement('div');
+  exportSandbox.id = 'kardex-pdf-render-sandbox';
+  exportSandbox.style.cssText = 'position:fixed !important; left:-9999px !important; top:0 !important; width:664px !important; opacity:1 !important; visibility:visible !important; z-index:-99999 !important; background:#ffffff !important;';
+  exportSandbox.innerHTML = KARDEX_PDF_INLINE_STYLES;
+  document.body.appendChild(exportSandbox);
+
+  try {
+    // Escala optimizada para lotes masivos con alta nitidez y fluidez
+    const canvasScale = 2.8;
+
+    const optBase = {
+      margin: [0, 0, 0, 0],
+      image: { type: 'jpeg', quality: 0.99 },
+      html2canvas: {
+        scale: canvasScale,
+        useCORS: true,
+        allowTaint: true,
+        letterRendering: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollX: 0,
+        scrollY: 0
+      },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait', compress: true },
+      pagebreak: { mode: [] }
+    };
+
+    const wMm = 175.9;
+    const yMmP1 = 2.5;  // PÁGINA 1: Empieza más arriba (2.5 mm del borde superior de la hoja)
+    const yMmP2 = 14.0; // PÁGINA 2: Margen superior óptimo (14 mm) asegurando espacio completo a firmas y fecha
+    const maxHMmP1 = 279.4 - yMmP1 - 10.0; // 259.4 mm (asegura margen inferior de 1 cm)
+    const maxHMmP2 = 279.4 - yMmP2 - 10.0;
+
+    const page1Box = document.createElement('div');
+    page1Box.className = `kardex-pdf-page-box ${diseno === 2 ? 'kardex-d2-page kardex-d2-p1' : 'kardex-d1-page kardex-d1-p1'}`;
+    page1Box.style.cssText = 'width:664px !important; min-width:664px !important; max-width:664px !important; box-sizing:border-box !important; background:#ffffff !important; padding-bottom:6px !important; overflow:visible !important;';
+
+    const page2Box = document.createElement('div');
+    page2Box.className = `kardex-pdf-page-box ${diseno === 2 ? 'kardex-d2-page kardex-d2-p2' : 'kardex-d1-page kardex-d1-p2'}`;
+    page2Box.style.cssText = 'width:664px !important; min-width:664px !important; max-width:664px !important; box-sizing:border-box !important; background:#ffffff !important; padding-bottom:6px !important; overflow:visible !important;';
+
+    exportSandbox.appendChild(page1Box);
+    exportSandbox.appendChild(page2Box);
+
+    const pdf = await crearInstanciaJsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true });
+    if (!pdf) {
+      throw new Error('No se pudo inicializar el documento maestro PDF');
+    }
+
+    for (let i = 0; i < total; i++) {
+      const docenteObj = listaDocentes[i];
+      const docenteId = docenteObj.id;
+      const data = kardexMap[docenteId] || JSON.parse(JSON.stringify(KARDEX_MODEL_DEFAULT));
+      const nomDoc = (data.nombres || docenteObj.nombre || 'Docente').trim();
+
+      const progresoPct = Math.round(15 + ((i + 1) / total) * 75);
+      ProgresoKardexPDF.actualizar(
+        progresoPct,
+        `Procesando expediente ${i + 1} de ${total}: ${nomDoc}...`,
+        `Docente ${i + 1} de ${total}`
+      );
+
+      page1Box.innerHTML = '';
+      page2Box.innerHTML = '';
+
+      if (diseno === 2 && typeof window.prepararContenidoKardexDiseno2DOM === 'function') {
+        window.prepararContenidoKardexDiseno2DOM(data, page1Box, page2Box);
+      } else if (typeof window.prepararContenidoKardexDiseno1DOM === 'function') {
+        window.prepararContenidoKardexDiseno1DOM(data, page1Box, page2Box);
+      } else {
+        prepararContenidoKardexDOM(data, page1Box, page2Box);
+      }
+
+      await convertirImagenesABase64(exportSandbox);
+
+      // Renderizar Página 1 del docente proporcional (sin achatamiento)
+      const w1 = window.html2pdf().set(optBase).from(page1Box);
+      const c1 = await w1.toCanvas().get('canvas');
+      const naturalHMm1 = (c1.height * wMm) / c1.width;
+      const hMm1 = Math.min(maxHMmP1, naturalHMm1);
+      const imgData1 = c1.toDataURL('image/jpeg', 0.99);
+
+      // Si no es el primer docente, crear la página para su Página 1
+      if (i > 0) {
+        pdf.addPage('letter', 'portrait');
+      }
+      // Colocar Página 1 con borde inferior exacto de 1 cm (10 mm)
+      pdf.addImage(imgData1, 'JPEG', 20, yMmP1, wMm, hMm1, undefined, 'SLOW');
+
+      // Renderizar Página 2 del docente
+      const w2 = window.html2pdf().set(optBase).from(page2Box);
+      const c2 = await w2.toCanvas().get('canvas');
+      const hMm2 = Math.min(maxHMmP2, (c2.height * wMm) / c2.width);
+      const imgData2 = c2.toDataURL('image/jpeg', 0.99);
+
+      // Agregar página oficial para la Página 2 del docente
+      pdf.addPage('letter', 'portrait');
+      pdf.addImage(imgData2, 'JPEG', 20, yMmP2, wMm, hMm2, undefined, 'SLOW');
+    }
+
+    ProgresoKardexPDF.actualizar(95, 'Compilando expediente completo en PDF...', 'Paso 4 de 4');
+
+    const blob = pdf.output('blob');
+    if (blob) {
+      descargarBlobArchivoPDF(blob, filename);
+    } else if (typeof pdf.save === 'function') {
+      pdf.save(filename);
+    }
+
+    ProgresoKardexPDF.actualizar(100, '¡Expediente listo! Descargando archivo...', 'Paso 4 de 4');
+    ProgresoKardexPDF.cerrar();
+    window._generandoKardexPdfEnProgreso = false;
+    mostrarModalAvisoDescargaPdfKardex(filename, blob);
+
+  } catch (err) {
+    console.error('Error generando expediente de Kárdex en PDF:', err);
+    ProgresoKardexPDF.cerrar();
+    if (typeof mostrarAlertaModal === 'function') {
+      mostrarAlertaModal('Hubo un inconveniente al generar el expediente en PDF. Por favor intenta nuevamente.', 'Kárdex Docente', 'error');
+    } else {
+      mostrarToastLive('Error generando expediente en PDF.');
+    }
+  } finally {
+    window._generandoKardexPdfEnProgreso = false;
+    if (exportSandbox && exportSandbox.parentNode) {
+      exportSandbox.parentNode.removeChild(exportSandbox);
+    }
+  }
 }
 
 /* ─── MODAL SELECTOR DE DISEÑO (IMPRIMIR / PDF / LOTE) ─── */
@@ -25469,6 +26709,12 @@ function abrirModalElegirDisenoImpresionKardex() {
 }
 
 function abrirModalElegirDisenoPDFKardex() {
+  if (window._generandoKardexPdfEnProgreso) {
+    if (typeof mostrarToastLive === 'function') {
+      mostrarToastLive('Ya se está procesando la descarga de un PDF. Por favor espera...');
+    }
+    return;
+  }
   const id = document.getElementById('kardex-docente-id')?.value || kardexDocenteActualId || 'hum-mat';
   kardexSelectorModo = 'pdf';
   kardexSelectorTargetId = id;
@@ -25481,6 +26727,12 @@ function abrirModalElegirDisenoPDFKardex() {
 }
 
 function abrirModalElegirDisenoPDFDocente(docenteId) {
+  if (window._generandoKardexPdfEnProgreso) {
+    if (typeof mostrarToastLive === 'function') {
+      mostrarToastLive('Ya se está procesando la descarga de un PDF. Por favor espera...');
+    }
+    return;
+  }
   kardexSelectorModo = 'pdf';
   kardexSelectorTargetId = docenteId;
   const kardexMap = getKardexDocentesStorage();
@@ -25507,7 +26759,26 @@ function abrirModalElegirDisenoImpresionDocente(docenteId) {
   if (modal) modal.style.display = 'flex';
 }
 
+function restablecerModalSelectorDisenoKardex() {
+  window._generandoKardexPdfEnProgreso = false;
+  const modal = document.getElementById('modal-kardex-selector-diseno');
+  if (modal) {
+    modal.querySelectorAll('.kardex-opcion-diseno').forEach(card => {
+      card.style.pointerEvents = '';
+      card.style.opacity = '';
+      const btn = card.querySelector('button');
+      if (btn) {
+        btn.disabled = false;
+        const attr = (card.getAttribute('onclick') || btn.getAttribute('onclick') || '');
+        btn.innerHTML = attr.includes('1') ? 'Elegir D1' : 'Elegir D2';
+      }
+    });
+  }
+}
+
 function abrirModalElegirDisenoPDFLote() {
+  window._generandoKardexPdfEnProgreso = false;
+  restablecerModalSelectorDisenoKardex();
   kardexSelectorModo = 'pdf-lote';
   kardexSelectorTargetId = null;
   const tit = document.getElementById('kardex-selector-titulo');
@@ -25521,18 +26792,65 @@ function abrirModalElegirDisenoPDFLote() {
 function cerrarModalSelectorDisenoKardex() {
   const modal = document.getElementById('modal-kardex-selector-diseno');
   if (modal) modal.style.display = 'none';
+  restablecerModalSelectorDisenoKardex();
 }
 
-async function ejecutarAccionDisenoKardex(diseno) {
-  cerrarModalSelectorDisenoKardex();
+async function ejecutarAccionDisenoKardex(diseno, elem) {
+  if (window._generandoKardexPdfEnProgreso) {
+    if (typeof mostrarToastLive === 'function') {
+      mostrarToastLive('Ya se está procesando la descarga de un PDF. Por favor espera unos momentos.');
+    }
+    return;
+  }
+
   if (kardexSelectorModo === 'imprimir') {
+    cerrarModalSelectorDisenoKardex();
     prepararEImprimirKardex(kardexSelectorTargetId, diseno);
-  } else if (kardexSelectorModo === 'pdf') {
-    await guardarPDFUnKardex(kardexSelectorTargetId, diseno);
-  } else if (kardexSelectorModo === 'pdf-lote') {
-    await guardarPDFTodosLosKardex(true, diseno);
+    return;
+  }
+
+  // MODO PDF: animación y bloqueo visual inmediato
+  if (elem) {
+    elem.style.pointerEvents = 'none';
+    elem.style.opacity = '0.7';
+    const btn = elem.querySelector ? elem.querySelector('button') : null;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;"><svg style="animation:spinKardexBtn 0.8s linear infinite;" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path></svg> Procesando...</span>`;
+    }
+  }
+
+  // Mostrar el modal de progreso inmediatamente
+  ProgresoKardexPDF.iniciar(
+    kardexSelectorModo === 'pdf-lote' ? 'Generando Expediente de Kárdex en PDF' : 'Generando Kárdex Docente Oficial',
+    'Iniciando procesador de alta resolución...'
+  );
+
+  cerrarModalSelectorDisenoKardex();
+
+  try {
+    if (kardexSelectorModo === 'pdf') {
+      await guardarPDFUnKardex(kardexSelectorTargetId, diseno);
+    } else if (kardexSelectorModo === 'pdf-lote') {
+      await guardarPDFTodosLosKardex(true, diseno);
+    }
+  } finally {
+    restablecerModalSelectorDisenoKardex();
+    ProgresoKardexPDF.cerrar();
   }
 }
+
+// Exportar funciones de Kárdex al ámbito global
+window.guardarPDFUnKardex = guardarPDFUnKardex;
+window.guardarPDFActual = guardarPDFActual;
+window.guardarPDFTodosLosKardex = guardarPDFTodosLosKardex;
+window.abrirPdfGeneradoKardex = abrirPdfGeneradoKardex;
+window.cerrarModalAvisoDescargaPdfKardex = cerrarModalAvisoDescargaPdfKardex;
+window.abrirModalElegirDisenoPDFKardex = abrirModalElegirDisenoPDFKardex;
+window.abrirModalElegirDisenoPDFDocente = abrirModalElegirDisenoPDFDocente;
+window.abrirModalElegirDisenoPDFLote = abrirModalElegirDisenoPDFLote;
+window.cerrarModalSelectorDisenoKardex = cerrarModalSelectorDisenoKardex;
+window.ejecutarAccionDisenoKardex = ejecutarAccionDisenoKardex;
 
 /* ─── INIT ─── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -25654,6 +26972,16 @@ document.addEventListener('DOMContentLoaded', () => {
   vincularEventosPrevisualizacion('adm');
 
   restaurarSesion();
+  // Limpiar cualquier residuo previo en la caja de consulta de estudiante si la URL no solicita verificación
+  try {
+    const hasSearch = window.location && window.location.search && (window.location.search.includes('ci=') || window.location.search.includes('verificar=') || window.location.search.includes('consulta='));
+    if (!hasSearch) {
+      const inpConsInit = document.getElementById('ci-consulta-inp');
+      if (inpConsInit) inpConsInit.value = '';
+      const resBoxInit = document.getElementById('resultado-consulta-box');
+      if (resBoxInit) resBoxInit.style.display = 'none';
+    }
+  } catch (e) {}
   setTimeout(verificarParametrosConsultaQR, 150);
 });
 

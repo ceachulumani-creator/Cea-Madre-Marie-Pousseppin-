@@ -109,7 +109,7 @@
       <!-- ENCABEZADO INSTITUCIONAL VERDE CEA -->
       <div class="kardex-d2-header">
         <div class="kardex-d2-logo-wrap">
-          <img src="logo%20cea%20madre%20marie%20poussepin.png" alt="Logo Institución" class="kardex-d2-escudo" onerror="this.style.display='none'" />
+          <img src="${(typeof window !== 'undefined' && window.KARDEX_LOGO_BASE64) ? window.KARDEX_LOGO_BASE64 : 'logo%20cea%20madre%20marie%20poussepin.png'}" alt="Logo Institución" class="kardex-d2-escudo" onerror="this.style.display='none'" />
           <div class="kardex-d2-cod-box">${escapeHTML(codigoActual)}</div>
         </div>
         <div class="kardex-d2-title-wrap">
@@ -332,13 +332,14 @@
           <tr>
             <th colspan="8" class="k2-banner-sub">ACLARACIONES (SI CONSIDERA NECESARIO)</th>
           </tr>
-          <tr style="height: 75px !important;">
-            <td colspan="8" style="text-align:left; vertical-align:top; padding:8px 10px; height:75px !important; min-height:75px !important; word-break:break-word; overflow-wrap:break-word; white-space:normal; font-size:7.5pt; color:#1e293b; background:#f8fafc;">
+          <tr style="height: 73px !important;">
+            <td colspan="8" class="kardex-aclaraciones-celda" style="text-align:left; vertical-align:top; padding:8px 10px; height:73px !important; min-height:73px !important; word-break:break-word; overflow-wrap:break-word; white-space:normal; font-size:7.5pt; color:#1e293b; background:#f8fafc; border:1px solid #cbd5e1 !important; border-bottom:1.5px solid #cbd5e1 !important; box-sizing:border-box !important;">
               ${escapeHTML(data.aclaracionesV || '')}
             </td>
           </tr>
         </tbody>
       </table>
+      <div class="kardex-d2-cierre-plomo" style="width:100% !important; height:2px !important; min-height:2px !important; background:#cbd5e1 !important; background-color:#cbd5e1 !important; margin-top:-1.5px !important; display:block !important; clear:both !important; box-sizing:border-box !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;"></div>
     `;
 
     /* ══════════ PÁGINA 2: DISEÑO 2 VERDE INSTITUCIONAL ══════════ */
@@ -470,26 +471,26 @@
 
           <!-- DECLARACIÓN JURADA -->
           <tr>
-            <th colspan="8" class="k2-banner" style="font-weight:700; font-size:7.2pt; text-align:center; padding:3px 4px; text-transform:none; letter-spacing:0.2px;">
+            <th colspan="8" class="k2-banner" style="font-weight:700; font-size:7.2pt; text-align:center; padding:3px 4px; text-transform:none; letter-spacing:0.2px; background:#166534 !important; color:#ffffff !important; border:1px solid #14532d !important;">
               Los datos proporcionados son de responsabilidad personal
             </th>
           </tr>
 
           <!-- FIRMAS -->
           <tr>
-            <td colspan="8" style="border:none; padding:8px 0 4px 0; background:transparent;">
-              <div class="kardex-d2-firmas-wrap">
-                <div class="kardex-d2-firma-col">
-                  <div style="flex:1;"></div>
-                  <div class="kardex-d2-firma-line">MAESTRA / MAESTRO</div>
+            <td colspan="8" style="border:none !important; padding:8px 0 4px 0 !important; background:transparent !important;">
+              <div class="kardex-d2-firmas-wrap" style="display:flex !important; border:1.2px solid #166534 !important; border-radius:4px !important; width:100% !important; box-sizing:border-box !important; height:108px !important; min-height:108px !important; background:#ffffff !important; overflow:hidden !important;">
+                <div class="kardex-d2-firma-col" style="flex:1 !important; border-right:1px solid #cbd5e1 !important; display:flex !important; flex-direction:column !important; justify-content:space-between !important; padding:4px 6px !important; box-sizing:border-box !important; height:106px !important; min-height:106px !important;">
+                  <div style="flex:1 !important; height:76px !important; min-height:76px !important;"></div>
+                  <div class="kardex-d2-firma-line" style="border-top:1.2px solid #0f172a !important; text-align:center !important; font-weight:800 !important; font-size:7pt !important; color:#166534 !important; padding-top:3px !important; letter-spacing:0.2px !important;">MAESTRA / MAESTRO</div>
                 </div>
-                <div class="kardex-d2-firma-col">
-                  <div style="flex:1;"></div>
-                  <div class="kardex-d2-firma-line">DIRECTORA UNIDAD EDUCATIVA</div>
+                <div class="kardex-d2-firma-col" style="flex:1 !important; border-right:1px solid #cbd5e1 !important; display:flex !important; flex-direction:column !important; justify-content:space-between !important; padding:4px 6px !important; box-sizing:border-box !important; height:106px !important; min-height:106px !important;">
+                  <div style="flex:1 !important; height:76px !important; min-height:76px !important;"></div>
+                  <div class="kardex-d2-firma-line" style="border-top:1.2px solid #0f172a !important; text-align:center !important; font-weight:800 !important; font-size:7pt !important; color:#166534 !important; padding-top:3px !important; letter-spacing:0.2px !important;">DIRECTORA UNIDAD EDUCATIVA</div>
                 </div>
-                <div class="kardex-d2-firma-col">
-                  <div style="flex:1;"></div>
-                  <div class="kardex-d2-firma-line">DIRECTOR DISTRITAL</div>
+                <div class="kardex-d2-firma-col" style="flex:1 !important; display:flex !important; flex-direction:column !important; justify-content:space-between !important; padding:4px 6px !important; box-sizing:border-box !important; height:106px !important; min-height:106px !important;">
+                  <div style="flex:1 !important; height:76px !important; min-height:76px !important;"></div>
+                  <div class="kardex-d2-firma-line" style="border-top:1.2px solid #0f172a !important; text-align:center !important; font-weight:800 !important; font-size:7pt !important; color:#166534 !important; padding-top:3px !important; letter-spacing:0.2px !important;">DIRECTOR DISTRITAL</div>
                 </div>
               </div>
             </td>
@@ -497,7 +498,7 @@
 
           <!-- FECHA -->
           <tr>
-            <td colspan="8" style="border:none; text-align:right; font-size:7.5pt; font-weight:700; color:#334155; padding:4px 0 0 0; background:transparent;">
+            <td colspan="8" style="border:none !important; text-align:right !important; font-size:7.5pt !important; font-weight:700 !important; color:#334155 !important; padding:6px 4px 2px 0 !important; background:transparent !important;">
               Lugar y fecha: &nbsp;&nbsp; Chulumani, &nbsp;__${escapeHTML(data.lugarFechaDia || diaFallback)}__ &nbsp;de&nbsp; ${escapeHTML(data.lugarFechaMes || mesFallback)} &nbsp;de&nbsp; _____ ${escapeHTML(gestionActual)} _____
             </td>
           </tr>

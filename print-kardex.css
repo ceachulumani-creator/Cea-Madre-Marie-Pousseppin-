@@ -306,7 +306,8 @@
     border: 1.5px solid #000000 !important;
     margin-top: 6px !important;
     margin-bottom: 6px !important;
-    height: 80px !important;
+    height: 108px !important;
+    min-height: 108px !important;
     width: 100% !important;
     box-sizing: border-box !important;
   }
@@ -317,8 +318,10 @@
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
-    padding: 4px !important;
+    padding: 4px 6px !important;
     box-sizing: border-box !important;
+    height: 106px !important;
+    min-height: 106px !important;
   }
 
   .k-print-firma-column:last-child {

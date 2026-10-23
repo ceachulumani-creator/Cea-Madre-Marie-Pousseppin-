@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="print-kardex.css">
+  <link rel="stylesheet" href="kardex-diseno1.css">
+  <link rel="stylesheet" href="kardex-diseno2.css">
+  <script src="html2pdf.bundle.min.js"></script>
+  <script src="kardex-logo-base64.js"></script>
+  <script src="kardex-diseno1.js"></script>
+  <script src="kardex-diseno2.js"></script>
+  <script src="app.js"></script>
+</head>
+<body>
+  <div id="output">Running...</div>
+  <script>
+    async function test() {
+      const out = document.getElementById('output');
+      try {
+        const dummyData = {
+          paterno: 'CALLISAYA',
+          materno: 'TAPIA',
+          nombres: 'EDMARRR',
+          ci: '1234567 LP',
+          rda: '789012',
+          fechaNacimiento: '1985-05-15',
+          genero: 'F',
+          telefono: '71234567',
+          gestion: '2026',
+          ue: 'CEA MADRE MARIE POUSSEPIN',
+          codigoKardex: 'CODIGO 245'
+        };
+
+        const host = document.createElement('div');
+        host.style.cssText = 'position:fixed;left:-9999px;top:0;width:664px;background:#fff;';
+        host.innerHTML = window.KARDEX_PDF_INLINE_STYLES || '';
+        document.body.appendChild(host);
+
+        const p1 = document.createElement('div');
+        const p2 = document.createElement('div');
+        p1.className = 'kardex-pdf-page-box kardex-d2-page kardex-d2-p1';
+        p2.className = 'kardex-pdf-page-box kardex-d2-page kardex-d2-p2';
+        p1.style.cssText = 'width:664px;max-width:664px;min-width:664px;box-sizing:border-box;background:#fff;';
+        p2.style.cssText = 'width:664px;max-width:664px;min-width:664px;box-sizing:border-box;background:#fff;';
+
+        window.prepararContenidoKardexDiseno2DOM(dummyData, p1, p2);
+        host.appendChild(p1);
+        host.appendChild(p2);
+
+        // Check computed style of p1 and its first child
+        const csP1 = window.getComputedStyle(p1);
+        const header = p1.querySelector('.kardex-d2-header');
+        const csHeader = window.getComputedStyle(header);
+
+        // Render with html2pdf worker
+        const opt = {
+          margin: [10, 20, 10, 20],
+          image: { type: 'jpeg', quality: 0.90 },
+          html2canvas: { scale: 1.8, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all'] }
+        };
+
+        const w = window.html2pdf().set(opt).from(p1);
+        const canvas = await w.toCanvas().get('canvas');
+
+        // Let's inspect the top rows of pixels of the canvas!
+        const ctx = canvas.getContext('2d');
+        const imgData = ctx.getImageData(0, 0, canvas.width, 100);
+        let firstNonWhiteRow = -1;
+        for (let y = 0; y < 100; y++) {
+          for (let x = 0; x < canvas.width; x++) {
+            const idx = (y * canvas.width + x) * 4;
+            const r = imgData.data[idx];
+            const g = imgData.data[idx + 1];
+            const b = imgData.data[idx + 2];
+            if (r < 250 || g < 250 || b < 250) {
+              firstNonWhiteRow = y;
+              break;
+            }
+          }
+          if (firstNonWhiteRow !== -1) break;
+        }
+
+        out.textContent = `P1 margin-top: ${csP1.marginTop}, padding-top: ${csP1.paddingTop}. Header margin-top: ${csHeader.marginTop}, padding-top: ${csHeader.paddingTop}. First non-white row on canvas: y=${firstNonWhiteRow} (out of ${canvas.height}px, scale 1.8 = ${Math.round(firstNonWhiteRow / 1.8)}px)`;
+      } catch (e) {
+        out.textContent = 'ERROR: ' + e.stack;
+      }
+    }
+    window.addEventListener('load', test);
+  </script>
+</body>
+</html>

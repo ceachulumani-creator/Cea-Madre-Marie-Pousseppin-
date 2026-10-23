@@ -9957,40 +9957,41 @@ html.dark .eta-badge-cert.medio {
     line-height: 1.08 !important;
     text-align: center !important;
   }
+} /* ─── FIN DE REGLAS DE IMPRESIÓN HORARIOS / COMPROBANTES WEB ─── */
 
-  /* ─── KARDEX DOCENTE - ADMINISTRATIVO 2026 (AJUSTE Y FOCALIZACIÓN EXCLUSIVA EN 2 PÁGINAS PORTRAIT) ─── */
-  .kardex-print-page {
-    width: 100% !important;
-    max-width: 198mm !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-  }
-  .kardex-page-1 {
-    page-break-before: avoid !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    max-height: 250mm !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-  }
-  .kardex-page-2 {
-    page-break-before: always !important;
-    break-before: page !important;
-    page-break-after: avoid !important;
-    break-after: avoid !important;
-    max-height: 250mm !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-  }
-  .kardex-page-break {
-    display: none !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
+/* ─── KARDEX DOCENTE - ADMINISTRATIVO 2026 (ESTILOS COMPARTIDOS IMPRESIÓN Y EXPORTACIÓN PDF) ─── */
+.kardex-print-page {
+  width: 100% !important;
+  max-width: 198mm !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+.kardex-page-1 {
+  page-break-before: avoid !important;
+  page-break-after: always !important;
+  break-after: page !important;
+  max-height: 250mm !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+.kardex-page-2 {
+  page-break-before: always !important;
+  break-before: page !important;
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+  max-height: 250mm !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+.kardex-page-break {
+  display: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
 
   .kardex-master-grid {
     width: 100% !important;
@@ -10225,6 +10226,58 @@ html.dark .eta-badge-cert.medio {
     margin-top: 8px !important;
     padding-right: 12px !important;
   }
+
+/* Reglas específicas de salto de página para impresión física */
+@media print {
+  .kardex-page-1 {
+    page-break-before: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  .kardex-page-2 {
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+}
+
+/* ─── CONTENEDOR EXCLUSIVO DE EXPORTACIÓN KÁRDEX A PDF DIRECTO ─── */
+#kardex-pdf-export-container {
+  display: block !important;
+  visibility: visible !important;
+  position: fixed !important;
+  left: -9999px !important;
+  top: 0 !important;
+  width: 760px !important;
+  max-width: 760px !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  z-index: -99999 !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+#kardex-pdf-export-container .kardex-print-page {
+  display: block !important;
+  visibility: visible !important;
+  width: 760px !important;
+  max-width: 760px !important;
+  background: #ffffff !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#kardex-pdf-export-container .kardex-master-grid {
+  display: table !important;
+  visibility: visible !important;
+  width: 100% !important;
+  background: #ffffff !important;
 }
 
 /* ─── GRÁFICO VECTORIAL ANALÍTICO DEL MES EN VISITAS ─── */
@@ -17636,7 +17689,7 @@ html.dark .btn-copiar-cred:hover {
 }
 
 .btn-kardex-pdf {
-  display: none !important;
+  display: inline-flex !important;
 }
 
 

@@ -51,9 +51,10 @@
     page-break-before: avoid !important;
     page-break-after: always !important;
     break-after: page !important;
-    max-height: 258mm !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     box-sizing: border-box !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
   }
 
   .kardex-d2-p2 {
@@ -63,8 +64,7 @@
     page-break-after: avoid !important;
     break-after: avoid !important;
     padding-top: 0 !important;
-    max-height: 254mm !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     box-sizing: border-box !important;
   }
 
@@ -305,7 +305,8 @@
     border-radius: 4px !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    height: 76px !important;
+    height: 108px !important;
+    min-height: 108px !important;
     background: #ffffff !important;
   }
 
@@ -315,8 +316,10 @@
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
-    padding: 4px !important;
+    padding: 4px 6px !important;
     box-sizing: border-box !important;
+    height: 106px !important;
+    min-height: 106px !important;
   }
 
   .kardex-d2-firma-col:last-child {
@@ -331,5 +334,20 @@
     color: #166534 !important;
     padding-top: 2px !important;
     letter-spacing: 0.2px !important;
+  }
+
+  /* Cierre inferior horizontal plomo físico */
+  .kardex-d2-cierre-plomo {
+    width: 100% !important;
+    height: 1.5px !important;
+    min-height: 1.5px !important;
+    background: #cbd5e1 !important;
+    background-color: #cbd5e1 !important;
+    margin-top: -1.5px !important;
+    display: block !important;
+    clear: both !important;
+    box-sizing: border-box !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }

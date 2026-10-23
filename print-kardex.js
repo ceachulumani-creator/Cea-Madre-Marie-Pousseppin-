@@ -30,10 +30,9 @@
       styleTag.id = 'cea-dynamic-page-orientation';
       document.head.appendChild(styleTag);
     }
-    const supHoja1 = '10mm'; // 1 cm (10mm) exacto para Hoja 1 en ambos diseños (Versión 1 y Versión 2)
-    // Hoja 1: 1 cm (10mm) en ambos diseños. Hoja 2: continuar en 2 cm (20mm). Laterales: 2 cm (20mm)
+    // D2 empieza más arriba (3mm). D1 empieza a 8mm.
+    const supHoja1 = (diseno === 2 || diseno === '2') ? '3mm' : '8mm';
     styleTag.innerHTML = `
-      @page {
       @page {
         size: letter portrait !important;
         margin: 20mm 20mm 4mm 20mm !important;

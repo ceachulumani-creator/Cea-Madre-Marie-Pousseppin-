@@ -108,7 +108,7 @@
       <!-- ENCABEZADO INSTITUCIONAL OFICIAL -->
       <div class="k-print-header-wrap kardex-d1-header" style="display:flex !important; align-items:stretch !important; justify-content:space-between !important; width:100% !important; margin-bottom:2px !important; padding-top:0 !important; box-sizing:border-box !important;">
         <div style="width:160px !important; min-width:160px !important; display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:flex-start !important; text-align:center !important; padding-top:4px !important; margin-left:-20px !important;">
-          <img src="logo%20cea%20madre%20marie%20poussepin.png" alt="Logo Institución" class="k-print-escudo kardex-d1-escudo" style="height:120px !important; max-width:155px !important; object-fit:contain !important; margin-bottom:6px !important;" onerror="this.style.display='none'" />
+          <img src="${(typeof window !== 'undefined' && window.KARDEX_LOGO_BASE64) ? window.KARDEX_LOGO_BASE64 : 'logo%20cea%20madre%20marie%20poussepin.png'}" alt="Logo Institución" class="k-print-escudo kardex-d1-escudo" style="height:120px !important; max-width:155px !important; object-fit:contain !important; margin-bottom:6px !important;" onerror="this.style.display='none'" />
           <div class="k-print-cod-box kardex-d1-cod-box" style="margin-top:6px !important; margin-bottom:0px !important; align-self:center !important;">${escapeHTML(codigoActual)}</div>
         </div>
         <div style="flex:1 !important; text-align:center !important; padding:0 4px !important; margin:0 !important;">
@@ -329,13 +329,14 @@
           <tr>
             <th colspan="8" class="k-banner">ACLARACIONES (SI CONSIDERA NECESARIO)</th>
           </tr>
-          <tr style="height: 75px !important;">
-            <td colspan="8" style="text-align:left; vertical-align:top; padding:8px 10px; height:75px !important; min-height:75px !important; word-break:break-word; overflow-wrap:break-word; white-space:normal; font-size:7.5pt; color:#000000; background:#ffffff;">
+          <tr style="height: 73px !important;">
+            <td colspan="8" class="kardex-aclaraciones-celda" style="text-align:left; vertical-align:top; padding:8px 10px; height:73px !important; min-height:73px !important; word-break:break-word; overflow-wrap:break-word; white-space:normal; font-size:7.5pt; color:#000000; background:#ffffff; border:1px solid #000000 !important; border-bottom:1.5px solid #000000 !important; box-sizing:border-box !important;">
               ${escapeHTML(data.aclaracionesV || '')}
             </td>
           </tr>
         </tbody>
       </table>
+      <div class="kardex-d1-cierre-negro" style="width:100% !important; height:2px !important; min-height:2px !important; background:#000000 !important; background-color:#000000 !important; margin-top:-1.5px !important; display:block !important; clear:both !important; box-sizing:border-box !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;"></div>
     `;
 
     /* ══════════ PÁGINA 2: DISEÑO 1 OFICIAL TRADICIONAL ══════════ */
@@ -459,9 +460,9 @@
           <tr>
             <td colspan="8" style="text-align:left; padding:4px 8px; vertical-align:top; min-height:48px;">
               ${data.otrosAspectos ? `<div style="font-weight:700; font-size:7pt; color:#000; margin-bottom:2px;">${escapeHTML(data.otrosAspectos)}</div>` : ''}
-              <div style="border-bottom: 1.2px dotted #000000; height: 13px; width: 100%;"></div>
-              <div style="border-bottom: 1.2px dotted #000000; height: 13px; width: 100%;"></div>
-              <div style="border-bottom: 1.2px dotted #000000; height: 13px; width: 100%;"></div>
+              <div style="border-bottom: 1.5px solid #000000; height: 13px; width: 100%;"></div>
+              <div style="border-bottom: 1.5px solid #000000; height: 13px; width: 100%;"></div>
+              <div style="border-bottom: 1.5px solid #000000; height: 13px; width: 100%;"></div>
             </td>
           </tr>
 
@@ -474,19 +475,19 @@
 
           <!-- FIRMAS -->
           <tr>
-            <td colspan="8" style="border:none; padding:8px 0 4px 0; background:transparent;">
-              <div class="k-print-firmas-container" style="display:flex; border:1.5px solid #000000; width:100%; box-sizing:border-box; height:80px;">
-                <div class="k-print-firma-column" style="flex:1; border-right:1.5px solid #000000; display:flex; flex-direction:column; justify-content:space-between; padding:4px; box-sizing:border-box;">
-                  <div style="flex:1;"></div>
-                  <div style="border-top:1px solid #000000; text-align:center; font-weight:800; font-size:7.2pt; padding-top:2px;">MAESTRA/O</div>
+            <td colspan="8" style="border:none !important; padding:8px 0 4px 0 !important; background:transparent !important;">
+              <div class="k-print-firmas-container" style="display:flex !important; border:1.5px solid #000000 !important; width:100% !important; box-sizing:border-box !important; height:108px !important; min-height:108px !important; background:#ffffff !important; overflow:hidden !important;">
+                <div class="k-print-firma-column" style="flex:1 !important; border-right:1.5px solid #000000 !important; display:flex !important; flex-direction:column !important; justify-content:space-between !important; padding:4px 6px !important; box-sizing:border-box !important; height:106px !important; min-height:106px !important;">
+                  <div style="flex:1 !important; height:76px !important; min-height:76px !important;"></div>
+                  <div style="border-top:1px solid #000000 !important; text-align:center !important; font-weight:800 !important; font-size:7.2pt !important; padding-top:3px !important;">MAESTRA/O</div>
                 </div>
-                <div class="k-print-firma-column" style="flex:1; border-right:1.5px solid #000000; display:flex; flex-direction:column; justify-content:space-between; padding:4px; box-sizing:border-box;">
-                  <div style="flex:1;"></div>
-                  <div style="border-top:1px solid #000000; text-align:center; font-weight:800; font-size:7.2pt; padding-top:2px;">DIRECTORA UNIDAD EDUCATIVA</div>
+                <div class="k-print-firma-column" style="flex:1 !important; border-right:1.5px solid #000000 !important; display:flex !important; flex-direction:column !important; justify-content:space-between !important; padding:4px 6px !important; box-sizing:border-box !important; height:106px !important; min-height:106px !important;">
+                  <div style="flex:1 !important; height:76px !important; min-height:76px !important;"></div>
+                  <div style="border-top:1px solid #000000 !important; text-align:center !important; font-weight:800 !important; font-size:7.2pt !important; padding-top:3px !important;">DIRECTORA UNIDAD EDUCATIVA</div>
                 </div>
-                <div class="k-print-firma-column" style="flex:1; display:flex; flex-direction:column; justify-content:space-between; padding:4px; box-sizing:border-box;">
-                  <div style="flex:1;"></div>
-                  <div style="border-top:1px solid #000000; text-align:center; font-weight:800; font-size:7.2pt; padding-top:2px;">DIRECTOR DISTRITAL</div>
+                <div class="k-print-firma-column" style="flex:1 !important; display:flex !important; flex-direction:column !important; justify-content:space-between !important; padding:4px 6px !important; box-sizing:border-box !important; height:106px !important; min-height:106px !important;">
+                  <div style="flex:1 !important; height:76px !important; min-height:76px !important;"></div>
+                  <div style="border-top:1px solid #000000 !important; text-align:center !important; font-weight:800 !important; font-size:7.2pt !important; padding-top:3px !important;">DIRECTOR DISTRITAL</div>
                 </div>
               </div>
             </td>
