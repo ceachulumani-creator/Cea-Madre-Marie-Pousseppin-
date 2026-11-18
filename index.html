@@ -47,7 +47,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=2026.422" />
-  <link rel="stylesheet" href="calificaciones.css?v=73.53" />
+  <link rel="stylesheet" href="calificaciones.css?v=73.57" />
   <script>
     document.documentElement.classList.remove('dark', 'dark-mode');
     try {
@@ -6054,7 +6054,12 @@
         </div>
         <div class="form-group">
           <label for="admin-pass">Contraseña</label>
-          <input type="password" id="admin-pass" placeholder="contraseña" autocomplete="current-password" />
+          <div class="acceso-clave-campo">
+            <input type="password" id="admin-pass" placeholder="contraseña" autocomplete="current-password" />
+            <button type="button" id="btn-ver-clave-acceso" class="acceso-ver-clave" onclick="alternarVisibilidadClaveAcceso()" aria-label="Mostrar contraseña" aria-controls="admin-pass" aria-pressed="false" title="Mostrar contraseña">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="acceso-ojo-tachado" d="m3 3 18 18" hidden/></svg>
+            </button>
+          </div>
         </div>
       </div>
       <button type="submit" class="btn-submit" id="btn-submit-admin-login">Ingresar</button>
@@ -6293,12 +6298,13 @@
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 + Nuevo Docente Área Técnica
               </button>
-              <!-- Switch y Botón interactivo de Mostrar nuevas contraseñas -->
+              <button type="button" class="btn-adm-add" id="btn-credenciales-por-defecto" onclick="abrirCredencialesDocentesPorDefecto()" style="padding:10px 14px;background:var(--verde-dark);color:#fff;border:0;border-radius:8px;font-weight:700;cursor:pointer">Usuarios y contraseñas por defecto</button>
+              <!-- Switch y Botón interactivo de Mostrar contraseñas -->
               <div id="btn-toggle-mostrar-pass-wrapper" onclick="toggleMostrarContrasenasDocentes(null, event)" style="display:inline-flex;align-items:center;gap:10px;padding:7px 16px;background:var(--bg-body);border:1.5px solid var(--verde);border-radius:8px;cursor:pointer;user-select:none;box-shadow:0 1px 3px rgba(0,0,0,0.06);transition:all 0.2s" title="Haga clic aquí para mostrar u ocultar todas las contraseñas">
                 <span id="icono-ojo-pass" style="display:inline-flex;align-items:center;color:var(--verde-dark)">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </span>
-                <span id="texto-ojo-pass" style="font-size:0.86rem;font-weight:800;color:var(--text-main)">Mostrar nuevas contraseñas</span>
+                <span id="texto-ojo-pass" style="font-size:0.86rem;font-weight:800;color:var(--text-main)">Mostrar contraseñas</span>
                 <label class="toggle-unificada-switch" style="cursor:pointer;margin:0;pointer-events:none" title="Estado de visibilidad">
                   <input type="checkbox" id="switch-mostrar-pass-docentes" tabindex="-1" />
                   <span class="switch-slider-track"><span class="switch-slider-thumb"></span></span>
@@ -6307,7 +6313,7 @@
             </div>
           </div>
 
-          <p id="ayuda-claves-docentes">Por seguridad, las contraseñas actuales no se muestran. Escribe una nueva contraseña solo para cambiarla. Si dejas el campo vacío, se conserva la actual. Espera la confirmación de guardado antes de usarla.</p>
+          <p id="ayuda-claves-docentes">Mostrar contraseñas consulta las claves vigentes. Si una clave antigua solo tiene un código de seguridad, restablécela una vez para poder mostrarla. Puedes modificar las credenciales y esperar la confirmación del guardado.</p>
           <!-- Barra de Búsqueda y Conteo -->
           <div style="margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:8px;background:var(--bg-body);border:1.5px solid var(--border-col);border-radius:8px;padding:8px 14px;flex:1;max-width:380px">
@@ -9538,7 +9544,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="cea-persistencia.js?v=73.41"></script>
     <script src="calificaciones.js?v=73.53"></script>
-<script src="app.js?v=73.53"></script>
+<script src="app.js?v=73.57"></script>
 <script>
 // Sobrescribir manejarFormInscripcion con respuesta instantánea y descarga de PDF garantizada
 /* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (SOLO MÓVIL, AUTO-CIERRA EN 5s) ─── */

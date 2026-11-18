@@ -5018,6 +5018,62 @@ tr.estudiante-fila-seleccionada {
   }
   body.docente-panel-active #docente-stage-content { padding-bottom: max(32px, env(safe-area-inset-bottom)) !important; }
 }
+
+.doc-default-dialog {
+  width: min(700px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  padding: 22px;
+  overflow: auto;
+  border: 1px solid #b6d3c0;
+  border-radius: 16px;
+  color: #163c24;
+  background: #fff;
+  box-shadow: 0 20px 70px #0005;
+}
+.doc-default-dialog::backdrop { background: #031c0ac9; }
+.doc-default-dialog[open] { display: flex; flex-direction: column; }
+.doc-default-dialog .doc-default-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.doc-default-dialog :is(h3, p, .doc-default-actions) { flex-shrink: 0; }
+.doc-default-dialog .doc-default-actions { position: sticky; bottom: 0; background: #fff; padding-top: 8px; }
+.doc-default-copy { width: 100%; min-height: 110px; box-sizing: border-box; font-size: 16px; }
+.doc-default-dialog h3 { margin-top: 0; }
+.doc-default-list { display: grid; gap: 10px; }
+.doc-default-list article { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; background: #f1f8f3; border-radius: 10px; }
+.doc-default-list strong { grid-column: 1 / -1; }
+.doc-default-list label { display: grid; gap: 5px; font-size: .9rem; }
+.doc-default-list input { box-sizing: border-box; min-width: 0; width: 100%; min-height: 44px; padding: 9px; border: 1px solid #a7c5b1; border-radius: 7px; font-size: 16px; background: #fff; color: #163c24; }
+.doc-default-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.doc-default-actions button { min-height: 44px; padding: 10px 14px; border: 1px solid #a7c5b1; border-radius: 8px; background: #edf5ef; color: #14532d; cursor: pointer; font: inherit; }
+.doc-default-actions [data-action="guardar"] { background: #14532d; color: white; }
+.doc-default-actions button:disabled { opacity: .5; cursor: default; }
+.doc-default-status { min-height: 2em; }
+.acceso-clave-campo { position: relative; width: 100%; }
+.acceso-clave-campo #admin-pass { box-sizing: border-box; width: 100%; padding-right: 54px; }
+.acceso-ver-clave {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #14532d;
+  cursor: pointer;
+}
+.acceso-ver-clave:hover { background: #e5f3e9; }
+.acceso-ver-clave:focus-visible { outline: 2px solid #21864c; }
+.acceso-ojo-tachado[hidden] { display: none; }
+@media (max-width: 480px) {
+  .doc-default-dialog { padding: 14px; }
+  .doc-default-list article { grid-template-columns: minmax(0, 1fr); }
+}
 @media (prefers-reduced-motion: reduce) {
   .btn-calif-borrar-todo[aria-busy="true"]::before { animation: none; }
 }

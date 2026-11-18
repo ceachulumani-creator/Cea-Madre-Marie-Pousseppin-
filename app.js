@@ -2496,10 +2496,22 @@ function fallbackCopiarCredencial(texto, callback) {
   document.body.removeChild(ta);
 }
 
-function toggleMostrarContrasenasDocentes(forzarEstado, ev) {
+const credencialesDocentesActuales = new Map();
+
+async function toggleMostrarContrasenasDocentes(forzarEstado, ev) {
   if (ev && typeof ev.stopPropagation === 'function') {
     ev.stopPropagation();
   }
+  if (!['director', 'admin'].includes(getSession()?.role)) return;
+  const mostrar = typeof forzarEstado === 'boolean' ? forzarEstado : !contrasenasDocentesVisibles;
+  const tokenConsulta = getSessionToken();
+  if (mostrar) document.getElementById('texto-ojo-pass')?.replaceChildren(document.createTextNode('Consultando…'));
+  if (mostrar && !await refrescarCredencialesDocentesDesdeServidor()) {
+    document.getElementById('texto-ojo-pass')?.replaceChildren(document.createTextNode('Mostrar contraseñas'));
+    mostrarMsg('msg-docentes-unificados', 'No se pudieron consultar las contraseñas actuales. Intenta nuevamente.', 'error');
+    return;
+  }
+  if (getSessionToken() !== tokenConsulta) return;
   if (typeof forzarEstado === 'boolean') {
     contrasenasDocentesVisibles = forzarEstado;
   } else {
@@ -2540,7 +2552,7 @@ function toggleMostrarContrasenasDocentes(forzarEstado, ev) {
   // 4. Texto global
   const txt = document.getElementById('texto-ojo-pass');
   if (txt) {
-    txt.textContent = contrasenasDocentesVisibles ? 'Ocultar nuevas contraseñas' : 'Mostrar nuevas contraseñas';
+    txt.textContent = contrasenasDocentesVisibles ? 'Ocultar contraseñas' : 'Mostrar contraseñas';
   }
 
   // 5. Botones individuales en cada tarjeta
@@ -2556,7 +2568,7 @@ function toggleMostrarContrasenasDocentes(forzarEstado, ev) {
   });
 
   if (typeof mostrarToastLive === 'function') {
-    mostrarToastLive(contrasenasDocentesVisibles ? 'Nuevas contraseñas visibles' : 'Contraseñas ocultas');
+    mostrarToastLive(contrasenasDocentesVisibles ? 'Contraseñas visibles' : 'Contraseñas ocultas');
   }
 }
 
@@ -2705,7 +2717,8 @@ function autoGuardarCredencialDocente(inp) {
 
   const nombre = nomInp ? nomInp.value.trim() : '';
   const userVal = userInp ? userInp.value.trim() : '';
-  const passVal = passInp ? passInp.value.trim() : '';
+  const escrita = passInp ? passInp.value.trim() : '';
+  const passVal = escrita === credencialesDocentesActuales.get(docKey) ? '' : escrita;
   const esComision = chkCom ? chkCom.checked : false;
   const areaTipo = card.dataset.area || (asigKey.startsWith('hum') ? 'hum' : 'tec');
 
@@ -2818,6 +2831,155 @@ function renderDocenteCardAdmin(doc, idx, areaTipo) {
   `;
 }
 
+function generarCredencialesDocentesPorDefecto(docentes, reservados = [], version = 0) {
+  const normalizar = valor => String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+  const usados = new Set(reservados.map(valor => String(valor).trim().toLowerCase()));
+  return docentes.map(docente => {
+    const partes = String(docente.nombre || '').trim().replace(/^(?:(?:lic|licda|ing|prof|profa|dr|dra|tec|msc)\.\s*|(?:lic|licda|ing|prof|profa|dr|dra|tec|msc)(?:\s+|$))+/i, '').split(/\s+/).map(normalizar).filter(Boolean);
+    if (!partes.length) throw new Error('Escribe el nombre de ' + (docente.nombre || 'cada docente') + '.');
+    const nombre = partes[0];
+    const apellido = partes.length > 1 ? partes[partes.length >= 3 ? partes.length - 2 : 1] : '';
+    const base = nombre.slice(0, 8) + apellido.slice(0, 8);
+    let user = base;
+    let numero = 0;
+    while (usados.has(user) && numero < 99) user = base + (++numero);
+    if (usados.has(user)) throw new Error('Hay demasiados nombres iguales. Ajusta el nombre de usuario manualmente.');
+    usados.add(user);
+    const baseClave = nombre.slice(0, 4) + apellido.slice(0, 2);
+    let sufijo = 12 + version % 88;
+    while ([docente.passActual, docente.passAnterior].includes(baseClave + sufijo)) sufijo = 12 + (sufijo - 11) % 88;
+    return {...docente, user, pass: baseClave + sufijo};
+  });
+}
+
+function obtenerDocentesParaCredencialesDefecto() {
+  const nombres = lsGet('cea_docentes', {});
+  const usuarios = lsGet('cea_usuarios_docentes', {});
+  const asignaciones = lsGet('cea_docentes_asignaciones', {});
+  const docentes = new Map();
+  new Set([...Object.keys(nombres), ...Object.keys(usuarios), ...Object.keys(asignaciones)]).forEach(key => {
+    const asignacion = asignaciones[key] || {};
+    const cuenta = usuarios[key] || {};
+    docentes.set(key, {key, nombre: String(nombres[key] || asignacion.nombre || '').trim(),
+      asigKey: asignacion.asigKey || cuenta.asigKey || key,
+      comision: cuenta.comision === true || /^(SI|TRUE)$/i.test(String(cuenta.comision))});
+  });
+  document.querySelectorAll('#panel-docentes-unificado .docente-admin-card').forEach(card => {
+    const key = card.dataset.key;
+    if (!key) return;
+    docentes.set(key, {key, nombre: card.querySelector('.doc-input-nombre')?.value.trim() || '',
+      asigKey: card.querySelector('.doc-select-carrera')?.value || card.dataset.asig || key,
+      comision: card.querySelector('.doc-chk-comision')?.checked || false});
+  });
+  const lista = [...docentes.values()];
+  const disponibles = lista.filter(item => /[a-záéíóúüñ]/i.test(item.nombre.replace(/^(?:(?:lic|licda|ing|prof|profa|dr|dra|tec|msc)\.\s*|(?:lic|licda|ing|prof|profa|dr|dra|tec|msc)(?:\s+|$))+/i, '')) && !/^(sin (asignar|docente|nombre)|no asignado)$/i.test(item.nombre));
+  return {docentes: disponibles, omitidos: lista.length - disponibles.length};
+}
+
+function abrirCredencialesDocentesPorDefecto() {
+  if (!['director', 'admin'].includes(getSession()?.role)) return;
+  document.getElementById('credenciales-docentes-defecto')?.remove();
+  const dialogo = document.createElement('dialog');
+  dialogo.id = 'credenciales-docentes-defecto';
+  dialogo.className = 'doc-default-dialog';
+  dialogo.setAttribute('aria-labelledby', 'titulo-credenciales-defecto');
+  dialogo.innerHTML = `<h3 id="titulo-credenciales-defecto">Usuarios y contraseñas por defecto</h3><p>Se basan en el primer nombre y apellido, sin puntos ni acentos. Al restablecer se reemplazan las credenciales anteriores de los docentes de esta lista.</p><div class="doc-default-list"></div><p class="doc-default-status" role="status"></p><div class="doc-default-actions"><button type="button" data-action="regenerar">Generar de nuevo para todos</button><button type="button" data-action="copiar">Copiar lista</button><button type="button" data-action="cancelar">Cerrar</button><button type="button" data-action="guardar">Restablecer para todos</button></div>`;
+  let lista = [];
+  let guardando = false;
+  let version = 0;
+  const estado = dialogo.querySelector('.doc-default-status');
+  const generar = (renovar = false) => {
+    if (renovar) version++;
+    delete dialogo.dataset.guardado;
+    try {
+      const anteriores = new Map(lista.map(item => [item.key, item.pass]));
+      const origen = obtenerDocentesParaCredencialesDefecto();
+      const docentes = origen.docentes.map(item => ({...item, passActual: credencialesDocentesActuales.get(item.key), passAnterior: anteriores.get(item.key)}));
+      const claves = new Set(docentes.map(item => item.key));
+      const actuales = lsGet('cea_usuarios_docentes', {});
+      const reservados = Object.entries(actuales).filter(([key]) => !claves.has(key)).map(([, item]) => item.user);
+      reservados.push(getSession().user);
+      lista = generarCredencialesDocentesPorDefecto(docentes, reservados, version);
+      if (!lista.length) throw new Error('No hay docentes con nombre registrado para generar credenciales.');
+      dialogo.querySelector('.doc-default-list').innerHTML = lista.map(item => `<article data-key="${escapeHTML(item.key)}"><strong>${escapeHTML(item.nombre)}</strong><label>Usuario<input readonly value="${escapeHTML(item.user)}" aria-label="Usuario de ${escapeHTML(item.nombre)}"></label><label>Contraseña<input readonly value="${escapeHTML(item.pass)}" aria-label="Contraseña de ${escapeHTML(item.nombre)}"></label></article>`).join('');
+      estado.textContent = (renovar ? 'Credenciales nuevas generadas para todos. ' : '') + lista.length + ' docentes incluidos. ' + (origen.omitidos ? origen.omitidos + ' registros sin nombre pendientes. ' : '') + 'Pulsa Restablecer para todos para guardarlas.';
+      dialogo.querySelector('[data-action="guardar"]').disabled = false;
+      dialogo.querySelector('[data-action="guardar"]').textContent = 'Restablecer para todos';
+    } catch (error) {
+      lista = [];
+      dialogo.querySelector('.doc-default-list').replaceChildren();
+      estado.textContent = error.message;
+      dialogo.querySelector('[data-action="guardar"]').disabled = true;
+    }
+  };
+  dialogo.querySelector('[data-action="regenerar"]').onclick = () => generar(true);
+  const cerrar = () => {
+    if (guardando) return;
+    dialogo.close();
+    lista = [];
+    dialogo.remove();
+  };
+  dialogo.querySelector('[data-action="cancelar"]').onclick = cerrar;
+  dialogo.querySelector('[data-action="copiar"]').onclick = async () => {
+    const texto = lista.map(item => item.nombre + '\nUsuario: ' + item.user + '\nContraseña: ' + item.pass).join('\n\n');
+    try {
+      await navigator.clipboard.writeText(texto);
+      estado.textContent = 'Lista copiada.';
+    } catch (_) {
+      dialogo.querySelector('.doc-default-copy')?.remove();
+      const campo = document.createElement('textarea');
+      campo.className = 'doc-default-copy';
+      campo.readOnly = true;
+      campo.value = texto;
+      campo.setAttribute('aria-label', 'Lista de credenciales para copiar');
+      estado.before(campo);
+      campo.focus();
+      campo.select();
+      campo.setSelectionRange(0, texto.length);
+      let copiado = false;
+      try { copiado = document.execCommand('copy'); } catch (_) {}
+      estado.textContent = copiado ? 'Lista copiada. Ya puedes pegarla.' : 'La lista está seleccionada. Usa Copiar o mantén presionado el texto para copiarla.';
+      if (copiado) campo.remove();
+    }
+  };
+  dialogo.querySelector('[data-action="guardar"]').onclick = async () => {
+    if (guardando || !lista.length || !['director', 'admin'].includes(getSession()?.role)) return;
+    const token = getSessionToken();
+    guardando = true;
+    dialogo.setAttribute('aria-busy', 'true');
+    dialogo.querySelectorAll('button').forEach(button => { button.disabled = true; });
+    estado.textContent = 'Guardando credenciales…';
+    dialogo.querySelector('[data-action=guardar]').textContent = 'Guardando…';
+    clearTimeout(_timerAutoGuardarDocente);
+    try {
+      const usuarios = {}, docentes = {};
+      lista.forEach(item => { usuarios[item.key] = {user:item.user, pass:item.pass, asigKey:item.asigKey, comision:item.comision}; docentes[item.key] = item.nombre; });
+      const respuesta = await enviarGoogleSheet({action:'guardar-docentes-completo', docentes, usuarios});
+      if (respuesta?.status !== 'success') throw new Error('No se pudo confirmar el guardado.');
+      if (getSessionToken() !== token) return;
+      const confirmado = await refrescarCredencialesDocentesDesdeServidor();
+      if (!confirmado || lista.some(item => credencialesDocentesActuales.get(item.key) !== item.pass)) {
+        throw new Error('No se pudieron verificar las claves guardadas. Actualiza la implementación del servidor y vuelve a consultar.');
+      }
+      estado.textContent = 'Credenciales restablecidas y guardadas. Ya puedes utilizarlas para ingresar o copiar la lista.';
+      dialogo.dataset.guardado = 'true';
+    } catch (error) {
+      estado.textContent = 'No se pudo restablecer. ' + error.message;
+    } finally {
+      guardando = false;
+      dialogo.setAttribute('aria-busy', 'false');
+      dialogo.querySelectorAll('button').forEach(button => { button.disabled = false; });
+      dialogo.querySelector('[data-action="guardar"]').disabled = dialogo.dataset.guardado === 'true';
+      dialogo.querySelector('[data-action=guardar]').textContent = dialogo.dataset.guardado === 'true' ? 'Credenciales guardadas' : 'Restablecer para todos';
+    }
+  };
+  dialogo.addEventListener('cancel', event => { event.preventDefault(); cerrar(); });
+  dialogo.addEventListener('close', () => { lista = []; dialogo.remove(); });
+  document.body.appendChild(dialogo);
+  generar();
+  dialogo.showModal();
+}
+
 function cargarDocentesUnificados() {
   const colHum = document.getElementById('columna-docentes-hum');
   const colTec = document.getElementById('columna-docentes-tec');
@@ -2868,7 +3030,7 @@ function cargarDocentesUnificados() {
       asigKey: asigFinal,
       asigLabel: asigLabel,
       user: u.user || '',
-      pass: u.pass || defU.pass || defPass,
+      pass: u.pass || (['director', 'admin'].includes(getSession()?.role) ? credencialesDocentesActuales.get(docKey) : '') || '',
       comision: (u.comision !== undefined) ? (u.comision === true || String(u.comision).toUpperCase() === 'SI' || u.comision === 'true') : defU.comision
     };
   };
@@ -3281,7 +3443,7 @@ async function guardarDocentesUnificados() {
     const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[docKey]?.pass) || '';
     const defUser = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[docKey]?.user) || ('profe.' + String(docKey).replace(/^(tec-|hum-|doc-)/, '').slice(-6));
     const prevPass = viejoUsuariosMap[docKey]?.pass || defPass;
-    const finalPass = passVal || prevPass || defPass;
+    const finalPass = passVal === credencialesDocentesActuales.get(docKey) ? '' : (passVal || prevPass || defPass);
 
     nuevoUsuariosMap[docKey] = {
       user: userVal || viejoUsuariosMap[docKey]?.user || '',
@@ -20718,6 +20880,22 @@ async function cancelarEdicionEnVivo(targetId) {
 /* ─── LOGIN Y SESIONES ─── */
 let accesoInstitucionalEnCurso = false;
 
+function mostrarClaveAcceso(mostrar) {
+  const campo = document.getElementById('admin-pass');
+  const boton = document.getElementById('btn-ver-clave-acceso');
+  if (!campo || !boton) return;
+  campo.type = mostrar ? 'text' : 'password';
+  const etiqueta = mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña';
+  boton.setAttribute('aria-pressed', String(mostrar));
+  boton.setAttribute('aria-label', etiqueta);
+  boton.title = etiqueta;
+  boton.querySelector('.acceso-ojo-tachado')?.toggleAttribute('hidden', !mostrar);
+}
+
+function alternarVisibilidadClaveAcceso() {
+  mostrarClaveAcceso(document.getElementById('admin-pass')?.type === 'password');
+}
+
 function estadoAccesoInstitucional(texto, error = false) {
   const mensaje = document.getElementById('login-msg');
   if (!mensaje) return;
@@ -20751,6 +20929,7 @@ async function adminLogin(event) {
     }
     token = acceso.token;
     ceaPersistencia.clearPrivate();
+    credencialesDocentesActuales.clear();
     lsSet('cea_session', {
       role, token, user: acceso.user || user, name: acceso.name || user,
       areaKey: acceso.areaKey, comision: acceso.comision === true || /^(si|true)$/i.test(String(acceso.comision))
@@ -20766,6 +20945,7 @@ async function adminLogin(event) {
     if (role === 'director') await mostrarPanelAdmin();
     else mostrarPanelDocente(acceso.areaKey);
     contrasena.value = '';
+    mostrarClaveAcceso(false);
     estadoAccesoInstitucional('');
   } catch (error) {
     if (token && getSessionToken() === token) adminLogout();
@@ -20807,6 +20987,9 @@ async function restaurarSesion() {
 }
 
 function adminLogout() {
+  mostrarClaveAcceso(false);
+  credencialesDocentesActuales.clear();
+  document.querySelectorAll('.doc-pass-inp').forEach(input => { input.value = ''; input.type = 'password'; });
   localStorage.removeItem('cea_session');
   window.cerrarAcademicMobileDrawer?.();
   cerrarModalCarrera();
@@ -27204,16 +27387,20 @@ async function refrescarCredencialesDocentesDesdeServidor(tokenOverride) {
     if (res && res.status === 'success' && res.usuarios) {
       if (getSessionToken() !== token) return;
       const usuarios = {};
+      credencialesDocentesActuales.clear();
       Object.entries(res.usuarios).forEach(([key, item]) => {
+        if (item.pass) credencialesDocentesActuales.set(key, String(item.pass));
         usuarios[key] = {user: String(item.user || '').trim(), pass: '', asigKey: item.asigKey || key,
           comision: item.comision === true || /^(SI|TRUE)$/i.test(String(item.comision))};
       });
       lsSet('cea_usuarios_docentes', usuarios);
       cargarDocentesUnificados();
+      return true;
     }
   } catch (err) {
     console.warn('Error refrescando credenciales docentes:', err);
   }
+  return false;
 }
 
 /* ─── MODAL Y GESTIÓN DE TEXTOS Y DOCUMENTOS DE MATERIA HUMANÍSTICA ─── */
