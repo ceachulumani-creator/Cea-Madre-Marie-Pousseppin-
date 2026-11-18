@@ -57,6 +57,7 @@
   }
 
   function abrirModalOpcionesImpresion() {
+    document.body.classList.remove('print-calificaciones-mode', 'print-centralizador-mode', 'print-afiliacion-reporte-mode');
     const area = detectarAreaActiva();
     seleccionarAreaImpresion(area);
 
@@ -143,8 +144,11 @@
     if (typeof window.cerrarDashboardVisualInscripciones === 'function') {
       window.cerrarDashboardVisualInscripciones();
     }
-    if (typeof window.ejecutarImpresionReporteOrganizado === 'function') {
-      window.ejecutarImpresionReporteOrganizado(area, true, false);
+    const fn = window.ejecutarImpresionReporteOrganizado || (typeof ejecutarImpresionReporteOrganizado === 'function' ? ejecutarImpresionReporteOrganizado : null);
+    if (typeof fn === 'function') {
+      fn(area, true, false);
+    } else {
+      console.warn('ejecutarImpresionReporteOrganizado no disponible');
     }
   }
 
@@ -156,8 +160,11 @@
     }
     if (typeof window.imprimirReporteEstadisticoUnaHoja === 'function') {
       window.imprimirReporteEstadisticoUnaHoja(area, true);
-    } else if (typeof window.ejecutarImpresionReporteOrganizado === 'function') {
-      window.ejecutarImpresionReporteOrganizado(area, true, true);
+    } else {
+      const fn = window.ejecutarImpresionReporteOrganizado || (typeof ejecutarImpresionReporteOrganizado === 'function' ? ejecutarImpresionReporteOrganizado : null);
+      if (typeof fn === 'function') {
+        fn(area, true, true);
+      }
     }
   }
 

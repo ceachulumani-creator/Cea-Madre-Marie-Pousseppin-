@@ -1850,7 +1850,7 @@ html.dark .btn-fechas-detalles:hover {
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
-    z-index: 99999 !important;
+    z-index: 100060 !important;
     visibility: hidden !important;
     opacity: 0 !important;
     pointer-events: none !important;
@@ -4931,7 +4931,7 @@ html.dark .btn-doc-del:hover {
   background: rgba(10, 25, 18, 0.85);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  z-index: 10005;
+  z-index: 9999999 !important;
   align-items: center;
   justify-content: center;
   padding: 20px;
@@ -13167,46 +13167,64 @@ html.dark .gestor-cell-card.gestor-cell-free:hover {
   color: #ffffff;
 }
 
-/* ─── TABLAS INTERNAS DE KARDEX CON BORDES VERDES RESALTADOS ─── */
+/* ─── TABLAS INTERNAS DE KARDEX (MISMO DISEÑO LIMPIO QUE DATOS DE PLANILLAS: BORDE SOLO EN LOS CAMPOS DE DATOS) ─── */
+#form-kardex-docente .table-responsive,
+#kardex-stage-form-mount .table-responsive {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
 .kardex-inner-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.82rem;
-  background: #ffffff;
-  border-radius: 9px;
-  overflow: hidden;
-  border: 1.8px solid #86efac;
+  background: transparent !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.kardex-inner-table thead,
+.kardex-inner-table tbody,
+.kardex-inner-table tr {
+  background: transparent !important;
+  border: none !important;
 }
 
 .kardex-inner-table th {
-  background: #14532d;
-  color: #ffffff !important;
-  font-weight: 800;
-  padding: 9px 10px;
-  border: 1px solid #166534;
-  font-size: 0.76rem;
+  background: transparent !important;
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  padding: 4px 6px !important;
+  border: none !important;
+  font-size: 0.74rem !important;
   text-align: left;
   letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .kardex-inner-table td {
-  border: 1px solid #bbf7d0;
-  padding: 6px 8px;
-  background: #ffffff;
+  border: none !important;
+  padding: 4px 6px !important;
+  background: transparent !important;
 }
 
 .kardex-inner-table input,
 .kardex-inner-table select,
 .kardex-inner-table textarea {
   width: 100%;
-  padding: 7px 10px;
+  padding: 8px 10px;
   font-size: 0.82rem;
-  border: 1.5px solid #86efac;
-  border-radius: 6px;
-  background: #f0fdf4;
+  border: 1.8px solid #334155;
+  border-radius: 7px;
+  background: #ffffff;
   color: #0f172a;
-  font-weight: 600;
+  font-weight: 700;
   box-sizing: border-box;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -13215,9 +13233,9 @@ html.dark .gestor-cell-card.gestor-cell-free:hover {
 .kardex-inner-table select:focus,
 .kardex-inner-table textarea:focus {
   outline: none;
-  border-color: #16a34a;
+  border-color: #063b17;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+  box-shadow: 0 0 0 3px rgba(6, 59, 23, 0.22);
 }
 
 #form-kardex-docente .form-group input,
@@ -13290,17 +13308,19 @@ html.dark .gestor-cell-card.gestor-cell-free:hover {
 }
 
 .kardex-modal-footer {
-  position: sticky;
-  bottom: 0;
-  background: var(--bg-card);
-  border-top: 1.5px solid var(--border-col);
-  padding: 12px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
-  z-index: 10;
+  display: none !important;
+  position: static !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
 }
 
 .kardex-modal-footer-btns {
@@ -13384,33 +13404,18 @@ html.dark .gestor-cell-card.gestor-cell-free:hover {
     margin-bottom: 12px !important;
     border-radius: 10px !important;
   }
-  .kardex-modal-footer {
-    padding: 8px 10px !important;
-    gap: 6px !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-  }
+  .kardex-modal-footer,
   .kardex-modal-footer-btns {
-    display: flex !important;
-    gap: 6px !important;
-    width: 100% !important;
-  }
-  .kardex-modal-footer-btns button {
-    flex: 1 !important;
-    padding: 8px 4px !important;
-    font-size: 0.75rem !important;
-    justify-content: center !important;
-    min-width: 0 !important;
-    border-radius: 6px !important;
-  }
-  .kardex-modal-footer-btns button svg {
-    width: 13px !important;
-    height: 13px !important;
-  }
-  .kardex-modal-footer-btns #btn-guardar-kardex-modal {
-    flex: 1.6 !important;
-    font-size: 0.78rem !important;
-    padding: 8px 6px !important;
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 }
 
@@ -18016,4 +18021,46 @@ html.dark .btn-copiar-cred:hover {
 
 #resultado-consulta-box span {
   font-weight: 400 !important;
+}
+
+
+/* OCULTAR COMPLETAMENTE LA BARRA FLOTANTE / RAYA BLANCA INFERIOR DEL KÁRDEX */
+.kardex-modal-footer,
+.kardex-modal-footer-btns,
+#form-kardex-docente .kardex-modal-footer,
+#form-kardex-docente .kardex-modal-footer-btns {
+  display: none !important;
+  position: static !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+
+/* ELIMINAR TOTALMENTE CUALQUIER BARRA BLANCA O FLOTANTE EN KÁRDEX INSTITUCIONAL */
+.kardex-modal-footer,
+.kardex-modal-footer-btns,
+#form-kardex-docente .kardex-modal-footer,
+#form-kardex-docente .kardex-modal-footer-btns,
+#docente-main-stage .kardex-modal-footer,
+.kardex-inline-fullstage .kardex-modal-footer {
+  display: none !important;
+  position: static !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
 }

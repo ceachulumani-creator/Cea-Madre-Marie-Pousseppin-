@@ -47,7 +47,7 @@
       }
     `;
     document.body.classList.add('print-orientation-portrait', 'printing-reporte', 'printing-estadisticas-1hoja', 'printing-solo-estadisticas');
-    document.body.classList.remove('print-orientation-landscape', 'print-turno-hum', 'print-turno-tec', 'printing-kardex', 'printing-horario', 'printing-comprobante');
+    document.body.classList.remove('print-orientation-landscape', 'print-turno-hum', 'print-turno-tec', 'printing-kardex', 'printing-horario', 'printing-comprobante', 'print-calificaciones-mode', 'print-centralizador-mode', 'print-afiliacion-reporte-mode');
   }
 
   function escapeHTML(str) {
@@ -187,11 +187,35 @@
       }
     });
 
+    function obtenerGeneroEstadistica(item) {
+      if (!item) return 'F';
+      const g = (item.genero || item.sexo || '').toString().trim().toUpperCase();
+      if (g.startsWith('M')) return 'M';
+      if (g.startsWith('F')) return 'F';
+      const nombre = (item.nombre || item.nombreCompleto || '').toUpperCase();
+      const tokens = nombre.split(/\s+/);
+      const nombresM = ['PEDRO', 'JHUNIOR', 'VISMAR', 'VICTOR', 'HUGO', 'OSMAN', 'ERIK', 'JUAN', 'CARLOS', 'JOSE', 'LUIS', 'JORGE', 'MIGUEL', 'DAVID', 'EDGAR', 'RENE', 'MARIO', 'FERNANDO', 'ROBERTO', 'JAVIER', 'EDWIN', 'RAMIRO', 'ALBERTO', 'WILSON', 'GONZALO', 'FRANZ', 'ALVARO'];
+      const nombresF = ['MARIA', 'ANA', 'CELENA', 'ELIANA', 'SANTUSA', 'IRENE', 'JULIA', 'RONILDA', 'FELIPA', 'ESTELA', 'NOEMY', 'MARISOL', 'MASIDONIA', 'MAXIMA', 'YULIANA', 'ARACELI', 'LIDIA', 'ROSA', 'CARMEN', 'LUZ', 'BERTHA', 'SONIA', 'GLADYS', 'BEATRIZ', 'PATRICIA', 'RUTH', 'ELIZABETH', 'MIRIAM', 'SILVIA', 'JUANA', 'TERESA', 'LUCIA', 'ELENA', 'PAOLA'];
+      for (const t of tokens) {
+        if (nombresM.includes(t)) return 'M';
+        if (nombresF.includes(t)) return 'F';
+      }
+      const prim = tokens[tokens.length - 1] || tokens[0] || '';
+      if (prim.endsWith('A')) return 'F';
+      if (prim.endsWith('O')) return 'M';
+      return 'F';
+    }
+
     const totalHum = humanisticaEPA.length + humanisticaESA.length;
     let totalTec = 0;
     Object.values(tecnicaGrupos).forEach(arr => { totalTec += arr.length; });
     const totalGeneral = totalHum + totalTec;
     const totalMostrado = areaFiltro === 'tecnica' ? totalTec : (areaFiltro === 'humanistica' ? totalHum : totalGeneral);
+
+    const totalVaronesGral = ins.filter(e => obtenerGeneroEstadistica(e) === 'M').length;
+    const totalMujeresGral = ins.filter(e => obtenerGeneroEstadistica(e) === 'F').length;
+    const pctVaronesGral = totalGeneral > 0 ? Math.round((totalVaronesGral / totalGeneral) * 100) : 0;
+    const pctMujeresGral = totalGeneral > 0 ? Math.round((totalMujeresGral / totalGeneral) * 100) : 0;
 
     const pctTec = totalGeneral > 0 ? Math.round((totalTec / totalGeneral) * 100) : 0;
     const pctHum = totalGeneral > 0 ? Math.round((totalHum / totalGeneral) * 100) : 0;
@@ -205,30 +229,25 @@
       subtituloReporte = `INFORME ESTADÍSTICO OFICIAL: ÁREA HUMANÍSTICA (EPJA / BTH) — GESTIÓN ${anio}`;
     }
 
-    // 1. Tarjetas de Indicadores Estratégicos (KPIs) de Alto Impacto
+    // 1. Tarjetas de Indicadores Estratégicos (KPIS) de Alto Impacto (Sin desglose de género)
     let kpisHTML = '';
     if (areaFiltro === 'todas') {
       kpisHTML = `
-        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;text-align:center;margin-bottom:12px">
-          <div style="border:1.6px solid #0f4a1e;border-radius:6px;padding:7px 5px;background:#f0fdf4;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-            <span style="display:block;font-size:18pt;font-weight:900;color:#0f4a1e;line-height:1">${totalGeneral}</span>
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;text-align:center;margin-bottom:12px">
+          <div style="border:1.6px solid #063b17;border-radius:6px;padding:8px 6px;background:#f0fdf4;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <span style="display:block;font-size:18pt;font-weight:900;color:#063b17;line-height:1">${totalGeneral}</span>
             <span style="font-size:7.2pt;color:#166534;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Total Pre-Inscritos</span>
             <span style="font-size:6.4pt;color:#475569">Matrícula Institucional</span>
           </div>
-          <div style="border:1.6px solid #059669;border-radius:6px;padding:7px 5px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+          <div style="border:1.6px solid #059669;border-radius:6px;padding:8px 6px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
             <span style="display:block;font-size:18pt;font-weight:900;color:#059669;line-height:1">${totalTec} <small style="font-size:9.5pt;font-weight:800">(${pctTec}%)</small></span>
             <span style="font-size:7.2pt;color:#059669;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Área Técnica (ETTP)</span>
             <span style="font-size:6.4pt;color:#475569">6 Carreras Habilitadas</span>
           </div>
-          <div style="border:1.6px solid #1d4ed8;border-radius:6px;padding:7px 5px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+          <div style="border:1.6px solid #1d4ed8;border-radius:6px;padding:8px 6px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
             <span style="display:block;font-size:18pt;font-weight:900;color:#1d4ed8;line-height:1">${totalHum} <small style="font-size:9.5pt;font-weight:800">(${pctHum}%)</small></span>
             <span style="font-size:7.2pt;color:#1d4ed8;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Área Humanística</span>
             <span style="font-size:6.4pt;color:#475569">Régimen EPJA y BTH</span>
-          </div>
-          <div style="border:1.6px solid #d97706;border-radius:6px;padding:7px 5px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-            <span style="display:block;font-size:18pt;font-weight:900;color:#d97706;line-height:1">${humanisticaEPA.length} / ${humanisticaESA.length}</span>
-            <span style="font-size:7.2pt;color:#d97706;font-weight:800;text-transform:uppercase;display:block;margin-top:2px">Primaria / Secundaria</span>
-            <span style="font-size:6.4pt;color:#475569">EPA (${pctEPA}%) | ESA (${pctESA}%)</span>
           </div>
         </div>
       `;
@@ -618,135 +637,32 @@
       `;
     }
 
-    // 3. Tabla Consolidada Institucional (Distribución completa y amplia)
+    // 3. Tabla Consolidada Institucional (Distribución completa con desglose por género)
     let tablaConsolidadaHTML = '';
     let tituloTablaConsolidada = `Cuadro Oficial Consolidado de Distribución de Matrículas (Gestión ${anio}):`;
 
     if (areaFiltro === 'todas') {
       tituloTablaConsolidada = `Cuadro Oficial Consolidado de Distribución de Matrículas (Gestión ${anio}):`;
-      tablaConsolidadaHTML = `
-        <table class="tabla-cuadro-oficial" style="width:100%;border-collapse:collapse;font-size:8.2pt;margin-bottom:8px">
-          <thead>
-            <tr style="background:#0f4a1e;color:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-              <th style="padding:8px 7px;text-align:left;border:1px solid #0f4a1e;width:38%">Especialidad / Programa Formativo</th>
-              <th style="padding:8px 7px;text-align:left;border:1px solid #0f4a1e;width:24%">Área y Modalidad</th>
-              <th style="padding:8px 7px;text-align:center;border:1px solid #0f4a1e;width:18%">Promedio de Edad</th>
-              <th style="padding:8px 7px;text-align:center;border:1px solid #0f4a1e;width:10%">Inscritos</th>
-              <th style="padding:8px 7px;text-align:center;border:1px solid #0f4a1e;width:10%">% Demanda</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom:1px solid #cbd5e1;background:#fafafa">
-              <td style="padding:4.8px 7px"><strong>EPA Primaria de Adultos</strong></td>
-              <td style="padding:4.8px 7px">Humanística (EPJA)</td>
-              <td style="padding:4.8px 7px;text-align:center;font-weight:700;color:#0f4a1e">${calcularPromedioEdad(humanisticaEPA)}</td>
-              <td style="padding:4.8px 7px;text-align:center;font-weight:800;color:#1e40af;font-size:8.8pt">${humanisticaEPA.length}</td>
-              <td style="padding:4.8px 7px;text-align:center">${totalGeneral > 0 ? Math.round((humanisticaEPA.length/totalGeneral)*100) : 0}%</td>
-            </tr>
-            <tr style="border-bottom:1px solid #cbd5e1">
-              <td style="padding:4.8px 7px"><strong>ESA Secundaria de Adultos</strong></td>
-              <td style="padding:4.8px 7px">Humanística (BTH)</td>
-              <td style="padding:4.8px 7px;text-align:center;font-weight:700;color:#0f4a1e">${calcularPromedioEdad(humanisticaESA)}</td>
-              <td style="padding:4.8px 7px;text-align:center;font-weight:800;color:#1e40af;font-size:8.8pt">${humanisticaESA.length}</td>
-              <td style="padding:4.8px 7px;text-align:center">${totalGeneral > 0 ? Math.round((humanisticaESA.length/totalGeneral)*100) : 0}%</td>
-            </tr>
-            ${Object.entries(tecnicaGrupos).map(([nom, list], idx) => {
-              const bg = idx % 2 === 0 ? '#fafafa' : '#ffffff';
-              const p = totalGeneral > 0 ? Math.round((list.length/totalGeneral)*100) : 0;
-              return `
-                <tr style="border-bottom:1px solid #cbd5e1;background:${bg}">
-                  <td style="padding:4.8px 7px"><strong>Carrera de ${escapeHTML(nom)}</strong></td>
-                  <td style="padding:4.8px 7px">Técnica Tecnológica (ETTP)</td>
-                  <td style="padding:4.8px 7px;text-align:center;font-weight:700;color:#0f4a1e">${calcularPromedioEdad(list)}</td>
-                  <td style="padding:4.8px 7px;text-align:center;font-weight:800;color:#0f4a1e;font-size:8.8pt">${list.length}</td>
-                  <td style="padding:4.8px 7px;text-align:center">${p}%</td>
-                </tr>
-              `;
-            }).join('')}
-            <tr style="background:#0f4a1e;color:#ffffff;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-              <td colspan="2" style="padding:6px 7px;font-size:7.8pt">TOTAL GENERAL INSTITUCIONAL CONSOLIDADO DE MATRÍCULAS</td>
-              <td style="padding:6px 7px;text-align:center;font-size:7.8pt;font-weight:800">Prom. General: ${calcularPromedioEdad(ins)}</td>
-              <td style="padding:6px 7px;text-align:center;font-size:9pt">${totalGeneral}</td>
-              <td style="padding:6px 7px;text-align:center;font-size:9pt">100%</td>
-            </tr>
-          </tbody>
-        </table>
-      `;
-    } else if (areaFiltro === 'tecnica') {
-      tituloTablaConsolidada = `Cuadro Oficial de Matrícula — Área Técnica Tecnológica ETTP (Gestión ${anio}):`;
-      tablaConsolidadaHTML = `
-        <table class="tabla-cuadro-oficial" style="width:100%;border-collapse:collapse;font-size:8.2pt;margin-bottom:8px">
-          <thead>
-            <tr style="background:#0f4a1e;color:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-              <th style="padding:8px 7px;text-align:left;border:1px solid #0f4a1e;width:40%">Carrera Técnica Oficial</th>
-              <th style="padding:8px 7px;text-align:left;border:1px solid #0f4a1e;width:24%">Niveles</th>
-              <th style="padding:8px 7px;text-align:center;border:1px solid #0f4a1e;width:18%">Promedio de Edad</th>
-              <th style="padding:8px 7px;text-align:center;border:1px solid #0f4a1e;width:9%">Postulantes</th>
-              <th style="padding:8px 7px;text-align:center;border:1px solid #0f4a1e;width:9%">% Técnica</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${Object.entries(tecnicaGrupos).map(([nom, list], idx) => {
-              const bg = idx % 2 === 0 ? '#fafafa' : '#ffffff';
-              const p = totalTec > 0 ? Math.round((list.length/totalTec)*100) : 0;
-              return `
-                <tr style="border-bottom:1px solid #cbd5e1;background:${bg}">
-                  <td style="padding:4.8px 7px"><strong>Carrera de ${escapeHTML(nom)}</strong></td>
-                  <td style="padding:4.8px 7px">Técnico Básico, Auxiliar y Medio</td>
-                  <td style="padding:4.8px 7px;text-align:center;font-weight:700;color:#0f4a1e">${calcularPromedioEdad(list)}</td>
-                  <td style="padding:4.8px 7px;text-align:center;font-weight:800;color:#0f4a1e;font-size:8.8pt">${list.length}</td>
-                  <td style="padding:4.8px 7px;text-align:center">${p}%</td>
-                </tr>
-              `;
-            }).join('')}
-            <tr style="background:#0f4a1e;color:#ffffff;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-              <td colspan="2" style="padding:6px 7px">TOTAL POSTULANTES ÁREA TÉCNICA TECNOLÓGICA (ETTP)</td>
-              <td style="padding:6px 7px;text-align:center;font-size:7.8pt;font-weight:800">Prom. Técnica: ${calcularPromedioEdad(Object.values(tecnicaGrupos).flat())}</td>
-              <td style="padding:6px 7px;text-align:center;font-size:9pt">${totalTec}</td>
-              <td style="padding:6px 7px;text-align:center;font-size:9pt">100%</td>
-            </tr>
-          </tbody>
-        </table>
-      `;
-    } else if (areaFiltro === 'humanistica') {
-      tituloTablaConsolidada = `Cuadro Oficial de Matrícula — Área Humanística EPJA / BTH (Gestión ${anio}):`;
-      const humCiclosFilas = [
-        { nombre: 'EPA — Aprendizajes Elementales (1° a 3° Primaria)', sub: 'Educación Primaria de Adultos (EPA)', lista: [] },
-        { nombre: 'EPA — Aprendizajes Avanzados (4° a 6° Primaria)', sub: 'Conclusión Nivel Primaria (EPA)', lista: [] },
-        { nombre: 'ESA — Aprendizajes Aplicados (1° y 2° Secundaria)', sub: 'Educación Secundaria de Adultos (ESA)', lista: [] },
-        { nombre: 'ESA — Aprendizajes Complementarios (3° y 4° Secundaria)', sub: 'Secundaria Ciclo Intermedio (ESA)', lista: [] },
-        { nombre: 'ESA — Aprendizajes Especializados (5° y 6° Sec. BTH)', sub: 'Bachillerato Técnico Humanístico (BTH)', lista: [] }
-      ];
+      const vEpa = humanisticaEPA.filter(e => obtenerGeneroEstadistica(e) === 'M').length;
+      const mEpa = humanisticaEPA.filter(e => obtenerGeneroEstadistica(e) === 'F').length;
+      const pctVEpa = humanisticaEPA.length > 0 ? Math.round((vEpa / humanisticaEPA.length) * 100) : 0;
+      const pctMEpa = humanisticaEPA.length > 0 ? Math.round((mEpa / humanisticaEPA.length) * 100) : 0;
+      const pctTotEpa = totalGeneral > 0 ? Math.round((humanisticaEPA.length / totalGeneral) * 100) : 0;
 
-      humanisticaEPA.forEach(it => {
-        const c = String((it.carrera || '') + ' ' + (it.nivel || '')).toLowerCase();
-        if (c.includes('elemental') || c.includes('1°') || c.includes('1ro') || c.includes('2°') || c.includes('2do') || c.includes('3°') || c.includes('3ro')) {
-          humCiclosFilas[0].lista.push(it);
-        } else {
-          humCiclosFilas[1].lista.push(it);
-        }
-      });
-
-      humanisticaESA.forEach(it => {
-        const c = String((it.carrera || '') + ' ' + (it.nivel || '')).toLowerCase();
-        if (c.includes('especializ') || c.includes('5°') || c.includes('6°') || c.includes('bth') || c.includes('bachiller')) {
-          humCiclosFilas[4].lista.push(it);
-        } else if (c.includes('complement') || c.includes('3°') || c.includes('4°')) {
-          humCiclosFilas[3].lista.push(it);
-        } else {
-          humCiclosFilas[2].lista.push(it);
-        }
-      });
+      const vEsa = humanisticaESA.filter(e => obtenerGeneroEstadistica(e) === 'M').length;
+      const mEsa = humanisticaESA.filter(e => obtenerGeneroEstadistica(e) === 'F').length;
+      const pctVEsa = humanisticaESA.length > 0 ? Math.round((vEsa / humanisticaESA.length) * 100) : 0;
+      const pctMEsa = humanisticaESA.length > 0 ? Math.round((mEsa / humanisticaESA.length) * 100) : 0;
+      const pctTotEsa = totalGeneral > 0 ? Math.round((humanisticaESA.length / totalGeneral) * 100) : 0;
 
       tablaConsolidadaHTML = `
-        <table class="tabla-cuadro-oficial" style="width:100%;border-collapse:collapse;font-size:8.2pt;margin-bottom:8px">
+        <table class="tabla-cuadro-oficial" style="width:100%;border-collapse:collapse;font-size:7.8pt;margin-bottom:8px">
           <thead>
             <tr style="background:#1e40af;color:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-              <th style="padding:8px 7px;text-align:left;border:1px solid #1e40af;width:42%">Nivel y Ciclo Humanístico Oficial</th>
-              <th style="padding:8px 7px;text-align:left;border:1px solid #1e40af;width:24%">Subsistema y Acreditación</th>
-              <th style="padding:8px 7px;text-align:center;border:1px solid #1e40af;width:16%">Promedio de Edad</th>
-              <th style="padding:8px 7px;text-align:center;border:1px solid #1e40af;width:9%">Postulantes</th>
-              <th style="padding:8px 7px;text-align:center;border:1px solid #1e40af;width:9%">% Humanística</th>
+              <th style="padding:7px 8px;text-align:left;border:1px solid #1e40af;width:45%">Nivel y Ciclo Humanístico Oficial</th>
+              <th style="padding:7px 8px;text-align:left;border:1px solid #1e40af;width:25%">Subsistema y Acreditación</th>
+              <th style="padding:7px 8px;text-align:center;border:1px solid #1e40af;width:15%">Prom. Edad</th>
+              <th style="padding:7px 8px;text-align:center;border:1px solid #1e40af;width:15%">Total (% Hum.)</th>
             </tr>
           </thead>
           <tbody>
@@ -755,19 +671,21 @@
               const p = totalHum > 0 ? Math.round((fila.lista.length / totalHum) * 100) : 0;
               return `
                 <tr style="border-bottom:1px solid #cbd5e1;background:${bg}">
-                  <td style="padding:4.8px 7px"><strong>${escapeHTML(fila.nombre)}</strong></td>
-                  <td style="padding:4.8px 7px;color:#334155">${escapeHTML(fila.sub)}</td>
-                  <td style="padding:4.8px 7px;text-align:center;font-weight:700;color:#1e40af">${calcularPromedioEdad(fila.lista)}</td>
-                  <td style="padding:4.8px 7px;text-align:center;font-weight:800;color:#1e40af;font-size:8.8pt">${fila.lista.length}</td>
-                  <td style="padding:4.8px 7px;text-align:center">${p}%</td>
+                  <td style="padding:5px 8px"><strong>${escapeHTML(fila.nombre)}</strong></td>
+                  <td style="padding:5px 8px;color:#334155">${escapeHTML(fila.sub)}</td>
+                  <td style="padding:5px 8px;text-align:center;font-weight:700;color:#1e40af">${calcularPromedioEdad(fila.lista)}</td>
+                  <td style="padding:5px 8px;text-align:center;font-weight:900;color:#1e40af">
+                    ${fila.lista.length} <span style="font-size:7pt;color:#64748b">(${p}%)</span>
+                  </td>
                 </tr>
               `;
             }).join('')}
-            <tr style="background:#1e40af;color:#ffffff;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-              <td colspan="2" style="padding:6px 7px">TOTAL POSTULANTES ÁREA HUMANÍSTICA (EPJA / BTH)</td>
-              <td style="padding:6px 7px;text-align:center;font-size:7.8pt;font-weight:800">Prom. Humanística: ${calcularPromedioEdad([...humanisticaEPA, ...humanisticaESA])}</td>
-              <td style="padding:6px 7px;text-align:center;font-size:9pt">${totalHum}</td>
-              <td style="padding:6px 7px;text-align:center;font-size:9pt">100%</td>
+            <tr style="background:#e2e8f0;color:#0f172a;font-weight:900;border-top:2px solid #64748b;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+              <td colspan="2" style="padding:6px 8px;font-size:7.6pt;font-weight:900;color:#0f172a">TOTAL POSTULANTES ÁREA HUMANÍSTICA (EPJA / BTH)</td>
+              <td style="padding:6px 8px;text-align:center;font-size:7.6pt;font-weight:900;color:#0f172a">Prom: ${calcularPromedioEdad([...humanisticaEPA, ...humanisticaESA])}</td>
+              <td style="padding:6px 8px;text-align:center;font-size:9pt;font-weight:900;color:#0f172a">
+                ${totalHum} (100%)
+              </td>
             </tr>
           </tbody>
         </table>

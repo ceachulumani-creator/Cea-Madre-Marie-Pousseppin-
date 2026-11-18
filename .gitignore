@@ -1,0 +1,17 @@
+.idea/
+backup_original/
+backup_pre_v2/
+scratch/
+scratch_*
+debug_*
+check_*
+find_*
+inspect_*
+run_debug_*
+test_*
+search_hist.js
+read_manejar_form.js
+list_actions.py
+process_video3.py
+crop_*.png
+index2.html

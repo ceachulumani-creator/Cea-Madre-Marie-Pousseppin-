@@ -59,13 +59,23 @@
   }
 
   function abrirModalOpcionesImpresion() {
+    document.body.classList.remove('print-calificaciones-mode', 'print-centralizador-mode', 'print-afiliacion-reporte-mode');
     const area = detectarAreaActiva();
     seleccionarAreaImpresion(area);
 
     const modal = document.getElementById('modalOpcionesImpresionReporte') || document.getElementById('modal-opciones-impresion-reporte');
     if (modal) {
-      modal.style.display = 'flex';
-      modal.classList.add('active');
+      if (modal.style) {
+        if (typeof modal.style.setProperty === 'function') {
+          modal.style.setProperty('z-index', '9999999', 'important');
+        } else {
+          modal.style.zIndex = '9999999';
+        }
+        modal.style.display = 'flex';
+      }
+      if (modal.classList && typeof modal.classList.add === 'function') {
+        modal.classList.add('active');
+      }
     }
   }
 
@@ -145,8 +155,11 @@
     if (typeof window.cerrarDashboardVisualInscripciones === 'function') {
       window.cerrarDashboardVisualInscripciones();
     }
-    if (typeof window.ejecutarImpresionReporteOrganizado === 'function') {
-      window.ejecutarImpresionReporteOrganizado(area, true, false);
+    const fn = window.ejecutarImpresionReporteOrganizado || (typeof ejecutarImpresionReporteOrganizado === 'function' ? ejecutarImpresionReporteOrganizado : null);
+    if (typeof fn === 'function') {
+      fn(area, true, false);
+    } else {
+      console.warn('ejecutarImpresionReporteOrganizado no disponible');
     }
   }
 
@@ -158,8 +171,11 @@
     }
     if (typeof window.imprimirReporteEstadisticoUnaHoja === 'function') {
       window.imprimirReporteEstadisticoUnaHoja(area, true);
-    } else if (typeof window.ejecutarImpresionReporteOrganizado === 'function') {
-      window.ejecutarImpresionReporteOrganizado(area, true, true);
+    } else {
+      const fn = window.ejecutarImpresionReporteOrganizado || (typeof ejecutarImpresionReporteOrganizado === 'function' ? ejecutarImpresionReporteOrganizado : null);
+      if (typeof fn === 'function') {
+        fn(area, true, true);
+      }
     }
   }
 

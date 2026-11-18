@@ -2,7 +2,7 @@
    app.js — CEA Madre Marie Poussepín
    Sistema de administración, modo oscuro, visitas,
    inscripciones, edición de contenido en línea y
-   Sincronización Total Bidireccional con Google Sheets.
+   Sincronización Total Bidireccional con el sistema.
 ===================================================== */
 
 /* ─── UTILIDADES Y CONSTANTES ─── */
@@ -34,14 +34,14 @@ function getModoDocenteDia(turno, dia) {
   return (['Miércoles', 'Jueves', 'Viernes', 'Sábado'].includes(dia)) ? 'multi' : 'mono';
 }
 
-function cambiarModoDocenteDia(turno, dia, nuevoModo) {
+async function cambiarModoDocenteDia(turno, dia, nuevoModo) {
   const key = turno === 'hum' ? 'cea_hum_modo_dia' : 'cea_tec_modo_dia';
   const modos = lsGet(key, {});
   modos[dia] = nuevoModo;
   lsSet(key, modos);
   cargarHorariosMatriz(turno);
   mostrarToastLive(`Día ${dia} configurado como ${nuevoModo === 'multi' ? 'Multi-docente (4 Paralelos)' : 'Mono-docente (1 Docente)'}`);
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: turno === 'hum' ? 'hum_modo_dia_json' : 'tec_modo_dia_json',
     valor: JSON.stringify(modos)
@@ -65,16 +65,16 @@ const DOCENTES_DEFAULT = {
 };
 
 const USUARIOS_DOCENTES_DEFAULT = {
-  'tec-sis': { user: 'profe.sistemas', pass: 'cea.sistemas', comision: false },
-  'tec-sec': { user: 'profe.secretariado', pass: 'cea.secretariado', comision: false },
-  'tec-bel': { user: 'profe.belleza', pass: 'cea.belleza', comision: false },
-  'tec-tex': { user: 'profe.textil', pass: 'cea.textil', comision: false },
-  'tec-gas': { user: 'profe.gastronomia', pass: 'cea.gastronomia', comision: false },
-  'tec-agr': { user: 'profe.agropecuaria', pass: 'cea.agropecuaria', comision: false },
-  'hum-cn':  { user: 'profe.naturales', pass: 'cea.naturales', comision: true },
-  'hum-mat': { user: 'profe.matematica', pass: 'cea.matematica', comision: false },
-  'hum-cs':  { user: 'profe.sociales', pass: 'cea.sociales', comision: false },
-  'hum-len': { user: 'profe.lenguaje', pass: 'cea.lenguaje', comision: false }
+  'tec-sis': { user: 'profe.sistemas', pass: '', comision: false },
+  'tec-sec': { user: 'profe.secretariado', pass: '', comision: false },
+  'tec-bel': { user: 'profe.belleza', pass: '', comision: false },
+  'tec-tex': { user: 'profe.textil', pass: '', comision: false },
+  'tec-gas': { user: 'profe.gastronomia', pass: '', comision: false },
+  'tec-agr': { user: 'profe.agropecuaria', pass: '', comision: false },
+  'hum-cn':  { user: 'profe.naturales', pass: '', comision: true },
+  'hum-mat': { user: 'profe.matematica', pass: '', comision: false },
+  'hum-cs':  { user: 'profe.sociales', pass: '', comision: false },
+  'hum-len': { user: 'profe.lenguaje', pass: '', comision: false }
 };
 
 const HORARIOS_DEFAULT_V2 = {
@@ -176,6 +176,7 @@ const MATERIAS_DEFAULT = [
 ];
 
 const BASE_CARRERAS_20 = [
+
   {
     key: 'tec-agropecuaria',
     nombre: 'Agropecuaria',
@@ -437,6 +438,8 @@ const BASE_CARRERAS_20 = [
     ]
   }
 ];
+if (typeof window !== "undefined") window.BASE_CARRERAS_20 = BASE_CARRERAS_20;
+
 
 // 6 Carreras Técnicas Oficiales y Registradas del CEA Madre Marie Poussepín
 const CARRERAS_OFICIALES_KEYS = ['tec-agropecuaria', 'tec-sis', 'tec-gas', 'tec-bel', 'tec-tex', 'tec-sec'];
@@ -568,7 +571,7 @@ function lsSet(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
   if (!_aplicandoDatosRemotos && _inicializacionCompleta && typeof key === 'string' && key.startsWith('cea_')) {
     const kIgnore = ['cea_session', 'cea_gsheet_url', 'cea_visitas', 'cea_dark_override', 'cea_inscripciones'];
-    if (!kIgnore.includes(key)) {
+    if (!kIgnore.includes(key) && !ceaPersistencia.privateKey(key)) {
       _ultimaEdicionLocalTimestamp = Date.now();
       programarSincronizacionGlobalCEA(key);
     }
@@ -592,7 +595,7 @@ function empaquetarConfiguracionGlobalCEA() {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (!k || !k.startsWith('cea_') || CLAVES_EXCLUIDAS_CONFIG_GLOBAL.has(k)) continue;
+      if (!k || !k.startsWith('cea_') || CLAVES_EXCLUIDAS_CONFIG_GLOBAL.has(k) || ceaPersistencia.privateKey(k)) continue;
       // Las matrices completas de horarios se sincronizan en su clave dedicada horarios_matriz_json
       if (k.startsWith('cea_horarios_matriz')) continue;
       const raw = localStorage.getItem(k);
@@ -675,7 +678,7 @@ function aplicarConfiguracionGlobalCEA(cfg) {
   _aplicandoDatosRemotos = true;
   try {
     Object.keys(cfg).forEach(k => {
-      if (!k.startsWith('cea_') || CLAVES_EXCLUIDAS_CONFIG_GLOBAL.has(k)) return;
+      if (!k.startsWith('cea_') || CLAVES_EXCLUIDAS_CONFIG_GLOBAL.has(k) || ceaPersistencia.privateKey(k)) return;
       if (cfg[k] !== undefined && cfg[k] !== null) {
         try {
           localStorage.setItem(k, JSON.stringify(cfg[k]));
@@ -690,12 +693,12 @@ function aplicarConfiguracionGlobalCEA(cfg) {
 
 function programarSincronizacionGlobalCEA(changedKey) {
   const session = lsGet('cea_session', null);
-  const tienePermiso = session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.role === 'docente' || session.loggedIn === true);
+  const tienePermiso = session && (session.role === 'director' || session.role === 'admin' || session.comision === true);
   if (!tienePermiso) return;
 
   if (changedKey && (changedKey.startsWith('cea_horarios_matriz') || changedKey.startsWith('cea_horarios_merges'))) {
     if (_timerSyncMatrizCEA) clearTimeout(_timerSyncMatrizCEA);
-    _timerSyncMatrizCEA = setTimeout(() => {
+    _timerSyncMatrizCEA = setTimeout(async () => {
       try {
         const hMatriz = typeof getSedeLsData === 'function'
           ? getSedeLsData('cea_horarios_matriz', typeof HORARIOS_MATRIZ_DEFAULT !== 'undefined' ? HORARIOS_MATRIZ_DEFAULT : {})
@@ -703,7 +706,7 @@ function programarSincronizacionGlobalCEA(changedKey) {
         const hMerges = typeof getSedeLsData === 'function'
           ? getSedeLsData('cea_horarios_merges', {})
           : lsGet('cea_horarios_merges', {});
-        enviarGoogleSheet({
+        await enviarGoogleSheet({
           action: 'guardar-horarios-matriz',
           sede: typeof getHorarioSedeActiveKey === 'function' ? getHorarioSedeActiveKey() : 'central',
           horariosMatriz: hMatriz,
@@ -714,14 +717,14 @@ function programarSincronizacionGlobalCEA(changedKey) {
   }
 
   if (_timerSyncGlobalCEA) clearTimeout(_timerSyncGlobalCEA);
-  _timerSyncGlobalCEA = setTimeout(() => {
-    sincronizarConfigGlobalCEA();
+  _timerSyncGlobalCEA = setTimeout(async () => {
+    await sincronizarConfigGlobalCEA();
   }, 600);
 }
 
 async function sincronizarConfigGlobalCEA() {
   const session = lsGet('cea_session', null);
-  const tienePermiso = session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.role === 'docente' || session.loggedIn === true);
+  const tienePermiso = session && (session.role === 'director' || session.role === 'admin' || session.comision === true);
   if (!tienePermiso) return false;
   try {
     const cfg = empaquetarConfiguracionGlobalCEA();
@@ -739,7 +742,7 @@ async function sincronizarConfigGlobalCEA() {
   }
 }
 
-/* ─── GOOGLE SHEETS INTEGRACIÓN OFICIAL ─── */
+/* ─── el sistema INTEGRACIÓN OFICIAL ─── */
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxSBubRVsq8_Qk-kg_69_7Bb6796F63PgF0KDeWXyCsNHRDTN9uKUFymCi6FL9BGiYk/exec';
 let GOOGLE_SHEET_WEB_APP_URL = GOOGLE_SCRIPT_URL;
 
@@ -787,7 +790,7 @@ async function sincronizarInscripcionesProtegidas() {
       body: JSON.stringify({ action: 'obtenerInscripciones', token: token })
     });
     const res = await resp.json();
-    if (res && res.status === 'success' && Array.isArray(res.inscripciones)) {
+    if (getSessionToken() === token && res && res.status === 'success' && Array.isArray(res.inscripciones)) {
       const prev = _aplicandoDatosRemotos;
       _aplicandoDatosRemotos = true;
       lsSet('cea_inscripciones', res.inscripciones);
@@ -800,41 +803,14 @@ async function sincronizarInscripcionesProtegidas() {
   }
 }
 
-async function enviarGoogleSheet(datos) {
-  const url = obtenerGoogleSheetURL();
-  if (!url) return false;
-  try {
-    if (!datos || datos.action !== 'visita') {
-      _ultimaEdicionLocalTimestamp = Date.now();
-    }
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 segundos máximo
-
-    const payload = (typeof datos === 'object' && datos !== null) ? { ...datos } : { payload: datos };
-    delete payload._pdfGeneratingPromise;
-    delete payload._pdfBlobUrlCache;
-    const token = getSessionToken();
-    if (token && !payload.token) {
-      payload.token = token;
-    }
-
-    await fetch(url, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-    return true;
-  } catch (err) {
-    console.warn('Respuesta de Google Sheets continuará en segundo plano:', err);
-    return true; // Retornar true para no bloquear la interfaz web
-  }
+function enviarGoogleSheet(datos) {
+  if (datos.action !== 'visita' && !/^(obtener|consultar|verificar)/.test(datos.action)) _ultimaEdicionLocalTimestamp = Date.now();
+  return ceaPersistencia.send(datos);
 }
+window.enviarGoogleSheet = enviarGoogleSheet;
+window.obtenerGoogleSheetURL = obtenerGoogleSheetURL;
 
-function guardarGoogleSheetURL() {
+async function guardarGoogleSheetURL() {
   const inp = document.getElementById('adm-gsheet-url');
   if (!inp) return;
   const url = inp.value.trim();
@@ -842,7 +818,7 @@ function guardarGoogleSheetURL() {
   GOOGLE_SHEET_WEB_APP_URL = url;
   mostrarMsg('msg-gsheet-config', 'URL de sincronización guardada correctamente.', 'success');
   if (url) {
-    cargarDatosGoogleSheets(true);
+    await cargarDatosGoogleSheets(true);
   }
 }
 
@@ -857,9 +833,9 @@ async function probarConexionGoogleSheet() {
     const fetchUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
     const resp = await fetch(fetchUrl);
     const json = await resp.json();
-    if (json && json.status === 'success') {
+    if (json && json.status === 'success' && json.apiVersion === 2) {
       mostrarMsg('msg-gsheet-config', '¡Conexión exitosa! Los datos se sincronizaron con el sistema.', 'success');
-      aplicarDatosGoogleSheets(json.data);
+      await aplicarDatosGoogleSheets(json.data);
     } else {
       mostrarMsg('msg-gsheet-config', 'Respuesta recibida pero con error: ' + (json.message || 'Error desconocido'), 'error');
     }
@@ -868,25 +844,30 @@ async function probarConexionGoogleSheet() {
   }
 }
 
-async function cargarDatosGoogleSheets(forzar = false) {
-  const url = obtenerGoogleSheetURL();
-  if (!url) return;
-  // Evitar que una lectura automática pise cambios locales que aún se están guardando en Google Sheets
-  if (!forzar && _ultimaEdicionLocalTimestamp && (Date.now() - _ultimaEdicionLocalTimestamp < 10000)) {
-    return;
-  }
+async function cargarDatosGoogleSheets(forzar = false, {silencioso = false, acceso = false} = {}) {
+  if (!forzar && ceaPersistencia.isPending()) return;
+  if (!forzar && Date.now() - _ultimaEdicionLocalTimestamp < 10000) return;
+  const session = lsGet('cea_session', null);
+  const revisionLocal = _ultimaEdicionLocalTimestamp;
   try {
-    const fetchUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
-    const resp = await fetch(fetchUrl);
-    const json = await resp.json();
-    if (json && json.status === 'success' && json.data) {
-      if (!forzar && _ultimaEdicionLocalTimestamp && (Date.now() - _ultimaEdicionLocalTimestamp < 10000)) {
-        return;
-      }
-      aplicarDatosGoogleSheets(json.data);
+    let result;
+    if (session && session.token) {
+      const peticion = {action: 'obtener-datos-privados', token: session.token};
+      result = await ceaPersistencia.request(peticion, 25000);
+    } else {
+      const url = obtenerGoogleSheetURL();
+      if (!url) return;
+      const response = await fetch(url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now());
+      result = await response.json();
     }
-  } catch (e) {
-    console.log('Google Sheets no disponible offline o error en URL. Usando caché local.');
+    if (result.apiVersion !== 2) throw new Error('Actualiza Apps Script con el archivo google-apps-script.gs de este proyecto.');
+    if (result.status !== 'success' || !result.data) throw new Error(result.message || 'No se pudo leer el sistema.');
+    if (getSessionToken() !== (session?.token || '') || (!acceso && (ceaPersistencia.isPending() || revisionLocal !== _ultimaEdicionLocalTimestamp))) return;
+    ceaPersistencia.loaded(result.data);
+    await aplicarDatosGoogleSheets(result.data);
+  } catch (error) {
+    if (!silencioso && error.code !== 'SESION') ceaPersistencia.report(error);
+    throw error;
   }
 }
 
@@ -899,8 +880,11 @@ function limpiarTelefonoValido(tel) {
   return raw.replace(/^[`']/, '').trim();
 }
 
-function aplicarDatosGoogleSheets(data) {
+async function aplicarDatosGoogleSheets(data) {
   if (!data) return;
+  ceaPersistencia.loaded(data);
+  if (Array.isArray(data.nominaRespaldo) && typeof window.cargarRespaldoNominaCEA === 'function') window.cargarRespaldoNominaCEA(data.nominaRespaldo);
+  if (Array.isArray(data.mensajesContacto)) localStorage.setItem('cea_mensajes_contacto', JSON.stringify(data.mensajesContacto));
   const prevRemoteFlag = _aplicandoDatosRemotos;
   _aplicandoDatosRemotos = true;
 
@@ -1111,7 +1095,7 @@ function aplicarDatosGoogleSheets(data) {
       lsSet('cea_docentes', data.docentes);
       cargarDocentes();
       if (typeof cargarDocentesUnificados === 'function') cargarDocentesUnificados();
-    if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') refrescarCredencialesDocentesDesdeServidor();
+    if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') await refrescarCredencialesDocentesDesdeServidor();
     }
 
     // 3. Carreras Técnicas
@@ -1159,6 +1143,11 @@ function aplicarDatosGoogleSheets(data) {
       cargarAreasTec();
     }
 
+    if (data.mallas) {
+      for (const [areaKey, niveles] of Object.entries(data.mallas)) {
+        if (areaKey.startsWith('hum-')) lsSet('cea_malla_' + areaKey, Object.entries(niveles).map(([nivel, modulos]) => ({nivel, modulos})));
+      }
+    }
     // 4. Materias Humanística
     if (data.materiasHumanistica && Array.isArray(data.materiasHumanistica) && data.materiasHumanistica.length > 0) {
       const listaMat = data.materiasHumanistica.map(m => m.materia);
@@ -1255,7 +1244,7 @@ function aplicarDatosGoogleSheets(data) {
       if (typeof cargarDocumentosOficialesAdmin === 'function') cargarDocumentosOficialesAdmin();
     }
 
-    // 5.1 Sincronización de Sedes / Subcentros desde Google Sheets
+    // 5.1 Sincronización de Sedes / Subcentros desde el sistema
     if (data.textos) {
       const t = data.textos;
       if (t.sedes_lista_hum_json) {
@@ -1283,7 +1272,7 @@ function aplicarDatosGoogleSheets(data) {
       }
     }
 
-    // 6. Horarios Matriz (Priorizar filas reales de Google Sheets data.horariosMatriz)
+    // 6. Horarios Matriz (Priorizar filas reales de el sistema data.horariosMatriz)
     let matrizFinal = null;
     if (data.horariosMatriz && typeof data.horariosMatriz === 'object' && Object.keys(data.horariosMatriz).length > 0) {
       matrizFinal = data.horariosMatriz;
@@ -1371,7 +1360,7 @@ function aplicarDatosGoogleSheets(data) {
       lsSet('cea_usuarios_docentes', merged);
       if (typeof cargarDocentesUnificados === 'function') cargarDocentesUnificados();
       if (typeof cargarUsuariosPanel === 'function') cargarUsuariosPanel();
-      if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') refrescarCredencialesDocentesDesdeServidor();
+      if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') await refrescarCredencialesDocentesDesdeServidor();
     }
 
     // 8. Enlaces Drive y configuración institucional
@@ -1401,7 +1390,7 @@ function aplicarDatosGoogleSheets(data) {
       }
     }
 
-    // 9. Visitas Globales (EXCLUSIVAMENTE desde Google Sheets para consistencia multi-dispositivo)
+    // 9. Visitas Globales (EXCLUSIVAMENTE desde el sistema para consistencia multi-dispositivo)
     if (data.visitas && typeof data.visitas === 'object') {
       lsSet('cea_visitas_gsheet', data.visitas);
       lsSet('cea_visitas', data.visitas);
@@ -1409,7 +1398,7 @@ function aplicarDatosGoogleSheets(data) {
       renderTablaVisitas();
     }
 
-    // 10. Documentos por Nivel, Actividades e Inscripciones desde Google Sheets
+    // 10. Documentos por Nivel, Actividades e Inscripciones desde el sistema
     if (data.docNiveles && typeof data.docNiveles === 'object') {
       Object.keys(data.docNiveles).forEach(carrKey => {
         lsSet('cea_doc_niveles_' + carrKey, data.docNiveles[carrKey]);
@@ -1426,6 +1415,67 @@ function aplicarDatosGoogleSheets(data) {
       cargarInscripciones();
       if (typeof actualizarEstadisticasAdmin === 'function') actualizarEstadisticasAdmin();
       if (typeof revalidarQRPendiente === 'function') revalidarQRPendiente();
+    }
+
+    // 10.b. Padrón Oficial y Registro de Estudiantes (Afiliación Institucional)
+    const haEditadoReciente = ceaPersistencia.isPending();
+
+    const remoteEstudiantes = Array.isArray(data.registroEstudiantes) 
+      ? data.registroEstudiantes 
+      : (Array.isArray(data.padronAfiliacion) ? data.padronAfiliacion : null);
+
+    if (remoteEstudiantes !== null && !haEditadoReciente) {
+      const cambioNomina = JSON.stringify(lsGet('cea_afiliacion_estudiantes', [])) !== JSON.stringify(remoteEstudiantes);
+      lsSet('cea_afiliacion_estudiantes', remoteEstudiantes);
+      if (typeof window.actualizarPadronDesdeNube === 'function') {
+        window.actualizarPadronDesdeNube(remoteEstudiantes);
+      }
+      try {
+        if (cambioNomina) window.dispatchEvent(new CustomEvent('cea-estudiantes-sincronizados', { detail: remoteEstudiantes }));
+      } catch(eEvt) {}
+    }
+
+    // 10.c. Papelera de Recuperación de Estudiantes (Período de 7 días)
+    if (data.papeleraEstudiantes && Array.isArray(data.papeleraEstudiantes)) {
+      lsSet('cea_afiliacion_papelera', data.papeleraEstudiantes);
+      if (typeof window.actualizarBadgesPapeleraUI === 'function') {
+        window.actualizarBadgesPapeleraUI();
+      }
+    }
+
+    // 10.d. Sincronización Bidireccional de Calificaciones (Registros y Detalles)
+    if (!haEditadoReciente) {
+      if (Array.isArray(data.calificacionesRegistros)) {
+        lsSet('cea_calificaciones_registros', data.calificacionesRegistros);
+        lsSet('cea_calif_registros', data.calificacionesRegistros);
+      }
+      if (Array.isArray(data.calificacionesDetalles)) {
+        lsSet('cea_calificaciones_detalles', data.calificacionesDetalles);
+        lsSet('cea_calif_detalles', data.calificacionesDetalles);
+      }
+      if (data.controlSubidaCentralizadores && typeof data.controlSubidaCentralizadores === 'object') {
+        lsSet('cea_calificaciones_subidas_centralizador', data.controlSubidaCentralizadores);
+      }
+      if (data.controlSubidaEstudiantes && typeof data.controlSubidaEstudiantes === 'object') {
+        lsSet('cea_calificaciones_subidas_notas', data.controlSubidaEstudiantes);
+      }
+      if (data.textos && data.textos.cea_calificaciones_paralelos_config) {
+        try {
+          const cfgP = typeof data.textos.cea_calificaciones_paralelos_config === 'string'
+            ? JSON.parse(data.textos.cea_calificaciones_paralelos_config)
+            : data.textos.cea_calificaciones_paralelos_config;
+          if (cfgP && typeof cfgP === 'object') {
+            lsSet('cea_calificaciones_paralelos_config', cfgP);
+          }
+        } catch (eP) {}
+      }
+      if (data.calificacionesRegistros || data.calificacionesDetalles) {
+        try {
+          window.dispatchEvent(new CustomEvent('cea-calificaciones-sincronizadas', {
+            detail: { registros: data.calificacionesRegistros || [], detalles: data.calificacionesDetalles || [] }
+          }));
+        } catch(eCal) {}
+      }
     }
     if (data.galeriaFotos && Array.isArray(data.galeriaFotos)) {
       lsSet('cea_galeria_fotos', data.galeriaFotos);
@@ -1447,7 +1497,7 @@ function aplicarDatosGoogleSheets(data) {
       if (typeof renderSeccionHumanistica === 'function') renderSeccionHumanistica();
     }
 
-    // 12. Kardex Docentes desde Google Sheets
+    // 12. Kardex Docentes desde el sistema
     if (data.kardexDocentes && typeof data.kardexDocentes === 'object' && Object.keys(data.kardexDocentes).length > 0) {
       const actualKardex = (typeof getKardexDocentesStorage === 'function') ? getKardexDocentesStorage() : lsGet('cea_kardex_docentes', {});
       const mergedKardex = { ...actualKardex, ...data.kardexDocentes };
@@ -1520,19 +1570,26 @@ function toggleDark() {
 }
 
 /* ─── ABRIR ADMIN (Boton Director) ─── */
-function abrirAdmin() {
-  window.location.hash = '#admin';
-  const adminSection = document.getElementById('admin');
-  if (adminSection) {
-    adminSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+async function abrirAdmin() {
+  if (window.location.hash !== '#admin') {
+    window.location.hash = '#admin';
   }
-
   const session = lsGet('cea_session', null);
   if (session && (session.role === 'director' || session.role === 'admin')) {
-    mostrarPanelAdmin();
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    await mostrarPanelAdmin();
   } else if (session && session.role === 'docente') {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
     mostrarPanelDocente(session.areaKey);
   } else {
+    const adminSection = document.getElementById('admin');
+    if (adminSection) {
+      adminSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     const loginBox = document.getElementById('admin-login');
     if (loginBox) loginBox.style.display = 'block';
   }
@@ -1931,7 +1988,7 @@ function inicializarDragAndDrop(zoneId, inputId, urlTargetId, tipoTargetId, prev
   }, false);
 }
 
-/* ─── CONTADOR DE VISITAS (EXCLUSIVAMENTE DESDE GOOGLE SHEETS) ─── */
+/* ─── CONTADOR DE VISITAS (EXCLUSIVAMENTE DESDE el sistema) ─── */
 function obtenerVisitasExclusivoGSheet() {
   const gsheetVisitas = lsGet('cea_visitas_gsheet', null);
   if (gsheetVisitas && typeof gsheetVisitas === 'object') {
@@ -1940,7 +1997,7 @@ function obtenerVisitasExclusivoGSheet() {
   return {};
 }
 
-function registrarVisita() {
+async function registrarVisita() {
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
   const bolivia = new Date(utc - 4 * 3600000);
@@ -1954,10 +2011,10 @@ function registrarVisita() {
   } catch (e) {}
   actualizarContadorVisitasMinimal();
 
-  // 2. Registro y consolidación en Google Sheets en segundo plano
-  enviarGoogleSheet({ action: 'visita', userAgent: navigator.userAgent }).then(() => {
+  // 2. Registro y consolidación en el sistema en segundo plano
+  await enviarGoogleSheet({ action: 'visita', userAgent: navigator.userAgent }).then(() => {
     if (typeof cargarDatosGoogleSheets === 'function') {
-      setTimeout(() => cargarDatosGoogleSheets(true), 1200);
+      setTimeout(async () => await cargarDatosGoogleSheets(true), 1200);
     }
   }).catch(() => {});
 }
@@ -2715,13 +2772,13 @@ function autoGuardarCredencialDocente(inp) {
     inp.style.boxShadow = '';
   }, 1000);
 
-  // 3. Sincronización automática con Google Sheets (Debounced)
+  // 3. Sincronización automática con el sistema (Debounced)
   clearTimeout(_timerAutoGuardarDocente);
   _timerAutoGuardarDocente = setTimeout(async () => {
     try {
       const msgEl = document.getElementById('msg-docentes-unificados');
       if (msgEl) {
-        msgEl.innerHTML = `<span style="color:#16a34a;font-size:0.82rem;font-weight:700"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardado automático: ${escapeHTML(nombre || userVal || asigKey)} sincronizado en Google Sheets</span>`;
+        msgEl.innerHTML = `<span style="color:#16a34a;font-size:0.82rem;font-weight:700"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardado automático: ${escapeHTML(nombre || userVal || asigKey)} sincronizado en la nube institucional</span>`;
       }
       await enviarGoogleSheet({
         action: 'guardar-docentes-completo',
@@ -2972,7 +3029,7 @@ function cargarDocentesUnificados() {
   }
 }
 
-function agregarNuevoDocenteFila(areaTipo = 'tec') {
+async function agregarNuevoDocenteFila(areaTipo = 'tec') {
   const container = (areaTipo === 'hum')
     ? document.getElementById('columna-docentes-hum')
     : document.getElementById('columna-docentes-tec');
@@ -3017,9 +3074,9 @@ function agregarNuevoDocenteFila(areaTipo = 'tec') {
   };
   lsSet('cea_docentes_asignaciones', asignaciones);
 
-  // Sincronizar en background con Google Sheets
-  enviarGoogleSheet({ action: 'guardar-docentes-completo', docentes: dMap, carreras: areas, usuarios: usuarios }).catch(e => console.warn(e));
-  enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios }).catch(e => console.warn(e));
+  // Sincronizar en background con el sistema
+  await enviarGoogleSheet({ action: 'guardar-docentes-completo', docentes: dMap, carreras: areas, usuarios: usuarios }).catch(e => console.warn(e));
+  await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios }).catch(e => console.warn(e));
 
   if (container) {
     const div = document.createElement('div');
@@ -3278,7 +3335,7 @@ async function guardarDocentesUnificados() {
 
   mostrarMsg('msg-docentes-unificados', 'Guardando y sincronizando docentes en el sistema...', 'success');
 
-  // Enviar paquete completo en una sola transacción atómica a Google Sheets
+  // Enviar paquete completo en una sola transacción atómica a el sistema
   const exito1 = await enviarGoogleSheet({
     action: 'guardar-docentes-completo',
     docentes: nuevoDocentesMap,
@@ -3571,19 +3628,19 @@ function obtenerListaSedesEducativas(area = turnoHorarioActual) {
   ]);
 }
 
-function guardarListaSedesEducativas(sedesList, area = turnoHorarioActual) {
+async function guardarListaSedesEducativas(sedesList, area = turnoHorarioActual) {
   const curArea = area || turnoHorarioActual || 'hum';
   lsSet(`cea_sedes_lista_${curArea}`, sedesList);
   if (curArea === 'hum') {
     lsSet('cea_sedes_lista', sedesList);
   }
-  // Sincronizar de forma inmediata con Google Sheets para que todos los dispositivos lo vean
-  enviarGoogleSheet({
+  // Sincronizar de forma inmediata con el sistema para que todos los dispositivos lo vean
+  await enviarGoogleSheet({
     action: 'guardar-sedes-lista',
     area: curArea,
     sedes: sedesList
   });
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: `sedes_lista_${curArea}_json`,
     valor: JSON.stringify(sedesList),
@@ -3691,7 +3748,7 @@ async function renombrarSedeHorario(sedeKey) {
   if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === sObj.nombre) return;
 
   sObj.nombre = nuevoNombre.trim();
-  guardarListaSedesEducativas(sedes, curArea);
+  await guardarListaSedesEducativas(sedes, curArea);
   renderizarBarraSedesHorarios();
   cargarHorariosMatriz(curArea);
   mostrarToastLive(`Nombre de ${esCentral ? 'Sede Principal' : 'Subcentro'} actualizado a: "${nuevoNombre.trim()}"`);
@@ -3735,7 +3792,7 @@ async function abrirModalAgregarSubcentro() {
   const sedes = obtenerListaSedesEducativas(curArea);
   const newKey = `subcentro_${Date.now()}`;
   sedes.push({ key: newKey, nombre: nombre.trim() });
-  guardarListaSedesEducativas(sedes, curArea);
+  await guardarListaSedesEducativas(sedes, curArea);
   switchSedeHorario(newKey);
   mostrarToastLive(`¡Nuevo Subcentro "${nombre.trim()}" agregado a ${areaNombre}!`);
 }
@@ -3756,8 +3813,8 @@ async function eliminarSubcentroSede(sedeKey) {
   if (!ok) return;
 
   const nuevasSedes = sedes.filter(s => s.key !== sedeKey);
-  guardarListaSedesEducativas(nuevasSedes, curArea);
-  enviarGoogleSheet({
+  await guardarListaSedesEducativas(nuevasSedes, curArea);
+  await enviarGoogleSheet({
     action: 'eliminar-subcentro',
     sede: sedeKey,
     area: curArea
@@ -3963,7 +4020,7 @@ function obtenerFilasHumanisticaBTH() {
   ];
 }
 
-function cambiarMateriaFilaBTH(filaIdx, nuevaMateria) {
+async function cambiarMateriaFilaBTH(filaIdx, nuevaMateria) {
   if (!tienePermisoEdicionHorarios()) return;
   const filas = obtenerFilasHumanisticaBTH();
   if (filaIdx < 0 || filaIdx >= filas.length) return;
@@ -3994,7 +4051,7 @@ function cambiarMateriaFilaBTH(filaIdx, nuevaMateria) {
 
   mostrarToastLive(`Fila ${filaIdx + 1} actualizada: ${nuevaMateria} (${info.docente})`);
 
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-bth-filas',
     filasBTH: filas
   });
@@ -4832,7 +4889,7 @@ function actualizarPreviewNuevaMateria() {
   }
 }
 
-function guardarNuevaMateriaModal(e) {
+async function guardarNuevaMateriaModal(e) {
   if (e) e.preventDefault();
   const inpNom = document.getElementById('modal-inp-materia-nombre');
   const inpBg = document.getElementById('modal-inp-materia-bg');
@@ -4843,7 +4900,7 @@ function guardarNuevaMateriaModal(e) {
   const txt = inpTxt ? inpTxt.value.trim() : '#ffffff';
 
   if (!nom) return;
-  actualizarColorMateriaDirecto(nom, bg, txt);
+  await actualizarColorMateriaDirecto(nom, bg, txt);
   cerrarModalNuevaMateria();
 }
 
@@ -4851,14 +4908,14 @@ function agregarMateriaPersonalizada() {
   abrirModalNuevaMateria();
 }
 
-function cambiarCarreraBTH(carrera) {
+async function cambiarCarreraBTH(carrera) {
   if (!CURRICULA_BTH_CARRERAS[carrera]) return;
   setSedeLsData('cea_bth_carrera_activa', carrera);
   cargarHorariosMatriz(turnoHorarioActual);
   const containerAdmin = document.getElementById('editor-horarios-matriz-container');
   if (containerAdmin) cargarEditorHorariosMatriz(turnoHorarioActual);
   mostrarToastLive(`Especialidad BTH cambiada a: ${carrera}`);
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-bth-carrera',
     carreraBTH: carrera
   });
@@ -5007,7 +5064,7 @@ function obtenerColorAhorroTinta(mNom, area) {
   };
 }
 
-function cambiarPaletaColoresHorario(modo) {
+async function cambiarPaletaColoresHorario(modo) {
   let paleta = 'multicolor';
   if (modo === 'verde') paleta = 'verde';
   else if (modo === 'economica' || modo === 'eco') paleta = 'economica';
@@ -5022,7 +5079,7 @@ function cambiarPaletaColoresHorario(modo) {
   else if (paleta === 'economica') msgToast = 'Paleta de horario: Ahorro de Tinta (Sin Relleno).';
   mostrarToastLive(msgToast);
 
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: 'horario_paleta_colores',
     valor: paleta
@@ -5104,7 +5161,7 @@ function obtenerColorAsignatura(materia = '', area = 'hum') {
   return obtenerEstilosMateria(materia, area).bg;
 }
 
-function actualizarColorMateriaDirecto(materia, bg, txt) {
+async function actualizarColorMateriaDirecto(materia, bg, txt) {
   if (!materia) return;
   const customColors = lsGet('cea_colores_materias_personalizados', {});
   const existing = customColors[materia] || (typeof customColors[materia] === 'object' ? customColors[materia] : {});
@@ -5130,7 +5187,7 @@ function actualizarColorMateriaDirecto(materia, bg, txt) {
   cargarHorariosMatriz(turnoHorarioActual);
   mostrarToastLive(`Color de "${materia}" actualizado.`);
 
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-color-materia',
     materia: materia,
     color: finalBg,
@@ -5315,7 +5372,7 @@ function obtenerListaMateriasParaPaleta(turno = 'hum') {
   ];
 }
 
-function toggleDiaHorarioBTH(dia, activo) {
+async function toggleDiaHorarioBTH(dia, activo) {
   let dias = getSedeLsData('cea_bth_dias_activos', ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']);
   if (activo && !dias.includes(dia)) {
     dias.push(dia);
@@ -5326,7 +5383,7 @@ function toggleDiaHorarioBTH(dia, activo) {
   dias = ordenarDiasCronologico(dias);
   setSedeLsData('cea_bth_dias_activos', dias);
   cargarHorariosMatriz('hum');
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: 'bth_dias_activos_json',
     valor: JSON.stringify(dias)
@@ -5344,7 +5401,7 @@ function obtenerCursosParaDiaBTH(dia) {
   return [...HORARIOS_BTH_CANONICO.cursosDefault];
 }
 
-function cambiarPaqueteCursosDia(dia, paquete) {
+async function cambiarPaqueteCursosDia(dia, paquete) {
   const conf = getSedeLsData('cea_bth_cursos_por_dia', {});
   conf[dia] = ['Avanzados', 'Aplicados', 'Complementarios', 'Especializados'];
   setSedeLsData('cea_bth_cursos_por_dia', conf);
@@ -5352,14 +5409,14 @@ function cambiarPaqueteCursosDia(dia, paquete) {
   const containerAdmin = document.getElementById('editor-horarios-matriz-container');
   if (containerAdmin) cargarEditorHorariosMatriz('hum');
   mostrarToastLive(`Cursos oficiales de ${dia} configurados (Avanzados, Aplicados, Complementarios, Especializados).`);
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: 'bth_cursos_por_dia_json',
     valor: JSON.stringify(conf)
   });
 }
 
-function cambiarCursoColumnaDia(dia, colIdx, nuevoCurso) {
+async function cambiarCursoColumnaDia(dia, colIdx, nuevoCurso) {
   const conf = getSedeLsData('cea_bth_cursos_por_dia', {});
   if (!conf[dia] || !Array.isArray(conf[dia])) {
     conf[dia] = (dia === 'Viernes') ? [...HORARIOS_BTH_CANONICO.cursosViernes] : [...HORARIOS_BTH_CANONICO.cursosDefault];
@@ -5370,7 +5427,7 @@ function cambiarCursoColumnaDia(dia, colIdx, nuevoCurso) {
   const containerAdmin = document.getElementById('editor-horarios-matriz-container');
   if (containerAdmin) cargarEditorHorariosMatriz('hum');
   mostrarToastLive(`Paralelo ${colIdx + 1} de ${dia} actualizado a ${nuevoCurso}`);
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: 'bth_cursos_por_dia_json',
     valor: JSON.stringify(conf)
@@ -5436,7 +5493,7 @@ function getTurnoDiaHum(dia, sedeKey = null) {
   return turnosMap[dia] || 'mañana';
 }
 
-function setTurnoDiaHum(dia, nuevoTurno, sedeKey = null) {
+async function setTurnoDiaHum(dia, nuevoTurno, sedeKey = null) {
   const sKey = sedeKey || getHorarioSedeActiveKey('hum');
   const turnosMap = getSedeLsData('cea_hum_turnos_dias', DIAS_TURNOS_DEFAULT_HUM, sKey, 'hum');
   turnosMap[dia] = nuevoTurno;
@@ -5446,7 +5503,7 @@ function setTurnoDiaHum(dia, nuevoTurno, sedeKey = null) {
   mostrarToastLive(`Día ${dia} (Humanística) configurado en Turno ${labelTurno}.`);
 
   if (typeof enviarGoogleSheet === 'function') {
-    enviarGoogleSheet({
+    await enviarGoogleSheet({
       action: 'guardar-turnos-dias-hum',
       turnosDiasHum: turnosMap,
       sedeKey: sKey
@@ -5459,7 +5516,7 @@ function getTurnoDiaTec(dia) {
   return turnosMap[dia] || (dia === 'Sábado' || dia === 'Domingo' ? 'mañana' : 'tarde');
 }
 
-function setTurnoDiaTec(dia, nuevoTurno) {
+async function setTurnoDiaTec(dia, nuevoTurno) {
   const turnosMap = getSedeLsData('cea_tec_turnos_dias', DIAS_TURNOS_DEFAULT_TEC);
   turnosMap[dia] = nuevoTurno;
   setSedeLsData('cea_tec_turnos_dias', turnosMap);
@@ -5468,7 +5525,7 @@ function setTurnoDiaTec(dia, nuevoTurno) {
   mostrarToastLive(`Día ${dia} configurado en Turno ${labelTurno}.`);
 
   if (typeof enviarGoogleSheet === 'function') {
-    enviarGoogleSheet({
+    await enviarGoogleSheet({
       action: 'guardar-turnos-dias-tec',
       turnosDiasTec: turnosMap
     }).catch(() => {});
@@ -5608,24 +5665,24 @@ function cerrarModalCambiarTurnoDiaTec() {
   _diaEditandoTurno = null;
 }
 
-function seleccionarTurnoDiaTec(nuevoTurno) {
+async function seleccionarTurnoDiaTec(nuevoTurno) {
   if (!_diaEditandoTurno) return;
   if (_areaEditandoTurno === 'hum') {
-    setTurnoDiaHum(_diaEditandoTurno, nuevoTurno);
+    await setTurnoDiaHum(_diaEditandoTurno, nuevoTurno);
   } else {
-    setTurnoDiaTec(_diaEditandoTurno, nuevoTurno);
+    await setTurnoDiaTec(_diaEditandoTurno, nuevoTurno);
   }
   cerrarModalCambiarTurnoDiaTec();
 }
 
-function alternarTurnoDiaTec(dia) {
+async function alternarTurnoDiaTec(dia) {
   if (!tienePermisoEdicionHorarios()) return;
   const actual = getTurnoDiaTec(dia);
   let nuevo = 'tarde';
   if (actual === 'tarde') nuevo = 'mañana';
   else if (actual === 'mañana') nuevo = 'noche';
   else nuevo = 'tarde';
-  setTurnoDiaTec(dia, nuevo);
+  await setTurnoDiaTec(dia, nuevo);
 }
 
 function clickBotonEditarHorario() {
@@ -6700,13 +6757,13 @@ async function abrirModalEditarTextoETA() {
   lsSet('cea_tec_texto_eta', nuevoCompleto.trim());
   lsSet('cea_tec_sigla_eta', nuevaSigla.trim());
 
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: 'tec_texto_eta',
     valor: nuevoCompleto.trim(),
     htmlValor: nuevoCompleto.trim()
   });
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: 'tec_sigla_eta',
     valor: nuevaSigla.trim(),
@@ -6898,7 +6955,7 @@ function ajustarMergeColSpan(delta) {
   if (unmergeWrap) unmergeWrap.style.display = (rowSpanVal > 1 || next > 1) ? 'block' : 'none';
 }
 
-function ejecutarUnionDireccionalModal(dir) {
+async function ejecutarUnionDireccionalModal(dir) {
   const dia = document.getElementById('mch-dia').value;
   const periodoNum = parseInt(document.getElementById('mch-periodo').value, 10);
   const cursoIdx = parseInt(document.getElementById('mch-curso-idx').value, 10);
@@ -6959,7 +7016,7 @@ function ejecutarUnionDireccionalModal(dir) {
     cargarHorariosMatriz(turno);
     mostrarToastLive(`Unión vertical hacia abajo completada (${curMerge.rowSpan} periodos continuos).`);
 
-    enviarGoogleSheet({
+    await enviarGoogleSheet({
       action: 'guardar-horarios-matriz',
       sede: sede,
       horariosMatriz: hMatriz,
@@ -6993,7 +7050,7 @@ function ejecutarUnionDireccionalModal(dir) {
     cargarHorariosMatriz(turno);
     mostrarToastLive(`Unión vertical hacia arriba completada con Periodo ${prevPNum}º.`);
 
-    enviarGoogleSheet({
+    await enviarGoogleSheet({
       action: 'guardar-horarios-matriz',
       sede: sede,
       horariosMatriz: hMatriz,
@@ -7022,7 +7079,7 @@ function ejecutarUnionDireccionalModal(dir) {
     cargarHorariosMatriz(turno);
     mostrarToastLive(`Unión horizontal hacia la derecha completada (${curMerge.colSpan} columnas).`);
 
-    enviarGoogleSheet({
+    await enviarGoogleSheet({
       action: 'guardar-horarios-matriz',
       sede: sede,
       horariosMatriz: hMatriz,
@@ -7050,7 +7107,7 @@ function ejecutarUnionDireccionalModal(dir) {
     cargarHorariosMatriz(turno);
     mostrarToastLive(`Unión horizontal hacia la izquierda completada.`);
 
-    enviarGoogleSheet({
+    await enviarGoogleSheet({
       action: 'guardar-horarios-matriz',
       sede: sede,
       horariosMatriz: hMatriz,
@@ -7059,7 +7116,7 @@ function ejecutarUnionDireccionalModal(dir) {
   }
 }
 
-function quitarMergeCeldaActual() {
+async function quitarMergeCeldaActual() {
   const dia = document.getElementById('mch-dia').value;
   const periodoNum = parseInt(document.getElementById('mch-periodo').value, 10);
   const cursoIdx = parseInt(document.getElementById('mch-curso-idx').value, 10);
@@ -7089,7 +7146,7 @@ function quitarMergeCeldaActual() {
 
   const hMatriz = getSedeLsData('cea_horarios_matriz', HORARIOS_MATRIZ_DEFAULT, sede, turno);
 
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-horarios-matriz',
     sede: sede,
     horariosMatriz: hMatriz,
@@ -7097,7 +7154,7 @@ function quitarMergeCeldaActual() {
   });
 }
 
-function borrarContenidoCeldaHorario() {
+async function borrarContenidoCeldaHorario() {
   const dia = document.getElementById('mch-dia').value;
   const periodoNum = parseInt(document.getElementById('mch-periodo').value, 10);
   const cursoIdx = parseInt(document.getElementById('mch-curso-idx').value, 10);
@@ -7144,7 +7201,7 @@ function borrarContenidoCeldaHorario() {
   cargarHorariosMatriz(turno);
   mostrarToastLive('Contenido de celda eliminado (dejada libre).');
 
-  enviarGoogleSheet({
+  await enviarGoogleSheet({
     action: 'guardar-horarios-matriz',
     sede: sede,
     horariosMatriz: hMatriz,
@@ -7426,7 +7483,7 @@ async function guardarEdicionCeldaHorario(e) {
   if (containerDoc) cargarEditorHorariosMatriz('hum', 'docente-editor-horarios-slot');
   mostrarToastLive((rowSpan > 1 || colSpan > 1) ? 'Asignación y fusión de celdas guardadas con éxito.' : 'Asignación guardada con éxito.');
 
-  // Sincronizar en segundo plano con Google Sheets
+  // Sincronizar en segundo plano con el sistema
   await enviarGoogleSheet({
     action: 'guardar-horarios-matriz',
     sede: sede,
@@ -7702,8 +7759,8 @@ function borrarCursoGestor(idx) {
   renderConfigUIGestor();
 }
 
-function toggleDiaGestor(dia, activo) {
-  toggleDiaHorarioBTH(dia, activo);
+async function toggleDiaGestor(dia, activo) {
+  await toggleDiaHorarioBTH(dia, activo);
   renderConfigUIGestor();
 }
 
@@ -7946,11 +8003,11 @@ function aplicarColorLineasGestor(color) {
   if (appStateGestor.colores) appStateGestor.colores.lineas = color;
 }
 
-function agregarColumnaDia(dia, turno = 'hum') {
+async function agregarColumnaDia(dia, turno = 'hum') {
   if (turno === 'hum') {
     const modo = getModoDocenteDia('hum', dia);
     if (modo === 'mono') {
-      cambiarModoDocenteDia('hum', dia, 'multi');
+      await cambiarModoDocenteDia('hum', dia, 'multi');
       mostrarToastLive(`Día ${dia} ampliado a columnas múltiples.`);
       return;
     }
@@ -8036,7 +8093,7 @@ async function aplicarConfiguracionGestorCompleta() {
   cargarHorariosMatriz(turnoHorarioActual);
   mostrarToastLive('Configuración integral del horario guardada y aplicada exitosamente.');
 
-  // Sincronizar con Google Sheets
+  // Sincronizar con el sistema
   await enviarGoogleSheet({
     action: 'guardar-gestor-config',
     appStateGestor: appStateGestor
@@ -8464,7 +8521,7 @@ async function ejecutarUnionRapida(dir) {
   const sede = document.getElementById('hqp-sede')?.value || document.getElementById('mch-sede')?.value || getHorarioSedeActiveKey(turno);
 
   if (dir === 'separar') {
-    quitarMergeRapido();
+    await quitarMergeRapido();
     return;
   }
 
@@ -10758,12 +10815,12 @@ async function guardarCalendarioDirecto() {
   cancelarEdicionDirectaCalendario();
   mostrarToastLive('Calendario académico actualizado directamente.');
 
-  // Sincronizar en línea con Google Sheets
+  // Sincronizar en línea con el sistema
   await enviarGoogleSheet({
     action: 'guardar-calendario',
     calendario: nuevoCalendario
   });
-  mostrarToastLive('Calendario sincronizado con Google Sheets.');
+  mostrarToastLive('Calendario sincronizado con el sistema institucional.');
 }
 
 /* ─── GESTOR DE CALENDARIO EDUCATIVO EN DASHBOARD DEL DIRECTOR ─── */
@@ -10865,7 +10922,7 @@ async function guardarCalendarioAdmin() {
     gestion: y,
     calendario: nuevoCalendario
   });
-  mostrarToastLive(`Calendario ${y} sincronizado en Google Sheets.`);
+  mostrarToastLive(`Calendario ${y} sincronizado en la nube institucional.`);
 }
 
 async function restablecerCalendarioAdminDefault() {
@@ -11020,12 +11077,12 @@ async function guardarEpjaDirecto() {
   renderTablaEpjaNiveles();
   mostrarToastLive('Niveles y cursos EPJA actualizados correctamente.');
 
-  // Sincronizar con Google Sheets
+  // Sincronizar con el sistema
   await enviarGoogleSheet({
     action: 'guardar-epja-niveles',
     niveles: nuevosNiveles
   });
-  mostrarToastLive('Niveles EPJA sincronizados con Google Sheets.');
+  mostrarToastLive('Niveles EPJA sincronizados con el sistema institucional.');
 }
 
 /* ─── GESTIÓN Y EDICIÓN DIRECTA DEL ÁREA HUMANÍSTICA (EPA, ESA Y CICLOS) ─── */
@@ -11388,10 +11445,10 @@ function toggleEdicionCiclosHumanistica() {
         el.oninput = () => {
           autoGuardarEnVivoDebounced(id, id.replace(/-/g, '_'), 'Ciclo Bachillerato Humanístico');
         };
-        el.onblur = () => {
+        el.onblur = async () => {
           clearTimeout(_timerAutoSaveGoogleSheetLive);
           const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(id, id.replace(/-/g, '_'), 'Ciclo Bachillerato Humanístico');
-          enviarGoogleSheet({
+          await enviarGoogleSheet({
             action: 'guardar-contenido-vivo',
             key: id.replace(/-/g, '_'),
             valor: finalSavedVal,
@@ -11537,7 +11594,7 @@ async function guardarMateriasHumanisticaDirecto() {
     action: 'guardar-docentes',
     docentes: docentesGlobal
   });
-  mostrarToastLive('Área Humanística sincronizada en Google Sheets.');
+  mostrarToastLive('Área Humanística sincronizada en la nube institucional.');
 }
 
 // Aliases para compatibilidad con código existente
@@ -11583,10 +11640,10 @@ function toggleEdicionCertProgresiva() {
         el.oninput = () => {
           autoGuardarEnVivoDebounced(id, id.replace(/-/g, '_'), 'Certificación Progresiva ETTP');
         };
-        el.onblur = () => {
+        el.onblur = async () => {
           clearTimeout(_timerAutoSaveGoogleSheetLive);
           const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(id, id.replace(/-/g, '_'), 'Certificación Progresiva ETTP');
-          enviarGoogleSheet({
+          await enviarGoogleSheet({
             action: 'guardar-contenido-vivo',
             key: id.replace(/-/g, '_'),
             valor: finalSavedVal,
@@ -11704,10 +11761,10 @@ function toggleEdicionReqMaster(tipo = 'epja') {
         el.oninput = () => {
           autoGuardarEnVivoDebounced(id, id.replace(/-/g, '_'), `Requisito/Certificación ${tipo.toUpperCase()}`);
         };
-        el.onblur = () => {
+        el.onblur = async () => {
           clearTimeout(_timerAutoSaveGoogleSheetLive);
           const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(id, id.replace(/-/g, '_'), `Requisito/Certificación ${tipo.toUpperCase()}`);
-          enviarGoogleSheet({
+          await enviarGoogleSheet({
             action: 'guardar-contenido-vivo',
             key: id.replace(/-/g, '_'),
             valor: finalSavedVal,
@@ -12351,7 +12408,7 @@ function autoGuardarMateriasDebounced() {
       await enviarGoogleSheet({ action: 'guardar-materias', materias: lista });
       const msg = document.getElementById('msg-materias');
       if (msg) {
-        msg.textContent = '✓ Guardado automático: materias actualizadas en Google Sheets.';
+        msg.textContent = '✓ Guardado automático: materias actualizadas en el sistema institucional.';
         msg.className = 'msg-box success';
         msg.style.display = 'block';
       }
@@ -12529,16 +12586,16 @@ async function procesarFotoCarrera(key, event) {
     lsSet('cea_areas_tec', areas);
   }
 
-  // 3. Sincronizar de inmediato con Google Sheets
+  // 3. Sincronizar de inmediato con el sistema
   if (typeof enviarGoogleSheet === 'function') {
     try {
       await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
     } catch (eGS) {
-      console.warn('Error sincronizando foto en Google Sheets:', eGS);
+      console.warn('Error sincronizando foto en el sistema:', eGS);
     }
   }
 
-  mostrarToastLive('Fotografía de la carrera actualizada y sincronizada en Google Sheets.');
+  mostrarToastLive('Fotografía de la carrera actualizada y sincronizada en la nube institucional.');
 
   // 4. Re-renderizar Oferta Académica / Área Técnica
   if (typeof cargarAreasTecSilencioso === 'function') {
@@ -12593,11 +12650,11 @@ async function eliminarFotoCarrera(key) {
     try {
       await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
     } catch (eGS) {
-      console.warn('Error sincronizando eliminación de foto en Google Sheets:', eGS);
+      console.warn('Error sincronizando eliminación de foto en el sistema:', eGS);
     }
   }
 
-  mostrarToastLive('Fotografía quitada y sincronizada en Google Sheets.');
+  mostrarToastLive('Fotografía quitada y sincronizada en la nube institucional.');
 
   if (typeof cargarAreasTecSilencioso === 'function') {
     cargarAreasTecSilencioso();
@@ -12876,7 +12933,7 @@ async function guardarEdicionCarreraTecInline(key) {
   lsSet('cea_areas_tec', areas);
   lsSet('cea_docentes', docentes);
 
-  // Sincronizar en segundo plano con Google Sheets
+  // Sincronizar en segundo plano con el sistema
   await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
   await enviarGoogleSheet({ action: 'guardar-docentes', docentes: docentes });
 
@@ -12969,7 +13026,7 @@ async function agregarCarreraDesdeSeleccionOBusqueda() {
     }
     areas.push(carreraAgregada);
     lsSet('cea_areas_tec', areas);
-    mostrarMsg('msg-autocompletar-info', `¡Carrera "${carOficial.nombre}" añadida! Sincronizando con Google Sheets...`, 'success');
+    mostrarMsg('msg-autocompletar-info', `¡Carrera "${carOficial.nombre}" añadida! Sincronizando con el sistema institucional...`, 'success');
   } else if (valBusqueda) {
     const stamp = Date.now();
     const nuevaKey = 'tec-custom-' + stamp;
@@ -12989,7 +13046,7 @@ async function agregarCarreraDesdeSeleccionOBusqueda() {
     };
     areas.push(carreraAgregada);
     lsSet('cea_areas_tec', areas);
-    mostrarMsg('msg-autocompletar-info', `Carrera "${valBusqueda}" añadida al sitio web. Sincronizando con Google Sheets...`, 'success');
+    mostrarMsg('msg-autocompletar-info', `Carrera "${valBusqueda}" añadida al sitio web. Sincronizando con el sistema institucional...`, 'success');
   } else {
     mostrarMsg('msg-autocompletar-info', 'Por favor selecciona una carrera de la lista o escribe un nombre en el buscador.', 'error');
     return;
@@ -13023,7 +13080,7 @@ async function agregarCarreraDesdeSeleccionOBusqueda() {
   if (inp) inp.value = '';
   if (select) select.value = '';
 
-  // Sincronización PERMANENTE inmediata con Google Sheets
+  // Sincronización PERMANENTE inmediata con el sistema
   try {
     await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
     if (carreraAgregada.malla && carreraAgregada.malla.length > 0) {
@@ -13031,9 +13088,9 @@ async function agregarCarreraDesdeSeleccionOBusqueda() {
     }
     await enviarGoogleSheet({ action: 'guardar-docentes-completo', docentes: dMap, carreras: areas, usuarios: usuarios });
     await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios });
-    mostrarMsg('msg-autocompletar-info', `✓ Carrera "${carreraAgregada.nombre}", docente y malla de 20 módulos guardados permanentemente en Google Sheets.`, 'success');
+    mostrarMsg('msg-autocompletar-info', `✓ Carrera "${carreraAgregada.nombre}", docente y malla de 20 módulos guardados permanentemente en el sistema institucional.`, 'success');
   } catch (errSync) {
-    console.warn('Error sincronizando nueva carrera en Google Sheets:', errSync);
+    console.warn('Error sincronizando nueva carrera en el sistema:', errSync);
   }
 }
 
@@ -13330,14 +13387,14 @@ async function agregarAreaTec() {
   if (typeof poblarSelectCarrerasOficiales === 'function') poblarSelectCarrerasOficiales();
   mostrarToastLive('Nueva carrera y docente asignado creados en el sistema.');
 
-  // Sincronizar de inmediato con Google Sheets
+  // Sincronizar de inmediato con el sistema
   try {
     await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
     await enviarGoogleSheet({ action: 'guardar-malla', carreraKey: nuevaKey, malla: templateMalla });
     await enviarGoogleSheet({ action: 'guardar-docentes-completo', docentes: dMap, carreras: areas, usuarios: usuarios });
     await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios });
   } catch (e) {
-    console.warn('Error sincronizando nueva carrera y docente en Google Sheets:', e);
+    console.warn('Error sincronizando nueva carrera y docente en el sistema:', e);
   }
 }
 
@@ -13389,7 +13446,7 @@ function autoGuardarAreasTecDebounced() {
 
       const msg = document.getElementById('msg-areas-tec');
       if (msg) {
-        msg.textContent = '✓ Guardado automático: carreras, mallas y docentes sincronizados en Google Sheets.';
+        msg.textContent = '✓ Guardado automático: carreras, mallas y docentes sincronizados en la nube institucional.';
         msg.className = 'msg-box success';
         msg.style.display = 'block';
       }
@@ -13496,7 +13553,7 @@ async function guardarAreasTec() {
     }
   }
   mostrarMsg('msg-areas-tec', '¡Carreras, Mallas y Docentes guardados y sincronizados exitosamente!', 'success');
-  mostrarToastLive('Mallas curriculares, carreras y docentes sincronizados con Google Sheets.');
+  mostrarToastLive('Mallas curriculares, carreras y docentes sincronizados con el sistema institucional.');
 }
 
 /* ─── DRIVE LINKS & DOCUMENTOS OFICIALES SINCRONIZADOS ─── */
@@ -14185,7 +14242,7 @@ function autoGuardarDatosDirector(inp) {
       });
       const msgD = document.getElementById('msg-director-contacto');
       if (msgD) {
-        msgD.innerHTML = '<span style="color:#15803d;font-weight:700">✓ Datos del Director sincronizados automáticamente en Google Sheets.</span>';
+        msgD.innerHTML = '<span style="color:#15803d;font-weight:700">✓ Datos del Director sincronizados automáticamente en el sistema institucional.</span>';
         msgD.style.display = 'block';
       }
     } catch (e) {
@@ -14268,13 +14325,13 @@ function vincularAutoGuardadoDashboardAdmin() {
       el._autosaveBound = true;
       el.addEventListener('input', () => {
         clearTimeout(_timerAutoSaveDashboard);
-        _timerAutoSaveDashboard = setTimeout(() => {
-          guardarContenido(true);
+        _timerAutoSaveDashboard = setTimeout(async () => {
+          await guardarContenido(true);
         }, 700);
       });
-      el.addEventListener('blur', () => {
+      el.addEventListener('blur', async () => {
         clearTimeout(_timerAutoSaveDashboard);
-        guardarContenido(true);
+        await guardarContenido(true);
       });
     }
   });
@@ -14292,8 +14349,8 @@ function autoGuardarContenidoDebounced(inp) {
     }, 1000);
   }
   clearTimeout(_timerAutoGuardarContenido);
-  _timerAutoGuardarContenido = setTimeout(() => {
-    guardarContenido(true);
+  _timerAutoGuardarContenido = setTimeout(async () => {
+    await guardarContenido(true);
   }, 750);
 }
 
@@ -14387,60 +14444,16 @@ async function guardarContenido(silencioso = false) {
 
 /* ─── CAMBIAR CREDENCIALES DIRECTOR ─── */
 async function cambiarCredencialesDirector() {
-  const actual  = (document.getElementById('cred-actual')?.value || '').trim();
-  const nuevoU  = (document.getElementById('cred-nuevo-user')?.value || '').trim();
-  const nuevaP  = (document.getElementById('cred-nueva-pass')?.value || '').trim();
-  const nuevaP2 = (document.getElementById('cred-nueva-pass2')?.value || '').trim();
-
-  if (!actual) {
-    mostrarMsg('msg-credenciales', 'Debe ingresar la contraseña actual guardada en Google Sheets.', 'error');
+  const actual = document.getElementById('cred-actual').value.trim();
+  const user = document.getElementById('cred-nuevo-user').value.trim() || getSession().user;
+  const password = document.getElementById('cred-nueva-pass').value;
+  if (password !== document.getElementById('cred-nueva-pass2').value) {
+    mostrarMsg('msg-credenciales', 'Las contraseñas nuevas no coinciden.', 'error');
     return;
   }
-
-  if (nuevaP && nuevaP !== nuevaP2) {
-    mostrarMsg('msg-credenciales', 'Las nuevas contraseñas no coinciden.', 'error');
-    return;
-  }
-
-  mostrarMsg('msg-credenciales', 'Validando con Google Sheets y guardando...', 'info');
-
-  const session = lsGet('cea_session', null);
-  const curUser = (session && session.name) ? session.name : 'user';
-
-  // Verificar credencial actual directamente con Google Sheets
-  try {
-    const resp = await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        action: 'login',
-        user: nuevoU || curUser,
-        pass: actual
-      })
-    });
-    const data = await resp.json();
-    if (!data || data.status !== 'success') {
-      mostrarMsg('msg-credenciales', 'La contraseña actual no coincide con la registrada en Google Sheets.', 'error');
-      return;
-    }
-  } catch(eNet) {
-    console.warn('Error al verificar contraseña con Google Sheets:', eNet);
-  }
-
-  const creds = {
-    user: nuevoU || curUser,
-    pass: nuevaP || actual
-  };
-
-  await enviarGoogleSheet({ action: 'guardar-credenciales-director', creds: creds });
-
-  document.getElementById('cred-actual').value = '';
-  document.getElementById('cred-nuevo-user').value = '';
-  document.getElementById('cred-nueva-pass').value = '';
-  document.getElementById('cred-nueva-pass2').value = '';
-
-  mostrarMsg('msg-credenciales', '¡Credenciales actualizadas exitosamente en Google Sheets!', 'success');
-  mostrarToastLive('¡Contraseña del Director actualizada en Google Sheets!');
+  await enviarGoogleSheet({action: 'guardar-credenciales-director', passActual: actual, creds: {user: user, pass: password || actual}});
+  ['cred-actual', 'cred-nueva-pass', 'cred-nueva-pass2'].forEach(id => document.getElementById(id).value = '');
+  mostrarMsg('msg-credenciales', 'Credenciales actualizadas en el sistema.', 'success');
 }
 
 /* ─── USUARIOS DOCENTES ─── */
@@ -14471,6 +14484,23 @@ function cargarUsuariosPanel() {
     </div>`;
   }).join('');
 }
+
+
+/* ─── CREDENCIALES DE ACCESO DEL DIRECTOR ─── */
+async function guardarCredencialesDirectorDesdePanel() {
+  const user = document.getElementById('adm-director-usuario').value.trim();
+  const password = document.getElementById('adm-director-pass-nueva').value;
+  const confirmation = document.getElementById('adm-director-pass-confirm').value;
+  const current = document.getElementById('adm-director-pass-actual').value;
+  if (!user || !password || password !== confirmation) {
+    mostrarMsg('msg-director-credenciales', 'Completa los campos y confirma la nueva contraseña.', 'error');
+    return;
+  }
+  await enviarGoogleSheet({action: 'guardar-credenciales-director', passActual: current, creds: {user: user, pass: password}});
+  ['adm-director-pass-nueva', 'adm-director-pass-confirm', 'adm-director-pass-actual'].forEach(id => document.getElementById(id).value = '');
+  mostrarMsg('msg-director-credenciales', 'Credenciales actualizadas en el sistema.', 'success');
+}
+window.guardarCredencialesDirectorDesdePanel = guardarCredencialesDirectorDesdePanel;
 
 async function guardarUsuarios() {
   const usuarios = lsGet('cea_usuarios_docentes', {});
@@ -16194,7 +16224,7 @@ function lanzarCelebracionPreinscripcion() {
 }
 window.lanzarCelebracionPreinscripcion = lanzarCelebracionPreinscripcion;
 
-function manejarFormInscripcion(e) {
+async function manejarFormInscripcion(e) {
   if (typeof window.manejarFormInscripcionOptimizado === 'function' && window.manejarFormInscripcionOptimizado !== manejarFormInscripcion) {
     return window.manejarFormInscripcionOptimizado(e);
   }
@@ -16356,7 +16386,10 @@ function manejarFormInscripcion(e) {
     fechaRegistro: new Date().toISOString()
   };
 
-  // 1. Guardar de inmediato en localStorage y actualizar contadores
+  const confirmacion = await enviarGoogleSheet(data);
+  data.id = confirmacion.id;
+
+  // Guardar el comprobante después de la confirmación del servidor.
   const ins = lsGet('cea_inscripciones', []);
   ins.unshift({ ...data, fecha: new Date().toLocaleString() });
   lsSet('cea_inscripciones', ins);
@@ -16452,11 +16485,11 @@ function manejarFormInscripcion(e) {
 
   mostrarMsg('form-msg', '¡Pre-inscripción guardada con éxito! Puedes descargar tu Ficha Oficial en PDF.', 'success');
 
-  // 3. Sincronizar con Google Sheets en segundo plano sin bloquear al usuario
-  enviarGoogleSheet(data).catch(err => console.warn('Sync en segundo plano:', err));
+  // 3. Sincronizar con el sistema en segundo plano sin bloquear al usuario
+  Promise.resolve(confirmacion).catch(err => console.warn('Sync en segundo plano:', err));
   return true;
 }
-window.ejecutarAccionEnviarPreInscripcion = function(e) {
+window.ejecutarAccionEnviarPreInscripcion = async function(e) {
   if (e) {
     if (typeof e.preventDefault === 'function') e.preventDefault();
     if (typeof e.stopPropagation === 'function') e.stopPropagation();
@@ -16505,28 +16538,17 @@ function formatearFechaRegistroConHora(fechaStr) {
   return str;
 }
 
-function manejarInputConsultaCI(e) {
-  const inp = document.getElementById('ci-consulta-inp');
-  if (!inp) return;
-  inp.value = inp.value.replace(/[^0-9]/g, '');
-  const digits = inp.value.trim();
-  if (digits.length >= 5) {
-    const inscripciones = lsGet('cea_inscripciones', []);
-    const match = inscripciones.find(ins => {
-      const ciReg = String(ins.ci || '').replace(/[^\d]/g, '');
-      return ciReg === digits;
-    });
-    if (match) {
-      window._ultimoRegistroInscripcion = match;
-      if (typeof window.pregenerarComprobantePDF === 'function') {
-        window.pregenerarComprobantePDF(match);
-      }
-    }
-  }
+let consultaInscripcionTurno = 0;
+
+function manejarInputConsultaCI(event) {
+  event.target.value = event.target.value.replace(/[^0-9]/g, '');
+  consultaInscripcionTurno++;
+  const box = document.getElementById('resultado-consulta-box');
+  if (box) box.style.display = 'none';
 }
 window.manejarInputConsultaCI = manejarInputConsultaCI;
 
-function consultarInscripcionPorCI() {
+async function consultarInscripcionPorCI() {
   const inp = document.getElementById('ci-consulta-inp');
   const box = document.getElementById('resultado-consulta-box');
   if (!inp || !box) return;
@@ -16542,16 +16564,19 @@ function consultarInscripcionPorCI() {
     return;
   }
 
-  const inscripciones = lsGet('cea_inscripciones', []);
-  const qOnlyDigits = ciVal.replace(/[^\d]/g, '');
-
-  const encontrada = inscripciones.find(ins => {
-    const ciReg = String(ins.ci || '').trim().toLowerCase();
-    const ciOnlyDigits = ciReg.replace(/[^\d]/g, '');
-    if (ciReg === ciVal) return true;
-    if (qOnlyDigits && ciOnlyDigits && qOnlyDigits === ciOnlyDigits) return true;
-    return false;
-  });
+  const turno = ++consultaInscripcionTurno;
+  box.style.display = 'block';
+  box.innerHTML = '<p role="status">Consultando tu inscripción…</p>';
+  let encontrada;
+  try {
+    const respuesta = await ceaPersistencia.request({action: 'consultar-inscripcion-ci', ci: ciVal}, 20000);
+    encontrada = respuesta.inscripcion;
+  } catch (error) {
+    if (turno !== consultaInscripcionTurno) return;
+    box.innerHTML = '<div class="form-msg error" style="display:block">No se pudo consultar la inscripción. Intenta nuevamente.</div>';
+    return;
+  }
+  if (turno !== consultaInscripcionTurno) return;
 
   if (!encontrada) {
     box.innerHTML = `
@@ -16565,6 +16590,10 @@ function consultarInscripcionPorCI() {
   }
 
   // Guardar explícitamente en el registro global y pre-generar en segundo plano
+  if (encontrada.estadoInscripcion === 'INSCRITO') {
+    mostrarInscripcionConfirmada(box, encontrada);
+    return;
+  }
   window._ultimoRegistroInscripcion = encontrada;
   if (typeof window.pregenerarComprobantePDF === 'function') {
     window.pregenerarComprobantePDF(encontrada);
@@ -16613,6 +16642,56 @@ function consultarInscripcionPorCI() {
     </div>
   `;
   box.style.display = 'block';
+}
+
+function mostrarInscripcionConfirmada(box, inscripcion) {
+  const gestion = String(inscripcion.gestion || '');
+  const vigente = /^\d{4}-12-31$/.test(inscripcion.vencimientoCredencial || '') &&
+    Number(gestion) >= Number(new Intl.DateTimeFormat('en', {year: 'numeric', timeZone: 'America/La_Paz'}).format(new Date()));
+  box.innerHTML = `
+    <div style="border:1px solid #a7d7b4;border-radius:14px;padding:18px;background:#f0fdf4;color:#143c23">
+      <strong style="font-size:1.08rem">Inscripción confirmada</strong>
+      <p style="margin:8px 0"><strong>Estudiante</strong> · ${escapeHTML(inscripcion.nombre || '')}</p>
+      <p style="margin:6px 0">${escapeHTML(inscripcion.carrera || '')} · ${escapeHTML(inscripcion.semestre || '')} · Gestión ${escapeHTML(gestion)}</p>
+      <p style="margin:6px 0">${vigente ? 'Vencimiento de la tarjeta' : 'Tarjeta vencida'} · 31/12/${escapeHTML(gestion)}</p>
+      ${vigente ? '<button type="button" class="btn-voucher-pdf" data-descargar-tarjeta>Descargar tarjeta de estudiante (PDF)</button>' : ''}
+      <p data-estado-tarjeta role="status" style="margin:6px 0 0"></p>
+    </div>`;
+  const boton = box.querySelector('[data-descargar-tarjeta]');
+  if (boton) boton.onclick = async () => {
+    boton.disabled = true;
+    const estado = box.querySelector('[data-estado-tarjeta]');
+    estado.textContent = 'Generando tarjeta…';
+    try {
+      await window.descargarTarjetaEstudiantePDF(inscripcion);
+      estado.textContent = 'Descarga iniciada. Revisa la carpeta Descargas.';
+    } catch (error) {
+      estado.textContent = 'No se pudo descargar la tarjeta. Intenta nuevamente.';
+    } finally {
+      boton.disabled = false;
+    }
+  };
+}
+
+async function cambiarEstadoInscripcion(control) {
+  const id = control.dataset.inscripcionId;
+  const inscrito = control.checked;
+  control.disabled = true;
+  try {
+    const respuesta = await enviarGoogleSheet({action: 'confirmar-inscripcion', id, inscrito});
+    if (respuesta.status !== 'success' || respuesta.estadoInscripcion !== (inscrito ? 'INSCRITO' : 'PREINSCRITO')) {
+      throw new Error('El servidor no confirmó el estado de la inscripción.');
+    }
+    const {estadoInscripcion, fechaConfirmacion, vencimientoCredencial} = respuesta;
+    lsSet('cea_inscripciones', lsGet('cea_inscripciones', []).map(item =>
+      String(item.id) === id ? {...item, estadoInscripcion, fechaConfirmacion, vencimientoCredencial} : item));
+    cargarInscripciones();
+  } catch (error) {
+    control.checked = !inscrito;
+    if (!error.ceaReported || error.code === 'OCUPADO') alert(error.message);
+  } finally {
+    control.disabled = false;
+  }
 }
 
 function descargarComprobanteInscripcionPDF(dataOverride) {
@@ -16794,17 +16873,18 @@ function verificarParametrosConsultaQR() {
   if (typeof window === 'undefined' || !window.location) return;
   const params = new URLSearchParams(window.location.search);
   const ci = (params.get('ci') || params.get('CI') || params.get('verificar') || params.get('consulta') || '').trim();
+  const credencial = (params.get('credencial') || '').trim();
   const reg = (params.get('reg') || params.get('folio') || params.get('codigo') || '').trim();
 
   // Limpiar de inmediato los parámetros de la URL para evitar que en futuros refrescos (F5) se dispare automáticamente la consulta
-  if (ci || reg) {
+  if (ci || reg || credencial) {
     if (window.history && typeof window.history.replaceState === 'function') {
       try {
         const cleanUrl = window.location.pathname + (window.location.hash || '');
         window.history.replaceState({}, document.title, cleanUrl);
       } catch (err) {}
     }
-    ejecutarVerificacionQR(ci, reg);
+    ejecutarVerificacionQR(ci, reg, credencial);
   } else {
     // Si no hay parámetros en la URL, asegurarse de que el input de consulta y resultado estén limpios
     const inpCons = document.getElementById('ci-consulta-inp');
@@ -16815,17 +16895,17 @@ function verificarParametrosConsultaQR() {
 }
 
 function revalidarQRPendiente() {
-  if (_qrVerificacionPendiente && (_qrVerificacionPendiente.ci || _qrVerificacionPendiente.reg)) {
-    ejecutarVerificacionQR(_qrVerificacionPendiente.ci, _qrVerificacionPendiente.reg);
+  if (_qrVerificacionPendiente && (_qrVerificacionPendiente.ci || _qrVerificacionPendiente.reg || _qrVerificacionPendiente.credencial)) {
+    ejecutarVerificacionQR(_qrVerificacionPendiente.ci, _qrVerificacionPendiente.reg, _qrVerificacionPendiente.credencial);
   }
 }
 
-async function ejecutarVerificacionQR(ci, reg) {
+async function ejecutarVerificacionQR(ci, reg, credencial = '') {
   const modal = document.getElementById('modal-verificacion-qr');
   const body = document.getElementById('modal-verificacion-qr-body');
   if (!modal || !body) return;
 
-  _qrVerificacionPendiente = { ci, reg };
+  _qrVerificacionPendiente = { ci, reg, credencial };
 
   // Auto-completar el input de consulta en la página si existe
   const inpCons = document.getElementById('ci-consulta-inp');
@@ -16856,28 +16936,13 @@ async function ejecutarVerificacionQR(ci, reg) {
     return false;
   });
 
-  // 2. Si no se encontró en local (ej. usuario escanea desde otro teléfono celular), consultar Google Sheets
-  if (!encontrada && typeof GOOGLE_SCRIPT_URL === 'string' && GOOGLE_SCRIPT_URL.includes('script.google.com')) {
+  // 2. Si no se encontró en local (ej. usuario escanea desde otro teléfono celular), consultar el sistema
+  if (ci || credencial) {
     try {
-      const resp = await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'consultar-inscripcion-ci',
-          ci: ci,
-          reg: reg
-        })
-      });
-      const resData = await resp.json();
-      if (resData && resData.status === 'success' && resData.inscripcion) {
-        encontrada = resData.inscripcion;
-        // Guardar en local para futuras consultas instantáneas
-        const insLocal = lsGet('cea_inscripciones', []);
-        insLocal.unshift(encontrada);
-        lsSet('cea_inscripciones', insLocal);
-      }
-    } catch(err) {
-      console.warn('Error al verificar QR con Google Sheets:', err);
+      const respuesta = await ceaPersistencia.request({action: 'verificar-qr-inscripcion', ci, reg, credencial}, 20000);
+      encontrada = respuesta.inscripcion || null;
+    } catch (error) {
+      encontrada = null;
     }
   }
 
@@ -16885,7 +16950,7 @@ async function ejecutarVerificacionQR(ci, reg) {
   if (encontrada) {
     _qrVerificacionPendiente = null;
     window._ultimoRegistroInscripcion = encontrada;
-    if (typeof window.pregenerarComprobantePDF === 'function') {
+    if (encontrada.estadoInscripcion !== 'INSCRITO' && typeof window.pregenerarComprobantePDF === 'function') {
       window.pregenerarComprobantePDF(encontrada);
     }
     renderizarFichaVerificacionExitosa(encontrada, reg);
@@ -16901,6 +16966,10 @@ async function ejecutarVerificacionQR(ci, reg) {
 function renderizarFichaVerificacionExitosa(data, codigoReg) {
   const body = document.getElementById('modal-verificacion-qr-body');
   if (!body) return;
+  if (data.estadoInscripcion === 'INSCRITO') {
+    mostrarInscripcionConfirmada(body, data);
+    return;
+  }
 
   const fnacFormateada = formatearFechaSoloNumerosDMY(data.fechaNacimiento);
   const edadCalc = data.edad || (data.fechaNacimiento ? calcularEdad(data.fechaNacimiento) : null);
@@ -17104,7 +17173,9 @@ async function manejarFormContacto(e) {
     fechaISO: new Date().toISOString()
   };
 
-  // 1. Guardar de forma inmediata en cea_mensajes_contacto
+  await enviarGoogleSheet(nuevoMensaje);
+
+  // Conservar el comprobante después del guardado.
   const msgs = lsGet('cea_mensajes_contacto', []);
   msgs.unshift(nuevoMensaje);
   lsSet('cea_mensajes_contacto', msgs);
@@ -17123,7 +17194,7 @@ async function manejarFormContacto(e) {
 
   // 3. Sincronizar en segundo plano
   if (typeof enviarGoogleSheet === 'function') {
-    enviarGoogleSheet(nuevoMensaje).catch(err => console.warn('Sync contacto:', err));
+
   }
 
   if (typeof cargarMensajesContactoAdmin === 'function') {
@@ -17324,19 +17395,21 @@ function buscarMensajesContacto(q) {
   cargarMensajesContactoAdmin();
 }
 
-function conmutarEstadoLeidoMensaje(id) {
+async function conmutarEstadoLeidoMensaje(id) {
   const msgs = lsGet('cea_mensajes_contacto', []);
   const m = msgs.find(x => x.id === id);
   if (m) {
+    await enviarGoogleSheet({action: 'gestionar-mensajes', ids: [id], operacion: 'leer', leido: !m.leido});
     m.leido = !m.leido;
     lsSet('cea_mensajes_contacto', msgs);
     cargarMensajesContactoAdmin();
   }
 }
 
-function marcarTodosMensajesLeidos() {
+async function marcarTodosMensajesLeidos() {
   const msgs = lsGet('cea_mensajes_contacto', []);
   if (!msgs.length) return;
+  await enviarGoogleSheet({action: 'gestionar-mensajes', ids: msgs.map(m => m.id), operacion: 'leer', leido: true});
   msgs.forEach(m => m.leido = true);
   lsSet('cea_mensajes_contacto', msgs);
   cargarMensajesContactoAdmin();
@@ -17354,6 +17427,7 @@ async function eliminarMensajeContacto(id) {
     : true;
   if (!ok) return;
 
+  await enviarGoogleSheet({action: 'gestionar-mensajes', ids: [id], operacion: 'eliminar'});
   msgs.splice(idx, 1);
   lsSet('cea_mensajes_contacto', msgs);
   cargarMensajesContactoAdmin();
@@ -17372,6 +17446,7 @@ async function limpiarMensajesContacto() {
     : true;
   if (!ok) return;
 
+  await enviarGoogleSheet({action: 'gestionar-mensajes', ids: msgs.map(m => m.id), operacion: 'eliminar'});
   lsSet('cea_mensajes_contacto', []);
   cargarMensajesContactoAdmin();
   if (typeof mostrarToastLive === 'function') mostrarToastLive('Todos los mensajes fueron eliminados.');
@@ -17896,6 +17971,10 @@ function cargarInscripciones() {
             ${fechaInfo.horaStr ? `<div style="font-size:0.75rem;color:var(--text-sec);margin-top:2px">${fechaInfo.horaStr}</div>` : ''}
           </td>
           <td style="text-align:center">
+            ${item.id && ['director', 'admin'].includes(getSession()?.role) ? `<label style="display:inline-flex;align-items:center;gap:5px;font-weight:700;margin-right:6px">
+              <input type="checkbox" data-inscripcion-id="${escapeHTML(String(item.id))}" ${item.estadoInscripcion === 'INSCRITO' ? 'checked' : ''}
+                onchange="cambiarEstadoInscripcion(this)" aria-label="Inscrito: ${nombreEscaped}"> Inscrito
+            </label>` : ''}
             <button type="button" class="btn-doc-del" onclick="eliminarInscripcionPorCI('${encodeURIComponent(ciStr)}', '${encodeURIComponent(String(item.nombre || ''))}')" title="Eliminar pre-inscripción">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
@@ -18017,15 +18096,15 @@ function imprimirNominaCompletaDashboard() {
 window.imprimirSoloEstadisticasDashboard = imprimirSoloEstadisticasDashboard;
 window.imprimirNominaCompletaDashboard = imprimirNominaCompletaDashboard;
 
-function abrirAdminYCargarTab(tabName) {
+async function abrirAdminYCargarTab(tabName) {
   const adminSec = document.getElementById('admin');
   if (adminSec) {
     adminSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   const session = getSession();
   if (session && (session.role === 'director' || session.role === 'admin')) {
-    mostrarPanelAdmin();
-    switchAdminSubTab(tabName);
+    await mostrarPanelAdmin();
+    await switchAdminSubTab(tabName);
   } else {
     const loginBox = document.getElementById('admin-login');
     if (loginBox) loginBox.style.display = 'block';
@@ -18576,10 +18655,23 @@ window.cambiarAreaImpresionModal = cambiarAreaImpresionModal;
 window.seleccionarAreaImpresion = cambiarAreaImpresionModal;
 
 function abrirModalOpcionesImpresion() {
+  document.body.classList.remove('print-calificaciones-mode', 'print-centralizador-mode', 'print-afiliacion-reporte-mode');
   const areaDetectada = detectarAreaActivaPreinscripciones();
   cambiarAreaImpresionModal(areaDetectada);
-  const modal = document.getElementById('modalOpcionesImpresionReporte');
-  if (modal) modal.style.display = 'flex';
+  const modal = document.getElementById('modalOpcionesImpresionReporte') || document.getElementById('modal-opciones-impresion-reporte');
+  if (modal) {
+    if (modal.style) {
+      if (typeof modal.style.setProperty === 'function') {
+        modal.style.setProperty('z-index', '9999999', 'important');
+      } else {
+        modal.style.zIndex = '9999999';
+      }
+      modal.style.display = 'flex';
+    }
+    if (modal.classList && typeof modal.classList.add === 'function') {
+      modal.classList.add('active');
+    }
+  }
 }
 window.abrirModalOpcionesImpresion = abrirModalOpcionesImpresion;
 
@@ -18648,8 +18740,29 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
     return;
   }
 
-  const ins = lsGet('cea_inscripciones', []);
-  if (!ins.length) {
+  let ins = lsGet('cea_inscripciones', []);
+  if (!ins || !ins.length) {
+    // Si pre-inscripciones no contiene registros, intentar respaldar con estudiantes afiliados
+    const afil = (typeof window.obtenerEstudiantesAfiliacion === 'function')
+      ? window.obtenerEstudiantesAfiliacion()
+      : (lsGet('cea_estudiantes_afiliacion', []) || lsGet('cea_nomina_estudiantes_v1', []));
+    if (afil && afil.length) {
+      ins = afil.map(st => ({
+        id: st.id || st.ci,
+        nombre: st.nombre || st.apellidos_nombres || ((st.paterno || '') + ' ' + (st.materno || '') + ' ' + (st.nombres || '')).trim() || st.nombreCompleto || 'Estudiante',
+        ci: st.ci || st.carnet || '',
+        area: st.areaKey || st.area || (st.carreraKey ? 'tecnica' : 'humanistica'),
+        carrera: st.carreraNombre || st.carrera || st.carreraKey || '',
+        nivel: st.nivelNombre || st.nivel || '',
+        telefono: st.telefono || st.celular || '',
+        gestion: st.gestion || '2026',
+        semestre: st.semestre || 'Primer Semestre',
+        fecha: st.fecha || ''
+      }));
+    }
+  }
+
+  if (!ins || !ins.length) {
     mostrarAlertaModal('No hay pre-inscripciones registradas actualmente para generar el reporte oficial.', 'Reporte Oficial', 'warning');
     return;
   }
@@ -18660,6 +18773,7 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
     printArea.id = 'reporte-inscritos-print-area';
     document.body.appendChild(printArea);
   }
+  printArea.style.display = 'block';
 
   const anio = new Date().getFullYear() || 2026;
   const fechaEmision = new Date().toLocaleString('es-BO', { dateStyle: 'full', timeStyle: 'short' });
@@ -19331,13 +19445,13 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
   } else {
     aplicarOrientacionImpresion('portrait');
   }
+  document.body.classList.remove('print-calificaciones-mode', 'print-centralizador-mode', 'print-afiliacion-reporte-mode', 'printing-kardex', 'printing-horario', 'printing-comprobante');
   document.body.classList.add('printing-reporte');
   if (soloEstadisticas) {
     document.body.classList.add('printing-solo-estadisticas');
   } else {
     document.body.classList.remove('printing-solo-estadisticas');
   }
-  document.body.classList.remove('printing-kardex', 'printing-horario', 'printing-comprobante');
 
   // Limpieza garantizada después de imprimir para que NUNCA aparezca debajo del footer
   let repCleaned = false;
@@ -19348,9 +19462,6 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
     if (printArea) {
       printArea.innerHTML = '';
       printArea.style.display = 'none';
-      if (printArea.parentNode) {
-        printArea.parentNode.removeChild(printArea);
-      }
     }
     window.removeEventListener('afterprint', limpiarPrintArea);
   };
@@ -19361,6 +19472,9 @@ function ejecutarImpresionReporteOrganizado(areaFiltro = 'todas', incluirDashboa
     window.print();
   }, 150);
 }
+window.ejecutarImpresionReporteOrganizado = ejecutarImpresionReporteOrganizado;
+window.imprimirInscripciones = imprimirInscripciones;
+window.confirmarImpresionDesdeModal = confirmarImpresionDesdeModal;
 
 async function eliminarInscripcionPorCI(ciEncoded, nombreEncoded, idOpt) {
   const ci = decodeURIComponent(ciEncoded || '').trim().toLowerCase();
@@ -19394,25 +19508,13 @@ async function eliminarInscripcionPorCI(ciEncoded, nombreEncoded, idOpt) {
   const ok = await mostrarConfirmModal(`¿Estás seguro de eliminar la pre-inscripción de "${item.nombre || 'este estudiante'}"? También se eliminará de la base de datos en línea.`, 'Eliminar Pre-Inscripción', 'Eliminar', true);
   if (!ok) return;
 
+  await enviarGoogleSheet({action: 'eliminar-inscripcion', id: item.id});
   ins.splice(idx, 1);
   lsSet('cea_inscripciones', ins);
   cargarInscripciones();
   mostrarToastLive('Pre-inscripción eliminada.');
 
-  // Sincronizar con Google Sheets (eliminación de fila y respaldo de paridad)
-  try {
-    await enviarGoogleSheet({
-      action: 'eliminar-inscripcion',
-      ci: item.ci || '',
-      nombre: item.nombre || ''
-    });
-    await enviarGoogleSheet({
-      action: 'guardar-todas-inscripciones',
-      inscripciones: ins
-    });
-  } catch (err) {
-    console.warn('Advertencia en sincronización al eliminar:', err);
-  }
+
 }
 
 async function eliminarInscripcionPorIndice(idx) {
@@ -19422,7 +19524,7 @@ async function eliminarInscripcionPorIndice(idx) {
   return eliminarInscripcionPorCI(encodeURIComponent(item.ci || ''), encodeURIComponent(item.nombre || ''));
 }
 
-function abrirModalLimpiarInscripciones() {
+async function abrirModalLimpiarInscripciones() {
   const ins = lsGet('cea_inscripciones', []);
   if (!ins.length) {
     mostrarAlertaModal('No hay pre-inscripciones registradas actualmente en el sistema.', 'Pre-Inscripciones');
@@ -19430,7 +19532,7 @@ function abrirModalLimpiarInscripciones() {
   }
   const modal = document.getElementById('modal-limpiar-inscripciones-opciones');
   if (!modal) {
-    ejecutarEliminacionInscripciones('todas');
+    await ejecutarEliminacionInscripciones('todas');
     return;
   }
   const anioActivo = (estadoFiltroGestion && estadoFiltroGestion !== 'todas') ? estadoFiltroGestion : '2026';
@@ -19439,16 +19541,16 @@ function abrirModalLimpiarInscripciones() {
 
   const btnGest = document.getElementById('btn-limpiar-gestion-actual');
   if (btnGest) {
-    btnGest.onclick = () => {
+    btnGest.onclick = async () => {
       cerrarModalLimpiarInscripciones();
-      ejecutarEliminacionInscripciones(anioActivo);
+      await ejecutarEliminacionInscripciones(anioActivo);
     };
   }
   const btnTodas = document.getElementById('btn-limpiar-todas-gestiones');
   if (btnTodas) {
-    btnTodas.onclick = () => {
+    btnTodas.onclick = async () => {
       cerrarModalLimpiarInscripciones();
-      ejecutarEliminacionInscripciones('todas');
+      await ejecutarEliminacionInscripciones('todas');
     };
   }
 
@@ -19466,7 +19568,7 @@ async function ejecutarEliminacionInscripciones(gestionTarget) {
 
   const esTodas = (gestionTarget === 'todas');
   const msgConfirm = esTodas
-    ? '¿Estás seguro de que deseas eliminar TODAS las pre-inscripciones de TODAS las gestiones? Esta acción vaciará el historial completo y se sincronizará con Google Sheets.'
+    ? '¿Estás seguro de que deseas eliminar TODAS las pre-inscripciones de TODAS las gestiones? Esta acción vaciará el historial completo y se sincronizará con el sistema institucional.'
     : `¿Estás seguro de que deseas eliminar las pre-inscripciones de la Gestión ${gestionTarget}? Los registros de otros años se conservarán intactos.`;
 
   const ok = await mostrarConfirmModal(msgConfirm, 'Eliminar Pre-Inscripciones', esTodas ? 'Eliminar Todo el Historial' : `Eliminar Gestión ${gestionTarget}`, true);
@@ -19489,12 +19591,12 @@ async function ejecutarEliminacionInscripciones(gestionTarget) {
       gestion: gestionTarget
     });
   } catch (err) {
-    console.warn('Error al sincronizar eliminación con Google Sheets:', err);
+    console.warn('Error al sincronizar eliminación con el sistema:', err);
   }
 }
 
-function limpiarInscripciones() {
-  abrirModalLimpiarInscripciones();
+async function limpiarInscripciones() {
+  await abrirModalLimpiarInscripciones();
 }
 
 /* ─── MODALES DE CONFIRMACIÓN Y ALERTA VISUALES INTEGRADOS (REEMPLAZO DE ALERT Y CONFIRM NATIVOS) ─── */
@@ -19621,28 +19723,28 @@ function mostrarToastLive(mensaje) {
 
 /* ─── SINCRONIZACIÓN CON EL SERVIDOR EN LÍNEA ─── */
 let _timerSyncSilencioso = null;
+let _lecturaAutomaticaEnCurso = false;
+
+async function actualizarDatosAutomaticamente() {
+  if (_lecturaAutomaticaEnCurso || document.visibilityState === 'hidden' || elementoEditandoActivo || ceaPersistencia.isPending()) return;
+  _lecturaAutomaticaEnCurso = true;
+  try {
+    await cargarDatosGoogleSheets(true, {silencioso: true});
+  } catch (_) {
+    // El siguiente ciclo vuelve a consultar si se interrumpe la conexión.
+  } finally {
+    _lecturaAutomaticaEnCurso = false;
+  }
+}
+
+window.addEventListener('focus', actualizarDatosAutomaticamente);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void actualizarDatosAutomaticamente();
+});
 
 function iniciarSincronizacionAutomatica() {
   if (_timerSyncSilencioso) clearInterval(_timerSyncSilencioso);
-  _timerSyncSilencioso = setInterval(async () => {
-    try {
-      // No sobrescribir mientras el usuario está editando un texto en vivo o acaba de guardar algo hace menos de 12s
-      if (elementoEditandoActivo) return;
-      if (_ultimaEdicionLocalTimestamp && (Date.now() - _ultimaEdicionLocalTimestamp < 12000)) return;
-      const url = obtenerGoogleSheetURL();
-      if (!url) return;
-      const fetchUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
-      const resp = await fetch(fetchUrl);
-      const json = await resp.json();
-      if (json && json.status === 'success' && json.data) {
-        if (!elementoEditandoActivo && (!_ultimaEdicionLocalTimestamp || (Date.now() - _ultimaEdicionLocalTimestamp >= 12000))) {
-          aplicarDatosGoogleSheets(json.data);
-        }
-      }
-    } catch (e) {
-      // Sincronización silenciosa en segundo plano
-    }
-  }, 25000); // Cada 25 segundos
+  _timerSyncSilencioso = setInterval(actualizarDatosAutomaticamente, 10000);
 }
 
 async function sincronizarConGoogleSheetsManual() {
@@ -19675,9 +19777,9 @@ async function sincronizarConGoogleSheetsManual() {
       }
     }
 
-    // PASO 1 (PUSH): Si el usuario tiene sesión activa, enviar todos los cambios locales a Google Sheets
+    // PASO 1 (PUSH): Si el usuario tiene sesión activa, enviar todos los cambios locales a el sistema
     const session = getSession();
-    const esDirector = session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.role === 'docente' || session.loggedIn === true);
+    const esDirector = session && (session.role === 'director' || session.role === 'admin' || session.comision === true);
     if (esDirector) {
       if (lblLive) lblLive.textContent = 'Enviando cambios...';
       if (lblAdmin) lblAdmin.textContent = 'Enviando cambios...';
@@ -19769,7 +19871,7 @@ async function sincronizarConGoogleSheetsManual() {
         });
       }
 
-      // 1.5 Sincronizar Documentos de Especialidades y Materias a Google Sheets
+      // 1.5 Sincronizar Documentos de Especialidades y Materias a el sistema
       try {
         const todasClaves = Object.keys(localStorage || {});
         for (let k of todasClaves) {
@@ -19791,15 +19893,15 @@ async function sincronizarConGoogleSheetsManual() {
       await new Promise(r => setTimeout(r, 1500));
     }
 
-    // PASO 2 (PULL): Descargar la última versión consolidada de Google Sheets con timestamp anti-caché
+    // PASO 2 (PULL): Descargar la última versión consolidada de el sistema con timestamp anti-caché
     if (lblLive) lblLive.textContent = 'Recibiendo datos...';
     if (lblAdmin) lblAdmin.textContent = 'Recibiendo datos...';
     const fetchUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
     const resp = await fetch(fetchUrl);
     const json = await resp.json();
     if (json && json.status === 'success' && json.data) {
-      aplicarDatosGoogleSheets(json.data);
-      mostrarToastLive('¡Sincronización completa! La página web y Google Sheets están 100% actualizados.');
+      await aplicarDatosGoogleSheets(json.data);
+      mostrarToastLive('¡Sincronización completa! El sistema institucional está 100% actualizado.');
       if (lblLive) lblLive.textContent = 'Sincronizado';
       if (lblAdmin) lblAdmin.textContent = 'Sincronizado';
     } else {
@@ -19839,37 +19941,50 @@ function toggleMinimizarLiveBar() {
   }
 }
 
-function toggleModoLapicesDirectos() {
+async function toggleModoLapicesDirectos() {
   estadoLapicesDirectosVisibles = !estadoLapicesDirectosVisibles;
   const lbl = document.getElementById('lblToggleLiveEdit');
   if (lbl) {
     lbl.textContent = estadoLapicesDirectosVisibles ? 'Lápices (ON)' : 'Lápices (OFF)';
   }
   if (!estadoLapicesDirectosVisibles && elementoEditandoActivo) {
-    cancelarEdicionEnVivo(elementoEditandoActivo);
+    await cancelarEdicionEnVivo(elementoEditandoActivo);
   }
   renderLapicesDirectosDirector();
 }
 
-function openAdminDashboardFromLive(e) {
+async function openAdminDashboardFromLive(e) {
   if (e) e.preventDefault();
   const session = lsGet('cea_session', null);
+  const liveBar = document.getElementById('directorLiveBar');
+  if (liveBar) liveBar.style.display = 'none';
+
+  document.body.classList.remove('public-view-active');
+
   if (session && session.role === 'docente') {
-    window.location.hash = '#admin';
-    const adminSec = document.getElementById('admin');
-    if (adminSec) adminSec.scrollIntoView({ behavior: 'smooth' });
+    if (window.location.hash !== '#admin') {
+    try { history.replaceState(null, '', '#admin'); } catch(e) { window.location.hash = '#admin'; }
+  }
+    const panelAdmin = document.getElementById('admin-panel') || document.getElementById('admin-content');
+    if (panelAdmin) panelAdmin.style.display = 'none';
     mostrarPanelDocente(session.areaKey);
     return;
   }
-  window.location.hash = '#admin';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  mostrarPanelAdmin();
+  if (window.location.hash !== '#admin') {
+    try { history.replaceState(null, '', '#admin'); } catch(e) { window.location.hash = '#admin'; }
+  }
+  const panelDoc = document.getElementById('docente-panel');
+  if (panelDoc) panelDoc.style.display = 'none';
+
+  const pubHeader = document.querySelector('header.header');
+  if (pubHeader) pubHeader.style.display = '';
+  await mostrarPanelAdmin();
 }
 
-function abrirAdminOFloatingMenu(e) {
+async function abrirAdminOFloatingMenu(e) {
   if (e) e.preventDefault();
   const session = lsGet('cea_session', null);
-  const esDirector = session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.role === 'docente' || session.loggedIn === true);
+  const esDirector = session && (session.role === 'director' || session.role === 'admin');
 
   if (esDirector) {
     const liveBar = document.getElementById('directorLiveBar');
@@ -19881,15 +19996,19 @@ function abrirAdminOFloatingMenu(e) {
         liveBar.style.display = 'none';
       }
     }
+  } else if (session && session.role === 'docente') {
+    const liveBar = document.getElementById('directorLiveBar');
+    if (liveBar) liveBar.style.display = 'none';
+    if (typeof mostrarPanelDocente === 'function') mostrarPanelDocente(session.areaKey);
   } else {
-    abrirAdmin();
+    await abrirAdmin();
   }
 }
 
-function irASubTabDirector(subtabKey) {
-  openAdminDashboardFromLive();
+async function irASubTabDirector(subtabKey) {
+  await openAdminDashboardFromLive();
   if (typeof switchAdminSubTab === 'function') {
-    switchAdminSubTab(subtabKey);
+    await switchAdminSubTab(subtabKey);
   }
   const targetEl = document.getElementById(`admin-group-${subtabKey}`) || document.getElementById('admin');
   if (targetEl) {
@@ -20024,13 +20143,13 @@ function renderLapicesDirectosDirector() {
   // Mostrar u ocultar botón flotante derecho y barra de navegación según la sesión
   const fabDir = document.getElementById('fabBtnDirector');
   if (fabDir) {
-    fabDir.style.display = tieneSesion ? 'flex' : 'none';
+    fabDir.style.display = esDirectorReal ? 'flex' : 'none';
   }
 
   const liveBar = document.getElementById('directorLiveBar');
   if (liveBar) {
-    liveBar.style.display = tieneSesion ? 'block' : 'none';
-    if (tieneSesion) {
+    liveBar.style.display = esDirectorReal ? 'block' : 'none';
+    if (esDirectorReal) {
       liveBar.classList.remove('minimizada');
     }
   }
@@ -20087,10 +20206,10 @@ function renderLapicesDirectosDirector() {
         pencilBtn.title = `Editar directamente en la página: ${t.title}`;
         pencilBtn.setAttribute('aria-label', `Editar ${t.title}`);
         pencilBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-        pencilBtn.onclick = (e) => {
+        pencilBtn.onclick = async (e) => {
           e.preventDefault();
           e.stopPropagation();
-          iniciarEdicionEnVivo(t.id, t.key, t.title, t.type);
+          await iniciarEdicionEnVivo(t.id, t.key, t.title, t.type);
         };
         el.appendChild(pencilBtn);
       }
@@ -20158,9 +20277,9 @@ function restaurarElementoPadreInteractivo() {
   }
 }
 
-function iniciarEdicionEnVivo(targetId, key, title, type) {
+async function iniciarEdicionEnVivo(targetId, key, title, type) {
   if (elementoEditandoActivo && elementoEditandoActivo !== targetId) {
-    cancelarEdicionEnVivo(elementoEditandoActivo);
+    await cancelarEdicionEnVivo(elementoEditandoActivo);
   }
   restaurarElementoPadreInteractivo();
 
@@ -20231,7 +20350,7 @@ function iniciarEdicionEnVivo(targetId, key, title, type) {
 
     el.parentNode.insertBefore(panel, el.nextSibling);
 
-    document.getElementById('btn-save-daypicker').onclick = (e) => {
+    document.getElementById('btn-save-daypicker').onclick = async (e) => {
       e.preventDefault();
       e.stopPropagation();
       const checks = panel.querySelectorAll('#daypicker-checks input[type=checkbox]:checked');
@@ -20243,14 +20362,14 @@ function iniciarEdicionEnVivo(targetId, key, title, type) {
       el.textContent = textoFinal;
       panel.remove();
       el.classList.remove('editable-in-place-active');
-      guardarEdicionEnVivo(targetId, key, title);
+      await guardarEdicionEnVivo(targetId, key, title);
     };
 
-    document.getElementById('btn-cancel-daypicker').onclick = (e) => {
+    document.getElementById('btn-cancel-daypicker').onclick = async (e) => {
       e.preventDefault();
       e.stopPropagation();
       panel.remove();
-      cancelarEdicionEnVivo(targetId);
+      await cancelarEdicionEnVivo(targetId);
     };
 
     return;
@@ -20265,11 +20384,11 @@ function iniciarEdicionEnVivo(targetId, key, title, type) {
   const stopClickBubble = (ev) => {
     ev.stopPropagation();
   };
-  const handleKeydownInPlace = (ev) => {
+  const handleKeydownInPlace = async (ev) => {
     ev.stopPropagation();
     if (ev.key === 'Escape') {
       ev.preventDefault();
-      cancelarEdicionEnVivo(targetId);
+      await cancelarEdicionEnVivo(targetId);
       return;
     }
     // En navegadores basados en Chromium, presionar Espacio dentro de un <button> activa el botón en vez de escribir espacio
@@ -20321,10 +20440,10 @@ function iniciarEdicionEnVivo(targetId, key, title, type) {
   const onInputHandler = () => {
     autoGuardarEnVivoDebounced(targetId, key, title);
   };
-  const onBlurHandler = () => {
+  const onBlurHandler = async () => {
     clearTimeout(_timerAutoSaveGoogleSheetLive);
     const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(targetId, key, title);
-    enviarGoogleSheet({
+    await enviarGoogleSheet({
       action: 'guardar-contenido-vivo',
       key: key,
       valor: finalSavedVal,
@@ -20385,16 +20504,16 @@ function iniciarEdicionEnVivo(targetId, key, title, type) {
   const anchorNode = parentInteractive || el;
   anchorNode.parentNode.insertBefore(toolbar, anchorNode);
 
-  document.getElementById('btn-save-inline-live').onclick = (e) => {
+  document.getElementById('btn-save-inline-live').onclick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    guardarEdicionEnVivo(targetId, key, title);
+    await guardarEdicionEnVivo(targetId, key, title);
   };
 
-  document.getElementById('btn-cancel-inline-live').onclick = (e) => {
+  document.getElementById('btn-cancel-inline-live').onclick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    cancelarEdicionEnVivo(targetId);
+    await cancelarEdicionEnVivo(targetId);
   };
 
   el.focus();
@@ -20525,7 +20644,7 @@ function aplicarPersistenciaTextoEnVivo(targetId, key, title) {
 function autoGuardarEnVivoDebounced(targetId, key, title) {
   const statusEl = document.getElementById('inline-toolbar-autosave-badge');
   if (statusEl) {
-    statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;color:#d97706"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Guardando en Google Sheets...</span>`;
+    statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;color:#d97706"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Guardando en la nube institucional...</span>`;
     statusEl.style.background = '#fef3c7';
     statusEl.style.borderColor = '#fde68a';
   }
@@ -20533,7 +20652,7 @@ function autoGuardarEnVivoDebounced(targetId, key, title) {
   // 1. Guardado inmediato en local
   const { finalSavedVal } = aplicarPersistenciaTextoEnVivo(targetId, key, title);
 
-  // 2. Guardado en Google Sheets con debounce de 700ms
+  // 2. Guardado en la nube institucional con debounce de 700ms
   clearTimeout(_timerAutoSaveGoogleSheetLive);
   _timerAutoSaveGoogleSheetLive = setTimeout(async () => {
     try {
@@ -20545,7 +20664,7 @@ function autoGuardarEnVivoDebounced(targetId, key, title) {
       });
       const st = document.getElementById('inline-toolbar-autosave-badge');
       if (st) {
-        st.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;color:#15803d"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> ✓ Guardado en Google Sheets</span>`;
+        st.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;color:#15803d"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> ✓ Guardado en la nube institucional</span>`;
         st.style.background = '#dcfce7';
         st.style.borderColor = '#86efac';
       }
@@ -20574,7 +20693,7 @@ async function guardarEdicionEnVivo(targetId, key, title) {
   renderLapicesDirectosDirector();
   mostrarToastLive(`✓ Guardado automático: ${title}`);
 
-  // Sincronización directa con Google Sheets
+  // Sincronización directa con el sistema
   await enviarGoogleSheet({
     action: 'guardar-contenido-vivo',
     key: key,
@@ -20583,7 +20702,7 @@ async function guardarEdicionEnVivo(targetId, key, title) {
   });
 }
 
-function cancelarEdicionEnVivo(targetId) {
+async function cancelarEdicionEnVivo(targetId) {
   const el = document.getElementById(targetId);
   if (!el) return;
 
@@ -20599,7 +20718,7 @@ function cancelarEdicionEnVivo(targetId) {
   el.contentEditable = 'false';
   el.classList.remove('editable-in-place-active');
 
-  // Revertir también en almacenamiento y Google Sheets al valor original respaldado
+  // Revertir también en almacenamiento y el sistema al valor original respaldado
   const targetsAll = [
     ...(typeof TARGETS_EDICION_DIRECTOR !== 'undefined' ? TARGETS_EDICION_DIRECTOR : []),
     ...(typeof TARGETS_SECCIONES_DIRECTAS !== 'undefined' ? TARGETS_SECCIONES_DIRECTAS : [])
@@ -20607,7 +20726,7 @@ function cancelarEdicionEnVivo(targetId) {
   const tCfg = targetsAll.find(t => t.id === targetId);
   if (tCfg) {
     aplicarPersistenciaTextoEnVivo(targetId, tCfg.key, tCfg.title || 'Texto');
-    enviarGoogleSheet({
+    await enviarGoogleSheet({
       action: 'guardar-contenido-vivo',
       key: tCfg.key,
       valor: backupTextoOriginal,
@@ -20621,143 +20740,81 @@ function cancelarEdicionEnVivo(targetId) {
 }
 
 /* ─── LOGIN Y SESIONES ─── */
-async function adminLogin(e) {
-  if (e) e.preventDefault();
-  const userEl = document.getElementById('admin-user') || document.getElementById('adm-user');
-  const passEl = document.getElementById('admin-pass') || document.getElementById('adm-pass');
-  const btnSubmit = document.getElementById('btn-submit-admin-login') || document.querySelector('#admin-login button[type="submit"]');
-  const userInp = (userEl?.value || '').trim();
-  const passInp = (passEl?.value || '').trim();
-  const msgId = document.getElementById('login-msg') ? 'login-msg' : 'adm-login-msg';
-  const msgEl = document.getElementById(msgId);
+let accesoInstitucionalEnCurso = false;
 
-  if (!userInp || !passInp) {
-    if (msgEl) {
-      msgEl.className = 'form-msg error';
-      msgEl.style.display = 'block';
-      msgEl.textContent = 'Por favor ingrese su usuario y contraseña.';
-      setTimeout(() => { msgEl.style.display = 'none'; }, 4000);
-    }
+function estadoAccesoInstitucional(texto, error = false) {
+  const mensaje = document.getElementById('login-msg');
+  if (!mensaje) return;
+  mensaje.textContent = texto;
+  mensaje.className = 'form-msg ' + (error ? 'error' : 'info');
+  mensaje.style.display = texto ? 'block' : 'none';
+}
+
+async function adminLogin(event) {
+  event?.preventDefault();
+  if (accesoInstitucionalEnCurso) return;
+  const usuario = document.getElementById('admin-user');
+  const contrasena = document.getElementById('admin-pass');
+  const boton = document.querySelector('#admin-login button[type="submit"]');
+  const user = usuario?.value.trim();
+  const pass = contrasena?.value.trim();
+  if (!user || !pass) {
+    estadoAccesoInstitucional('Ingresa tu usuario y contraseña.', true);
     return;
   }
 
-  // 1. Mostrar estado de carga ("Cargando...")
-  const origBtnHtml = btnSubmit ? btnSubmit.innerHTML : 'Ingresar';
-  if (btnSubmit) {
-    btnSubmit.disabled = true;
-    btnSubmit.style.opacity = '0.85';
-    btnSubmit.innerHTML = `
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spinVoucherBtn 0.8s linear infinite;vertical-align:middle;margin-right:8px;display:inline-block;">
-        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
-        <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
-      </svg>
-      <span>Cargando...</span>
-    `;
-  }
-
-  if (msgEl) {
-    msgEl.className = 'form-msg info';
-    msgEl.style.display = 'flex';
-    msgEl.innerHTML = `
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" style="animation:spinVoucherBtn 0.8s linear infinite;flex-shrink:0;">
-        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
-        <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
-      </svg>
-      <span>Cargando...</span>
-    `;
-  }
-
-  const restaurarBoton = () => {
-    if (btnSubmit) {
-      btnSubmit.disabled = false;
-      btnSubmit.style.opacity = '';
-      btnSubmit.innerHTML = origBtnHtml;
+  accesoInstitucionalEnCurso = true;
+  if (boton) boton.disabled = true;
+  estadoAccesoInstitucional('Iniciando sesión…');
+  let token;
+  try {
+    const acceso = await ceaPersistencia.request({action: 'login', user, pass}, 20000);
+    const role = acceso.role === 'admin' ? 'director' : acceso.role;
+    if (!acceso.token || !['director', 'docente'].includes(role)) {
+      throw new Error(acceso.message || 'No se pudo validar el acceso.');
     }
-  };
+    token = acceso.token;
+    ceaPersistencia.clearPrivate();
+    lsSet('cea_session', {
+      role, token, user: acceso.user || user, name: acceso.name || user,
+      areaKey: acceso.areaKey, comision: acceso.comision === true || /^(si|true)$/i.test(String(acceso.comision))
+    });
 
-  // 2. Consulta directa y exclusiva a Google Sheets (sin contraseñas en el código fuente para máxima seguridad)
-  const gsheetUrl = (typeof obtenerGoogleSheetURL === 'function' ? obtenerGoogleSheetURL() : null) || GOOGLE_SCRIPT_URL;
-  let mensajeError = 'Usuario o contraseña incorrectos.';
+    estadoAccesoInstitucional('Cargando el panel…');
+    await cargarDatosGoogleSheets(true, {silencioso: true, acceso: true});
+    if (getSessionToken() !== token) return;
 
-  if (gsheetUrl && gsheetUrl.includes('script.google.com')) {
-    try {
-      const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-      const timeoutId = setTimeout(() => { if (controller) controller.abort(); }, 15000);
-
-      const resp = await fetch(gsheetUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'login',
-          user: userInp,
-          pass: passInp
-        }),
-        signal: controller ? controller.signal : undefined
-      });
-      clearTimeout(timeoutId);
-
-      const data = await resp.json();
-
-      if (data && data.status === 'success') {
-        if (data.role === 'director' || data.role === 'admin') {
-          // Solo se guarda el token de sesión emitido por Google Sheets, NUNCA la contraseña en el navegador
-          lsSet('cea_session', { role: 'director', name: data.name || 'Director(a)', token: data.token });
-          localStorage.removeItem('cea_director_creds');
-          if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') refrescarCredencialesDocentesDesdeServidor(data.token);
-          window.modoEdicionHorarioActivo = true;
-          estadoLapicesDirectosVisibles = true;
-          const lblToggle = document.getElementById('lblToggleLiveEdit');
-          if (lblToggle) lblToggle.textContent = 'Lápices (ON)';
-          mostrarPanelAdmin();
-          renderLapicesDirectosDirector();
-          if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
-          if (typeof cargarGaleriaFotos === 'function') cargarGaleriaFotos();
-          if (typeof renderFeedActividades === 'function') renderFeedActividades();
-          if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
-          if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
-          mostrarToastLive('¡Sesión iniciada como Director(a)!');
-          if (passEl) passEl.value = '';
-          if (msgEl) { msgEl.style.display = 'none'; msgEl.className = 'form-msg'; }
-          restaurarBoton();
-          return;
-        } else if (data.role === 'docente') {
-          const comisionFlag = data.comision === true || String(data.comision).toUpperCase() === 'SI' || data.comision === 'true';
-          lsSet('cea_session', { role: 'docente', areaKey: data.areaKey, name: data.name || userInp, token: data.token, comision: comisionFlag });
-          localStorage.removeItem('cea_director_creds');
-          estadoLapicesDirectosVisibles = true;
-          mostrarPanelDocente(data.areaKey);
-          renderLapicesDirectosDirector();
-          if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
-          if (typeof cargarGaleriaFotos === 'function') cargarGaleriaFotos();
-          if (typeof renderFeedActividades === 'function') renderFeedActividades();
-          if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
-          if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
-          mostrarToastLive(`¡Sesión iniciada como Docente (${data.name || userInp})!`);
-          if (passEl) passEl.value = '';
-          if (msgEl) { msgEl.style.display = 'none'; msgEl.className = 'form-msg'; }
-          restaurarBoton();
-          return;
-        }
-      } else if (data && data.message) {
-        mensajeError = data.message;
-      }
-    } catch (errNet) {
-      console.warn('Conexión con Google Sheets falló:', errNet);
-      mensajeError = 'Error al conectar con Google Sheets. Verifique su conexión.';
-    }
-  }
-
-  // 3. Si no coincidió o Google Sheets rechazó el acceso, recién avisa que no es correcto
-  restaurarBoton();
-  if (msgEl) {
-    msgEl.className = 'form-msg error';
-    msgEl.style.display = 'block';
-    msgEl.textContent = mensajeError;
+    estadoLapicesDirectosVisibles = true;
+    window.modoEdicionHorarioActivo = role === 'director';
+    if (window.location.hash !== '#admin') window.location.hash = '#admin';
+    if (role === 'director') await mostrarPanelAdmin();
+    else mostrarPanelDocente(acceso.areaKey);
+    contrasena.value = '';
+    estadoAccesoInstitucional('');
+  } catch (error) {
+    if (token && getSessionToken() === token) adminLogout();
+    const mensaje = error.code === 'TIEMPO_AGOTADO'
+      ? 'El servidor tardó en responder. Vuelve a pulsar Iniciar sesión.'
+      : error.message || 'No se pudo abrir el panel.';
+    estadoAccesoInstitucional(mensaje, true);
+  } finally {
+    accesoInstitucionalEnCurso = false;
+    if (boton) boton.disabled = false;
   }
 }
 
-function restaurarSesion() {
+async function restaurarSesion() {
   const session = lsGet('cea_session', null);
+  if (session) {
+    try {
+      await cargarDatosGoogleSheets(true, {silencioso: true, acceso: true});
+    } catch (error) {
+      if (getSessionToken() === session.token && error.code === 'SESION') adminLogout();
+      return;
+    }
+    if (getSessionToken() !== session.token) return;
+    if (window.location.hash !== '#admin') window.location.hash = '#admin';
+  }
   renderLapicesDirectosDirector();
   if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
   if (typeof cargarGaleriaFotos === 'function') cargarGaleriaFotos();
@@ -20767,13 +20824,19 @@ function restaurarSesion() {
   if (typeof cargarAreasTecSilencioso === 'function') cargarAreasTecSilencioso();
   if (!session) return;
   if (session.role === 'director') {
-    mostrarPanelAdmin();
+    await mostrarPanelAdmin();
   } else if (session.role === 'docente') {
     mostrarPanelDocente(session.areaKey);
   }
 }
 
 function adminLogout() {
+  window.restaurarHorarioPublico?.();
+  try { document.documentElement.style.scrollBehavior = ''; } catch(e) {}
+  document.body.classList.remove('admin-logged-in', 'docente-logged-in', 'admin-panel-active', 'docente-panel-active', 'public-view-active');
+  document.body.style.overflow = '';
+  document.documentElement.style.overflow = '';
+  ceaPersistencia.clearPrivate();
   localStorage.removeItem('cea_session');
   localStorage.removeItem('cea_director_creds');
   window.modoEdicionHorarioActivo = false;
@@ -20794,6 +20857,9 @@ function adminLogout() {
   const panelDoc = document.getElementById('docente-panel');
   if (panelDoc) panelDoc.style.display = 'none';
 
+  const pubHeader = document.querySelector('header.header');
+  if (pubHeader) pubHeader.style.display = '';
+
   document.querySelectorAll('.inline-edit-pencil-btn').forEach(btn => btn.remove());
   document.querySelectorAll('.btn-admin-only').forEach(btn => btn.style.display = 'none');
   const oldToolbar = document.getElementById('inline-floating-toolbar');
@@ -20808,13 +20874,13 @@ function adminLogout() {
   if (typeof actualizarBotonModoEdicion === 'function') actualizarBotonModoEdicion();
   if (typeof cargarHorariosMatriz === 'function') cargarHorariosMatriz(turnoHorarioActual);
   if (typeof cargarAreasTecSilencioso === 'function') cargarAreasTecSilencioso();
-  mostrarToastLive('Sesión cerrada.');
+  estadoAccesoInstitucional('');
 }
 
-function switchAdminSubTab(tabName) {
+async function switchAdminSubTab(tabName) {
   if (tabName === 'calendario') tabName = 'documentos';
   if (tabName === 'horarios') tabName = 'carreras';
-  const groups = ['carreras', 'docentes', 'horarios', 'noticias', 'inscripciones', 'configuracion', 'documentos', 'humanistica', 'kardex'];
+  const groups = ['carreras', 'docentes', 'horarios', 'noticias', 'inscripciones', 'configuracion', 'documentos', 'humanistica', 'kardex', 'calificaciones'];
   groups.forEach(g => {
     const el = document.getElementById('admin-group-' + g);
     if (el) el.style.display = (g === tabName) ? 'block' : 'none';
@@ -20835,7 +20901,7 @@ function switchAdminSubTab(tabName) {
     if (typeof cargarAreasTec === 'function') cargarAreasTec();
   } else if (tabName === 'docentes') {
     if (typeof cargarDocentesUnificados === 'function') cargarDocentesUnificados();
-    if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') refrescarCredencialesDocentesDesdeServidor();
+    if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') await refrescarCredencialesDocentesDesdeServidor();
   } else if (tabName === 'horarios') {
     const turnoSel = document.getElementById('editor-turno-select')?.value || 'hum';
     if (typeof cargarEditorHorariosMatriz === 'function') cargarEditorHorariosMatriz(turnoSel);
@@ -20878,6 +20944,8 @@ function switchAdminSubTab(tabName) {
     cargarMaterias();
   } else if (tabName === 'kardex') {
     cargarKardexDocentesAdmin();
+  } else if (tabName === 'calificaciones') {
+    if (typeof renderAdminCalificaciones === 'function') renderAdminCalificaciones();
   }
 }
 
@@ -20910,9 +20978,19 @@ function actualizarEstadisticasAdmin() {
   if (elN) elN.textContent = actividades.length;
 }
 
-function mostrarPanelAdmin() {
+async function mostrarPanelAdmin() {
+  try {
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  } catch (e) {
+    window.scrollTo(0, 0);
+  }
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+
   const session = lsGet('cea_session', null);
-  if (session && session.role === 'docente') {
+  if (!session?.token) return;
+  if (session.role === 'docente') {
     mostrarPanelDocente(session.areaKey);
     return;
   }
@@ -20921,18 +20999,27 @@ function mostrarPanelAdmin() {
   if (loginBox) loginBox.style.display = 'none';
 
   const panelAdmin = document.getElementById('admin-panel') || document.getElementById('admin-content');
-  if (panelAdmin) panelAdmin.style.display = 'block';
+  if (panelAdmin) {
+    panelAdmin.style.display = 'block';
+    document.body.classList.remove('docente-logged-in', 'public-view-active');
+    document.body.classList.add('admin-logged-in', 'admin-panel-active');
+    if (typeof inicializarLayoutDirectorPermanente === 'function') {
+      inicializarLayoutDirectorPermanente();
+    }
+  }
 
   const panelDoc = document.getElementById('docente-panel');
   if (panelDoc) panelDoc.style.display = 'none';
+
+  const pubHeader = document.querySelector('header.header');
+  if (pubHeader) pubHeader.style.display = '';
 
   const userLabel = document.getElementById('admin-user-label');
   if (userLabel) userLabel.textContent = 'Director(a)';
 
   const liveBar = document.getElementById('directorLiveBar');
   if (liveBar) {
-    liveBar.style.display = 'block';
-    liveBar.classList.remove('minimizada');
+    liveBar.style.display = 'none';
   }
 
   cargarUsuariosPanel();
@@ -20944,11 +21031,25 @@ function mostrarPanelAdmin() {
   if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
   if (typeof renderLapicesDirectosDirector === 'function') renderLapicesDirectosDirector();
 
-  const savedTab = lsGet('cea_active_admin_subtab', 'carreras');
-  switchAdminSubTab(savedTab);
+  if (typeof window.navegarAdminGlobal === 'function') {
+    const savedTab = (typeof lsGet === 'function') ? lsGet('cea_active_admin_subtab', 'calificaciones') : 'calificaciones';
+    window.navegarAdminGlobal(savedTab);
+  } else {
+    const savedTab = lsGet('cea_active_admin_subtab', 'carreras');
+    await switchAdminSubTab(savedTab);
+  }
 }
 
 function mostrarPanelDocente(areaKey) {
+  try {
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  } catch (e) {
+    window.scrollTo(0, 0);
+  }
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+
   const loginBox = document.getElementById('admin-login');
   if (loginBox) loginBox.style.display = 'none';
 
@@ -20958,6 +21059,20 @@ function mostrarPanelDocente(areaKey) {
   const panelDoc = document.getElementById('docente-panel');
   if (!panelDoc) return;
   panelDoc.style.display = 'block';
+  document.body.classList.remove('admin-logged-in', 'public-view-active');
+  document.body.classList.add('docente-logged-in', 'docente-panel-active');
+  const pubHeader = document.querySelector('header.header');
+  if (pubHeader) pubHeader.style.setProperty('display', 'none', 'important');
+
+  const legacyBody = document.getElementById('docente-panel-body');
+  if (legacyBody) {
+    legacyBody.innerHTML = '';
+    legacyBody.style.display = 'none';
+  }
+
+  if (typeof renderDocenteCalificaciones === 'function') {
+    renderDocenteCalificaciones(areaKey);
+  }
 
   const docentes = lsGet('cea_docentes', DOCENTES_DEFAULT);
   const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
@@ -21000,7 +21115,10 @@ function mostrarPanelDocente(areaKey) {
 
   const body = document.getElementById('docente-panel-body');
   if (body) {
-    const isTecnica = areaKey.startsWith('tec');
+    body.innerHTML = '';
+    body.style.display = 'none';
+  }
+  if (false) {
 
     const iconUser = `<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;vertical-align:middle;margin-right:6px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
     const iconFileText = `<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;vertical-align:middle;margin-right:6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
@@ -21303,6 +21421,9 @@ function mostrarPanelDocente(areaKey) {
     if (typeof actualizarBadgeKardexDocenteSelf === 'function') {
       actualizarBadgeKardexDocenteSelf(areaKey);
     }
+    if (typeof renderDocenteCalificaciones === 'function') {
+      renderDocenteCalificaciones(areaKey);
+    }
   }
 }
 
@@ -21480,10 +21601,10 @@ async function guardarDocumentosDocenteNiveles(areaKey) {
 
   lsSet('cea_doc_niveles_' + areaKey, docs);
   if (typeof renderSeccionHumanistica === 'function') renderSeccionHumanistica();
-  mostrarMsg('msg-doc-niveles', 'Guardando y sincronizando con Google Sheets...', 'success');
+  mostrarMsg('msg-doc-niveles', 'Guardando y respaldando en el sistema institucional...', 'success');
   const res = await enviarGoogleSheet({ action: 'guardar-doc-niveles', carreraKey: areaKey, docs: docs });
   if (res && res.status === 'success') {
-    mostrarMsg('msg-doc-niveles', '¡Documentos guardados y sincronizados correctamente en Google Sheets!', 'success');
+    mostrarMsg('msg-doc-niveles', '¡Documentos guardados y respaldados correctamente en el sistema institucional!', 'success');
   } else {
     mostrarMsg('msg-doc-niveles', '¡Documentos guardados exitosamente!', 'success');
   }
@@ -22305,7 +22426,7 @@ async function eliminarActividad(actId) {
   try {
     await enviarGoogleSheet({ action: 'eliminar-actividad', id: actId });
   } catch (errDel) {
-    console.warn('Error eliminando actividad en Google Sheets:', errDel);
+    console.warn('Error eliminando actividad en el sistema:', errDel);
   }
 }
 window.eliminarActividad = eliminarActividad;
@@ -22376,6 +22497,46 @@ document.addEventListener('click', function(e) {
   if (navInicioContainer && !navInicioContainer.contains(e.target)) {
     cerrarInicioDropdown();
   }
+
+  // Si el usuario hace clic en un enlace de navegación pública estando logueado:
+  const navLink = e.target.closest('#main-nav a[href^="#"]');
+  if (navLink) {
+    const session = lsGet('cea_session', null);
+    if (session && (session.role === 'director' || session.role === 'admin' || session.role === 'docente')) {
+      const hash = navLink.getAttribute('href');
+      if (hash && hash !== '#admin') {
+        window.restaurarHorarioPublico?.();
+        const panelAdmin = document.getElementById('admin-panel');
+        const panelDoc = document.getElementById('docente-panel');
+        if (panelAdmin) panelAdmin.style.display = 'none';
+        if (panelDoc) panelDoc.style.display = 'none';
+        document.body.classList.remove('admin-panel-active', 'docente-panel-active');
+        document.body.classList.add('public-view-active');
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+
+        // Limpieza garantizada de áreas de impresión residuales
+        if (typeof window.limpiarAreasImpresionResiduales === 'function') {
+          window.limpiarAreasImpresionResiduales();
+        } else {
+          ['afiliacion-reporte-print-area', 'calificaciones-print-area', 'centralizador-print-area', 'reporte-inscritos-print-area', 'reporte-estadistico-print-area'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+          });
+          document.body.classList.remove('print-afiliacion-reporte-mode', 'print-calificaciones-mode', 'print-centralizador-mode', 'printing-reporte', 'printing-estadisticas-1hoja', 'printing-solo-estadisticas');
+        }
+        const liveBar = document.getElementById('directorLiveBar');
+        if (liveBar) {
+          if (session && (session.role === 'director' || session.role === 'admin')) {
+            liveBar.style.display = 'block';
+            liveBar.classList.remove('minimizada');
+          } else {
+            liveBar.style.display = 'none';
+          }
+        }
+      }
+    }
+  }
 });
 
 /* ─── MENÚ HAMBURGUESA MÓVIL ─── */
@@ -22412,7 +22573,7 @@ function mostrarMsg(id, texto, tipo) {
 }
 
 /* ─── CONFIGURACIÓN DE SALIDAS PRE-INSCRIPCIÓN (PDF & WHATSAPP) ─── */
-function guardarOpcionesSalidaInscripcion() {
+async function guardarOpcionesSalidaInscripcion() {
   const pdfChk = document.getElementById('cfg-opt-pdf');
   const wpChk = document.getElementById('cfg-opt-whatsapp');
   const habilitarPdf = pdfChk ? pdfChk.checked : true;
@@ -22421,8 +22582,8 @@ function guardarOpcionesSalidaInscripcion() {
   lsSet('cea_cfg_pdf', habilitarPdf);
   lsSet('cea_cfg_whatsapp', habilitarWp);
 
-  // Sincronizar con Google Sheets en hoja Textos
-  enviarGoogleSheet({
+  // Sincronizar con el sistema en hoja Textos
+  await enviarGoogleSheet({
     action: 'guardar-textos',
     cfg_habilitar_pdf: habilitarPdf ? 'true' : 'false',
     cfg_habilitar_whatsapp: habilitarWp ? 'true' : 'false'
@@ -22690,11 +22851,13 @@ function filtrarSubCategoriaGaleria(subCat, btnEl) {
   }
 }
 
-function abrirModalPublicacionDirecta() {
+async function abrirModalPublicacionDirecta() {
   const session = lsGet('cea_session', null);
   if (session && session.role === 'director') {
-    window.location.hash = '#admin';
-    switchAdminSubTab('noticias');
+    if (window.location.hash !== '#admin') {
+    try { history.replaceState(null, '', '#admin'); } catch(e) { window.location.hash = '#admin'; }
+  }
+    await switchAdminSubTab('noticias');
     setTimeout(() => {
       const inp = document.getElementById('act-titulo');
       if (inp) {
@@ -22712,7 +22875,9 @@ function abrirModalPublicacionDirecta() {
       }
     }, 250);
   } else {
-    window.location.hash = '#admin';
+    if (window.location.hash !== '#admin') {
+    try { history.replaceState(null, '', '#admin'); } catch(e) { window.location.hash = '#admin'; }
+  }
     setTimeout(() => {
       const inp = document.getElementById('admin-usuario');
       if (inp) inp.focus();
@@ -23090,7 +23255,7 @@ async function guardarFotoGaleria() {
     btnSubmit.textContent = idExistente ? 'Guardar Cambios' : 'Subir Fotografía';
   }
 
-  // 2. Enviar a Google Sheets
+  // 2. Enviar a el sistema
   try {
     const resp = await enviarGoogleSheet({
       action: 'guardar-foto-galeria',
@@ -23106,7 +23271,7 @@ async function guardarFotoGaleria() {
       }
     }
   } catch (err) {
-    console.error('Error enviando foto a Google Sheets:', err);
+    console.error('Error enviando foto a el sistema:', err);
   }
 }
 
@@ -23255,6 +23420,12 @@ function toggleMenuMovil() {
 }
 
 function abrirMenuMovil() {
+  if (typeof window.cerrarAcademicMobileDrawer === 'function') {
+    window.cerrarAcademicMobileDrawer();
+  }
+  if (typeof toggleAcademicSidebarMobile === 'function') {
+    toggleAcademicSidebarMobile(true);
+  }
   const drawer = document.getElementById('mobile-drawer-menu');
   const btn = document.getElementById('btn-mobile-hamburger');
   if (!drawer) return;
@@ -23265,6 +23436,12 @@ function abrirMenuMovil() {
     btn.setAttribute('aria-expanded', 'true');
   }
   document.body.classList.add('menu-movil-abierto');
+
+  const retBar = document.getElementById('mobile-drawer-panel-return-bar');
+  if (retBar) {
+    const isLogged = document.body.classList.contains('admin-logged-in') || document.body.classList.contains('docente-logged-in');
+    retBar.style.display = isLogged ? 'block' : 'none';
+  }
 }
 
 function cerrarMenuMovil() {
@@ -23292,6 +23469,20 @@ function navegarDesdeMenuMovil(selector) {
     }
   }, 80);
 }
+
+function volverAlPanelDesdePublico() {
+  document.body.classList.remove('public-view-active');
+  const session = typeof lsGet === 'function' ? lsGet('cea_session', null) : null;
+  if (session && session.role === 'docente') {
+    document.body.classList.add('docente-panel-active');
+  } else {
+    document.body.classList.add('admin-panel-active');
+  }
+  if (window.location.hash !== '#admin') {
+    try { history.replaceState(null, '', '#admin'); } catch(e) { window.location.hash = '#admin'; }
+  }
+}
+window.volverAlPanelDesdePublico = volverAlPanelDesdePublico;
 
 function navegarAGaleriaDesdeMovil(e) {
   if (e && e.preventDefault) e.preventDefault();
@@ -23332,7 +23523,6 @@ function navegarAActividades(e) {
     }
   }, 80);
 }
-
 
 function inicializarScrollSpyNavegacion() {
   const secciones = [
@@ -23386,6 +23576,34 @@ function inicializarScrollSpyNavegacion() {
 
   window.addEventListener('scroll', actualizarNavActivo, { passive: true });
   window.addEventListener('hashchange', () => {
+    const session = typeof lsGet === 'function' ? lsGet('cea_session', null) : null;
+    if (session && (session.role === 'director' || session.role === 'admin' || session.role === 'docente')) {
+      if (window.location.hash && window.location.hash !== '#admin') {
+        window.restaurarHorarioPublico?.();
+        document.body.classList.remove('admin-panel-active', 'docente-panel-active');
+        document.body.classList.add('public-view-active');
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+
+        // Limpieza garantizada de áreas de impresión residuales
+        if (typeof window.limpiarAreasImpresionResiduales === 'function') {
+          window.limpiarAreasImpresionResiduales();
+        } else {
+          ['afiliacion-reporte-print-area', 'calificaciones-print-area', 'centralizador-print-area', 'reporte-inscritos-print-area', 'reporte-estadistico-print-area'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+          });
+          document.body.classList.remove('print-afiliacion-reporte-mode', 'print-calificaciones-mode', 'print-centralizador-mode', 'printing-reporte', 'printing-estadisticas-1hoja', 'printing-solo-estadisticas');
+        }
+      } else if (window.location.hash === '#admin') {
+        document.body.classList.remove('public-view-active');
+        if (session.role === 'docente') {
+          document.body.classList.add('docente-panel-active');
+        } else {
+          document.body.classList.add('admin-panel-active');
+        }
+      }
+    }
     setTimeout(actualizarNavActivo, 120);
   });
   actualizarNavActivo();
@@ -24177,9 +24395,25 @@ function abrirEditorKardex(docenteId, esModoDirector) {
   const msgG = document.getElementById('kardex-msg-guardado');
   if (msgG) msgG.innerHTML = '';
 
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+  const esDocenteActivo = (esModoDirector === 'inline') || (typeof document !== 'undefined' && document.body && (document.body.classList.contains('docente-logged-in') || document.body.classList.contains('docente-panel-active')));
+
+  if (esDocenteActivo) {
+    modal.style.display = 'none';
+    if (document.body) document.body.style.overflow = '';
+  } else {
+    const modalBody = document.getElementById('modal-kardex-body');
+    const form = document.getElementById('form-kardex-docente');
+    if (modalBody && form && !modalBody.contains(form)) {
+      modalBody.appendChild(form);
+    }
+    modal.style.zIndex = '999999';
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
 }
+
+window.abrirEditorKardex = abrirEditorKardex;
+window.cerrarModalKardexEditor = cerrarModalKardexEditor;
 
 function cerrarModalKardexEditor() {
   const modal = document.getElementById('modal-kardex-editor');
@@ -24589,9 +24823,9 @@ async function guardarKardexActual() {
     lsSet('cea_docentes', docentesMap);
   }
 
-  // Sincronizar en background con Google Sheets
+  // Sincronizar en background con el sistema
   try {
-    enviarGoogleSheet({
+    await enviarGoogleSheet({
       action: 'guardar-kardex',
       docenteId: id,
       kardex: obj
@@ -25124,7 +25358,16 @@ function prepararContenidoKardexDOM(data, page1, page2) {
 }
 
 window.aplicarOrientacionKardex = function(diseno = 1) {
-  aplicarOrientacionImpresion('portrait');
+  let styleTag = document.getElementById('cea-dynamic-page-orientation');
+  if (!styleTag) {
+    styleTag = document.createElement('style');
+    styleTag.id = 'cea-dynamic-page-orientation';
+  }
+  document.head.appendChild(styleTag);
+  styleTag.innerHTML = `@page { size: letter portrait !important; margin: 6mm 8mm !important; }`;
+  document.body.classList.add('print-orientation-portrait');
+  document.body.classList.remove('print-orientation-landscape', 'print-turno-tec', 'print-turno-hum');
+
   const printArea = document.getElementById('kardex-print-area');
   if (printArea) {
     if (diseno === 2) {
@@ -25171,11 +25414,10 @@ function prepararEImprimirKardex(docenteId, diseno = 1) {
     document.body.classList.remove('printing-kardex');
     window.removeEventListener('afterprint', limpiarKardexPrint);
   };
-  window.addEventListener('afterprint', limpiarKardexPrint);
+  window.addEventListener('afterprint', limpiarKardexPrint, { once: true });
 
   setTimeout(() => {
     window.print();
-    setTimeout(limpiarKardexPrint, 800);
   }, 100);
 }
 
@@ -26830,7 +27072,7 @@ window.cerrarModalSelectorDisenoKardex = cerrarModalSelectorDisenoKardex;
 window.ejecutarAccionDisenoKardex = ejecutarAccionDisenoKardex;
 
 /* ─── INIT ─── */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('hashchange', () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     sincronizarHashNavegacion();
@@ -26907,7 +27149,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (inputGS) inputGS.value = obtenerGoogleSheetURL();
 
   _inicializacionCompleta = true;
-  cargarDatosGoogleSheets(true);
+  if (!getSessionToken()) cargarDatosGoogleSheets(true, {silencioso: true}).catch(() => {});
   iniciarSincronizacionAutomatica();
 
   const formIns = document.getElementById('form-inscripcion');
@@ -26948,10 +27190,10 @@ document.addEventListener('DOMContentLoaded', () => {
   inicializarFechasFormularios();
   vincularEventosPrevisualizacion('adm');
 
-  restaurarSesion();
+  await restaurarSesion();
   // Limpiar cualquier residuo previo en la caja de consulta de estudiante si la URL no solicita verificación
   try {
-    const hasSearch = window.location && window.location.search && (window.location.search.includes('ci=') || window.location.search.includes('verificar=') || window.location.search.includes('consulta='));
+    const hasSearch = window.location && window.location.search && (window.location.search.includes('credencial=') || window.location.search.includes('ci=') || window.location.search.includes('verificar=') || window.location.search.includes('consulta='));
     if (!hasSearch) {
       const inpConsInit = document.getElementById('ci-consulta-inp');
       if (inpConsInit) inpConsInit.value = '';
@@ -26981,7 +27223,7 @@ async function refrescarCredencialesDocentesDesdeServidor(tokenOverride) {
       Object.keys(res.usuarios).forEach(k => {
         merged[k] = {
           user: res.usuarios[k].user || merged[k]?.user || USUARIOS_DOCENTES_DEFAULT[k]?.user || '',
-          pass: res.usuarios[k].pass || merged[k]?.pass || USUARIOS_DOCENTES_DEFAULT[k]?.pass || '',
+          pass: '',
           comision: (res.usuarios[k].comision !== undefined) ? res.usuarios[k].comision : (merged[k]?.comision || false)
         };
       });

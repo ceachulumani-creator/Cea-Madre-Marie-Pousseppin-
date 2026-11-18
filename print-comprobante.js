@@ -1026,6 +1026,139 @@
   }
 
   // Exportar al ámbito global
+  function crearPdfTarjeta(paginas) {
+    const encoder = new TextEncoder();
+    const partes = [];
+    const offsets = [0];
+    let longitud = 0;
+    const agregar = contenido => {
+      const bytes = typeof contenido === 'string' ? encoder.encode(contenido) : contenido;
+      partes.push(bytes);
+      longitud += bytes.length;
+    };
+    const objeto = (...contenido) => {
+      offsets.push(longitud);
+      agregar((offsets.length - 1) + ' 0 obj\n');
+      contenido.forEach(agregar);
+      agregar('\nendobj\n');
+    };
+
+    agregar('%PDF-1.4\n');
+    objeto('<< /Type /Catalog /Pages 2 0 R >>');
+    const referencias = paginas.map((_, i) => (3 + i * 3) + ' 0 R').join(' ');
+    objeto('<< /Type /Pages /Count ' + paginas.length + ' /Kids [' + referencias + '] >>');
+    paginas.forEach((lienzo, i) => {
+      const numero = 3 + i * 3;
+      const imagen = Uint8Array.from(atob(lienzo.toDataURL('image/jpeg', 0.96).split(',')[1]), letra => letra.charCodeAt(0));
+      objeto('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 242.646 153.071] /Resources << /XObject << /Tarjeta ' +
+        (numero + 1) + ' 0 R >> >> /Contents ' + (numero + 2) + ' 0 R >>');
+      objeto('<< /Type /XObject /Subtype /Image /Width ' + lienzo.width + ' /Height ' + lienzo.height +
+        ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + imagen.length + ' >>\nstream\n',
+        imagen, '\nendstream');
+      const dibujo = 'q 242.646 0 0 153.071 0 0 cm /Tarjeta Do Q';
+      objeto('<< /Length ' + dibujo.length + ' >>\nstream\n' + dibujo + '\nendstream');
+    });
+    const inicioXref = longitud;
+    agregar('xref\n0 ' + offsets.length + '\n0000000000 65535 f \n');
+    offsets.slice(1).forEach(offset => agregar(String(offset).padStart(10, '0') + ' 00000 n \n'));
+    agregar('trailer\n<< /Size ' + offsets.length + ' /Root 1 0 R >>\nstartxref\n' + inicioXref + '\n%%EOF\n');
+    return new Blob(partes, {type: 'application/pdf'});
+  }
+
+  window.descargarTarjetaEstudiantePDF = async inscripcion => {
+    const gestion = String(inscripcion?.gestion || '');
+    if (inscripcion?.estadoInscripcion !== 'INSCRITO' || !/^\d{4}$/.test(gestion) ||
+        inscripcion.vencimientoCredencial !== gestion + '-12-31' ||
+        Number(gestion) < Number(new Intl.DateTimeFormat('en', {year: 'numeric', timeZone: 'America/La_Paz'}).format(new Date()))) {
+      throw new Error('La inscripción no tiene una credencial vigente.');
+    }
+    // Dibujar directamente la credencial evita depender de estilos y elementos de la página.
+    const lienzo = document.createElement('canvas');
+    lienzo.width = 856;
+    lienzo.height = 540;
+    const ctx = lienzo.getContext('2d');
+    if (!ctx) throw new Error('El navegador no pudo preparar la tarjeta.');
+    const rect = (color, x, y, ancho, alto) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, ancho, alto);
+    };
+    const texto = (valor, x, y, tamano, color, peso = 400, ancho = 776) => {
+      ctx.fillStyle = color;
+      ctx.font = peso + ' ' + tamano + 'px Arial, sans-serif';
+      ctx.fillText(String(valor ?? ''), x, y, ancho);
+    };
+    const verde = '#123e2b';
+    const dorado = '#d6b867';
+    rect('#f4f8f3', 0, 0, 856, 540);
+    rect(verde, 0, 0, 856, 130);
+    rect(dorado, 0, 130, 856, 7);
+    rect(dorado, 0, 137, 9, 300);
+    rect('#e5eee3', 0, 437, 856, 103);
+
+    const logo = new Image();
+    logo.src = window.KARDEX_LOGO_BASE64 || new URL('logo.png', document.baseURI).href;
+    const cargado = await new Promise(resolve => {
+      if (logo.complete) { resolve(logo.naturalWidth > 0); return; }
+      const espera = setTimeout(() => resolve(false), 1500);
+      logo.onload = () => { clearTimeout(espera); resolve(true); };
+      logo.onerror = () => { clearTimeout(espera); resolve(false); };
+    });
+    if (cargado && (logo.src.startsWith('data:') || location.protocol !== 'file:')) {
+      const escala = 66 / Math.max(logo.naturalWidth, logo.naturalHeight);
+      const ancho = logo.naturalWidth * escala;
+      const alto = logo.naturalHeight * escala;
+      ctx.drawImage(logo, 74 - ancho / 2, 65 - alto / 2, ancho, alto);
+    } else {
+      texto('CEA', 46, 73, 25, '#ffffff', 700, 56);
+    }
+
+    texto('CEA Madre Marie Poussepín', 136, 57, 27, '#ffffff', 700, 510);
+    texto('Credencial estudiantil', 136, 91, 22, '#e6efd9', 400, 510);
+    texto('GESTIÓN', 716, 49, 18, '#f3df9f', 700, 105);
+    texto(gestion, 714, 91, 37, '#ffffff', 700, 108);
+    texto('ESTUDIANTE', 40, 190, 22, verde, 700);
+    rect('#dcebdc', 670, 158, 146, 42);
+    texto('INSCRITO', 687, 186, 22, verde, 700, 114);
+    const nombre = String(inscripcion.nombre || '').toLocaleLowerCase('es-BO')
+      .replace(/(^|[\s'-])\p{L}/gu, letra => letra.toLocaleUpperCase('es-BO'));
+    texto(nombre, 40, 260, 43, verde, 700);
+    texto(inscripcion.carrera, 40, 321, 29, verde, 700);
+    texto(inscripcion.nivel ? 'Nivel: ' + inscripcion.nivel : '', 40, 363, 23, verde, 700);
+    texto(inscripcion.sede || 'Sede Central, Centro de Chulumani', 40, 408, 22, '#365747');
+    texto('CÉDULA DE IDENTIDAD', 40, 473, 17, verde, 700, 390);
+    texto(inscripcion.ci, 40, 510, 29, verde, 700, 390);
+    texto('VENCE EL', 630, 473, 17, verde, 700, 186);
+    texto('31/12/' + gestion, 630, 510, 29, verde, 700, 186);
+
+    const reverso = document.createElement('canvas');
+    reverso.width = lienzo.width;
+    reverso.height = lienzo.height;
+    const dorso = reverso.getContext('2d');
+    dorso.fillStyle = verde;
+    dorso.fillRect(0, 0, 856, 540);
+    dorso.fillStyle = dorado;
+    dorso.fillRect(0, 0, 856, 8);
+    dorso.fillStyle = '#ffffff';
+    dorso.textAlign = 'center';
+    dorso.font = '600 24px Arial';
+    dorso.fillText('Centro de Educación Alternativa', 428, 53);
+    dorso.font = '700 33px Arial';
+    dorso.fillText('Madre Marie Poussepin', 428, 93);
+    const pagina = new URL(location.protocol === 'file:'
+      ? document.querySelector('link[rel="canonical"]').href : location.pathname, location.href);
+    if (inscripcion.codigoCredencial) pagina.searchParams.set('credencial', inscripcion.codigoCredencial);
+    else pagina.searchParams.set('ci', inscripcion.ci);
+    const qr = document.createElement('div');
+    new QRCode(qr, {text: pagina.href, width: 280, height: 280, correctLevel: QRCode.CorrectLevel.M});
+    const matriz = qr.querySelector('canvas');
+    if (!matriz) throw new Error('No se pudo generar el QR de verificación.');
+    dorso.fillRect(270, 124, 316, 316);
+    dorso.drawImage(matriz, 288, 142);
+    dorso.font = '23px Arial';
+    dorso.fillText('Chulumani · La Paz', 428, 493);
+    descargarBlobArchivoPDF(crearPdfTarjeta([lienzo, reverso]), 'CEA_Tarjeta_Estudiante_' + gestion + '.pdf');
+  };
+
   window.pregenerarComprobantePDF = pregenerarComprobantePDF;
   window.descargarComprobanteDirectoPDF = descargarComprobanteDirectoPDF;
   window.imprimirComprobante = descargarComprobanteDirectoPDF;

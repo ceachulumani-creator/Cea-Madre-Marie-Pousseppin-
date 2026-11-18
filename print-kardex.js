@@ -28,6 +28,8 @@
     if (!styleTag) {
       styleTag = document.createElement('style');
       styleTag.id = 'cea-dynamic-page-orientation';
+    }
+    if (document.head) {
       document.head.appendChild(styleTag);
     }
     // D2 empieza más arriba (3mm). D1 empieza a 8mm.

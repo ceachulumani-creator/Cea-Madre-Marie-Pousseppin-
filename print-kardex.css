@@ -8,8 +8,13 @@
 }
 
 @media print {
-  /* AISLAMIENTO ABSOLUTO: Ocultar todo el sitio web cuando se imprime Kardex */
+  /* AISLAMIENTO ABSOLUTO: Ocultar todo el sitio web y paneles docentes/director cuando se imprime Kardex */
   body.printing-kardex > *:not(#kardex-print-area),
+  body.printing-kardex #admin,
+  body.printing-kardex #admin-panel,
+  body.printing-kardex #docente-panel,
+  body.printing-kardex .admin-desktop-layout,
+  body.printing-kardex .docente-desktop-layout,
   body.printing-kardex header,
   body.printing-kardex nav,
   body.printing-kardex section,
@@ -30,10 +35,22 @@
     overflow: hidden !important;
   }
 
-  body.printing-kardex {
+  html:has(body.printing-kardex),
+  body.printing-kardex,
+  body.printing-kardex.admin-logged-in,
+  body.printing-kardex.docente-logged-in,
+  body.printing-kardex.admin-panel-active,
+  body.printing-kardex.docente-panel-active {
     background: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    position: static !important;
   }
 
   body.printing-kardex #kardex-print-area,
@@ -69,8 +86,7 @@
     page-break-before: avoid !important;
     page-break-after: always !important;
     break-after: page !important;
-    max-height: 250mm !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     box-sizing: border-box !important;
   }
 
@@ -79,8 +95,7 @@
     break-before: page !important;
     page-break-after: avoid !important;
     break-after: avoid !important;
-    max-height: 250mm !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     box-sizing: border-box !important;
   }
 
