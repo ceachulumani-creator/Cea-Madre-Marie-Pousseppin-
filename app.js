@@ -1340,28 +1340,16 @@ async function aplicarDatosGoogleSheets(data) {
       cargarHorariosMatriz(typeof turnoHorarioActual !== 'undefined' ? turnoHorarioActual : 'hum');
     }
 
-    // 7. Usuarios Docentes (Mezcla segura para preservar contraseñas y comisiones en el dispositivo)
-    if (data.usuariosDocentes && Object.keys(data.usuariosDocentes).length > 0) {
-      const haEditadoRecientemente = _ultimaEdicionLocalTimestamp && (Date.now() - _ultimaEdicionLocalTimestamp < 60000);
-      const actual = lsGet('cea_usuarios_docentes', typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' ? USUARIOS_DOCENTES_DEFAULT : {});
-      const merged = { ...actual };
-      Object.keys(data.usuariosDocentes).forEach(k => {
-        const remoteUser = data.usuariosDocentes[k].user;
-        const remotePass = data.usuariosDocentes[k].pass;
-        const remoteComision = data.usuariosDocentes[k].comision;
-        const defPass = ''; 
-        merged[k] = {
-          ...(merged[k] || {}),
-          asigKey: data.usuariosDocentes[k].asigKey || merged[k]?.asigKey || k,
-          user: (!haEditadoRecientemente && remoteUser !== undefined && remoteUser !== '') ? remoteUser : (merged[k]?.user || remoteUser || ('profe.' + k.replace('tec-', '').replace('hum-', ''))),
-          pass: '',
-          comision: (!haEditadoRecientemente && remoteComision !== undefined) ? (remoteComision === true || String(remoteComision).toUpperCase() === 'SI') : (merged[k]?.comision || false)
-        };
+    // Las credenciales visibles siempre proceden de la última lectura autorizada.
+    if (data.usuariosDocentes && typeof data.usuariosDocentes === 'object') {
+      const usuarios = {};
+      Object.entries(data.usuariosDocentes).forEach(([key, item]) => {
+        usuarios[key] = {user: String(item.user || '').trim(), pass: '', asigKey: item.asigKey || key,
+          comision: item.comision === true || /^(SI|TRUE)$/i.test(String(item.comision))};
       });
-      lsSet('cea_usuarios_docentes', merged);
+      lsSet('cea_usuarios_docentes', usuarios);
       if (typeof cargarDocentesUnificados === 'function') cargarDocentesUnificados();
       if (typeof cargarUsuariosPanel === 'function') cargarUsuariosPanel();
-      if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') await refrescarCredencialesDocentesDesdeServidor();
     }
 
     // 8. Enlaces Drive y configuración institucional
@@ -2552,7 +2540,7 @@ function toggleMostrarContrasenasDocentes(forzarEstado, ev) {
   // 4. Texto global
   const txt = document.getElementById('texto-ojo-pass');
   if (txt) {
-    txt.textContent = contrasenasDocentesVisibles ? 'Ocultar Contraseñas' : 'Mostrar Contraseñas';
+    txt.textContent = contrasenasDocentesVisibles ? 'Ocultar nuevas contraseñas' : 'Mostrar nuevas contraseñas';
   }
 
   // 5. Botones individuales en cada tarjeta
@@ -2568,7 +2556,7 @@ function toggleMostrarContrasenasDocentes(forzarEstado, ev) {
   });
 
   if (typeof mostrarToastLive === 'function') {
-    mostrarToastLive(contrasenasDocentesVisibles ? 'Contraseñas de docentes visibles' : 'Contraseñas ocultas');
+    mostrarToastLive(contrasenasDocentesVisibles ? 'Nuevas contraseñas visibles' : 'Contraseñas ocultas');
   }
 }
 
@@ -2777,22 +2765,12 @@ function autoGuardarCredencialDocente(inp) {
   clearTimeout(_timerAutoGuardarDocente);
   _timerAutoGuardarDocente = setTimeout(async () => {
     try {
-      const msgEl = document.getElementById('msg-docentes-unificados');
-      if (msgEl) {
-        msgEl.innerHTML = `<span style="color:#16a34a;font-size:0.82rem;font-weight:700"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Guardado automático: ${escapeHTML(nombre || userVal || asigKey)} sincronizado en la nube institucional</span>`;
-      }
-      await enviarGoogleSheet({
-        action: 'guardar-docentes-completo',
-        docentes: dMap,
-        carreras: areas,
-        usuarios: usuarios
-      });
-      await enviarGoogleSheet({
-        action: 'guardar-usuarios-docentes',
-        usuarios: usuarios
-      });
+      mostrarMsg('msg-docentes-unificados', 'Guardando los cambios…', 'info');
+      const respuesta = await enviarGoogleSheet({action:'guardar-docentes-completo', docentes:dMap, carreras:areas, usuarios});
+      if (respuesta?.status !== 'success') throw new Error('No se pudo confirmar el guardado.');
+      mostrarMsg('msg-docentes-unificados', 'Cambios confirmados. Usa la contraseña que definiste para ingresar.', 'success');
     } catch (e) {
-      console.warn('Error en auto-guardado remoto docente:', e);
+      mostrarMsg('msg-docentes-unificados', 'No se guardaron los cambios. ' + e.message, 'error');
     }
   }, 750);
 }
@@ -2889,7 +2867,7 @@ function cargarDocentesUnificados() {
       area: areaFinal,
       asigKey: asigFinal,
       asigLabel: asigLabel,
-      user: u.user || defU.user || defUser,
+      user: u.user || '',
       pass: u.pass || defU.pass || defPass,
       comision: (u.comision !== undefined) ? (u.comision === true || String(u.comision).toUpperCase() === 'SI' || u.comision === 'true') : defU.comision
     };
@@ -3016,7 +2994,7 @@ function cargarDocentesUnificados() {
           <td style="padding:4px 6px">
             <div style="display:flex;gap:4px">
               <input type="text" class="doc-input-cred doc-user-inp doc-input-compact" placeholder="Usuario" value="${escapeHTML(doc.user)}" oninput="autoGuardarCredencialDocente(this)" onchange="autoGuardarCredencialDocente(this)" />
-              <input type="${contrasenasDocentesVisibles ? 'text' : 'password'}" class="doc-input-cred doc-pass-inp doc-input-compact" placeholder="Clave" value="${escapeHTML(doc.pass)}" oninput="autoGuardarCredencialDocente(this)" onchange="autoGuardarCredencialDocente(this)" />
+              <input type="${contrasenasDocentesVisibles ? 'text' : 'password'}" class="doc-input-cred doc-pass-inp doc-input-compact" placeholder="Nueva contraseña (opcional)" value="${escapeHTML(doc.pass)}" oninput="autoGuardarCredencialDocente(this)" onchange="autoGuardarCredencialDocente(this)" />
             </div>
           </td>
           <td style="text-align:center;padding:4px 6px">
@@ -3306,7 +3284,7 @@ async function guardarDocentesUnificados() {
     const finalPass = passVal || prevPass || defPass;
 
     nuevoUsuariosMap[docKey] = {
-      user: userVal || viejoUsuariosMap[docKey]?.user || defUser,
+      user: userVal || viejoUsuariosMap[docKey]?.user || '',
       pass: finalPass,
       comision: esComision,
       asigKey: asigKey,
@@ -3337,24 +3315,15 @@ async function guardarDocentesUnificados() {
   mostrarMsg('msg-docentes-unificados', 'Guardando y sincronizando docentes en el sistema...', 'success');
 
   // Enviar paquete completo en una sola transacción atómica a el sistema
-  const exito1 = await enviarGoogleSheet({
-    action: 'guardar-docentes-completo',
-    docentes: nuevoDocentesMap,
-    carreras: areas,
-    usuarios: nuevoUsuariosMap
-  });
-
-  // Envíos individuales complementarios para máxima compatibilidad con cualquier versión del script
-  await enviarGoogleSheet({ action: 'guardar-docentes', docentes: nuevoDocentesMap });
-  await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
-  await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: nuevoUsuariosMap });
-
-  if (exito1) {
-    mostrarMsg('msg-docentes-unificados', '¡Docentes, usuarios, contraseñas y asignaciones guardados y sincronizados con éxito!', 'success');
-    mostrarToastLive('Docentes, asignaciones y claves sincronizados correctamente.');
-  } else {
-    mostrarMsg('msg-docentes-unificados', '¡Docentes y credenciales guardados correctamente!', 'success');
-    mostrarToastLive('Docentes y credenciales guardados en el sistema.');
+  try {
+    const respuesta = await enviarGoogleSheet({action:'guardar-docentes-completo', docentes:nuevoDocentesMap, carreras:areas, usuarios:nuevoUsuariosMap});
+    if (respuesta?.status !== 'success') throw new Error('No se pudo confirmar el guardado.');
+    await refrescarCredencialesDocentesDesdeServidor();
+    mostrarMsg('msg-docentes-unificados', 'Docentes y credenciales guardados correctamente.', 'success');
+    return true;
+  } catch (error) {
+    mostrarMsg('msg-docentes-unificados', 'No se guardaron los cambios. ' + error.message, 'error');
+    return false;
   }
 }
 
@@ -14510,14 +14479,20 @@ async function guardarUsuarios() {
     const uInp = document.getElementById('usr-' + k);
     const pInp = document.getElementById('pwd-' + k);
     if (uInp && pInp) {
-      usuarios[k] = { user: uInp.value.trim(), pass: pInp.value.trim() };
+      usuarios[k] = { ...usuarios[k], user: uInp.value.trim(), pass: pInp.value.trim() };
     }
   });
   lsSet('cea_usuarios_docentes', usuarios);
 
   mostrarMsg('msg-usuarios', 'Guardando...', 'success');
-  await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios });
-  mostrarMsg('msg-usuarios', '¡Guardado exitosamente!', 'success');
+  try {
+    const respuesta = await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios });
+    if (respuesta?.status !== 'success') throw new Error('No se pudo confirmar el guardado.');
+    await refrescarCredencialesDocentesDesdeServidor();
+    mostrarMsg('msg-usuarios', 'Credenciales guardadas correctamente.', 'success');
+  } catch (error) {
+    mostrarMsg('msg-usuarios', 'No se guardaron los cambios. ' + error.message, 'error');
+  }
 }
 
 /* ─── ACTUALIZAR NIVELES Y FORMULARIOS ─── */
@@ -27227,16 +27202,13 @@ async function refrescarCredencialesDocentesDesdeServidor(tokenOverride) {
       token: token
     });
     if (res && res.status === 'success' && res.usuarios) {
-      const local = lsGet('cea_usuarios_docentes', USUARIOS_DOCENTES_DEFAULT);
-      const merged = { ...local };
-      Object.keys(res.usuarios).forEach(k => {
-        merged[k] = {
-          user: res.usuarios[k].user || merged[k]?.user || USUARIOS_DOCENTES_DEFAULT[k]?.user || '',
-          pass: '',
-          comision: (res.usuarios[k].comision !== undefined) ? res.usuarios[k].comision : (merged[k]?.comision || false)
-        };
+      if (getSessionToken() !== token) return;
+      const usuarios = {};
+      Object.entries(res.usuarios).forEach(([key, item]) => {
+        usuarios[key] = {user: String(item.user || '').trim(), pass: '', asigKey: item.asigKey || key,
+          comision: item.comision === true || /^(SI|TRUE)$/i.test(String(item.comision))};
       });
-      lsSet('cea_usuarios_docentes', merged);
+      lsSet('cea_usuarios_docentes', usuarios);
       cargarDocentesUnificados();
     }
   } catch (err) {

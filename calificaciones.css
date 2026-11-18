@@ -4975,6 +4975,49 @@ tr.estudiante-fila-seleccionada {
   #docente-stage-content :is(h3, h4) { min-width: 0; overflow-wrap: anywhere; }
   #docente-stage-content :is(img, video) { max-width: 100%; }
 }
+
+/* En teléfonos el docente desplaza el documento, sin contenedores fijos anidados. */
+@media screen and (max-width: 900px) {
+  html:has(body.docente-logged-in.docente-panel-active:not(.printing-kardex)),
+  body.docente-logged-in.docente-panel-active:not(.printing-kardex) {
+    overflow-y: auto !important;
+    overflow-x: clip !important;
+    height: auto !important;
+    max-height: none !important;
+    touch-action: auto;
+  }
+  body.docente-panel-active:not(.printing-kardex) #admin:has(#docente-panel:not([style*="none"])),
+  body.docente-panel-active:not(.printing-kardex) #admin:has(#docente-panel:not([style*="none"])) > .container {
+    position: relative !important;
+    inset: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  body.docente-logged-in.docente-panel-active:not(.printing-kardex) :is(#admin, #admin > .container, #docente-panel, #docente-calificaciones-slot, .docente-desktop-layout, #docente-main-stage, #docente-stage-content) {
+    position: relative !important;
+    inset: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: 0 0 auto !important;
+  }
+  body.docente-panel-active #docente-panel,
+  body.docente-panel-active #docente-calificaciones-slot,
+  body.docente-panel-active .docente-desktop-layout {
+    display: block !important;
+    width: 100% !important;
+  }
+  body.docente-panel-active #docente-panel > #docente-calificaciones-slot { overflow: visible !important; }
+  body.docente-panel-active #docente-stage-topbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 200;
+  }
+  body.docente-panel-active #docente-stage-content { padding-bottom: max(32px, env(safe-area-inset-bottom)) !important; }
+}
 @media (prefers-reduced-motion: reduce) {
   .btn-calif-borrar-todo[aria-busy="true"]::before { animation: none; }
 }

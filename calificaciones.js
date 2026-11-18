@@ -5555,6 +5555,8 @@
       const input = e.target.closest('input') || e.target.closest('tbody tr')?.querySelector('.calif-input-nota:not([disabled]):not([readonly])');
       if (input && input.classList.contains('calif-input-nota')) {
         input.focus();
+        tabla.querySelectorAll('tbody tr.row-eval-active').forEach(row => row.classList.remove('row-eval-active'));
+        input.closest('tr')?.classList.add('row-eval-active');
         setTimeout(() => {
           try { input.select(); } catch(_) {}
         }, 10);

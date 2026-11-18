@@ -3709,7 +3709,7 @@ function doPost(e) {
     if (data.action === 'obtener-usuarios-docentes-admin') {
       const sheet = ss.getSheetByName('Usuarios_Docentes');
       const usuarios = {};
-      if (sheet) sheet.getDataRange().getValues().slice(1).forEach(row => { usuarios[row[0]] = {user: row[1], pass: '', comision: String(row[3]).toUpperCase() === 'SI'}; });
+      if (sheet) sheet.getDataRange().getDisplayValues().slice(1).forEach(row => { usuarios[String(row[0]).trim()] = {user: String(row[1]).trim(), pass: '', asigKey: String(row[4] || row[0]).trim(), comision: /^(SI|TRUE)$/i.test(String(row[3]).trim())}; });
       return responseJSON({status: 'success', usuarios: usuarios});
     }
     // Reintentos con el mismo identificador no vuelven a insertar formularios.
