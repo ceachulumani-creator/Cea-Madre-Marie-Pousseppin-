@@ -23,9 +23,9 @@ function responseJSON(data) {
 // ─── FUNCIONES DE SEGURIDAD (TOKEN, SANITIZACIÓN Y RATE LIMIT) ───
 
 
-function generarTokenSeguro(usuario, rol, areaKey, version) {
+function generarTokenSeguro(usuario, rol, areaKey, version, cuentaKey) {
   const ts = new Date().getTime();
-  const raw = JSON.stringify({ u: String(usuario), r: String(rol), t: ts, areaKey: areaKey || '', v: version || '' });
+  const raw = JSON.stringify({ u: String(usuario), r: String(rol), t: ts, areaKey: areaKey || '', v: version || '', cuentaKey: cuentaKey || areaKey || '' });
   const payload = Utilities.base64Encode(raw);
   const sig = Utilities.base64Encode(Utilities.computeHmacSha256Signature(payload, secretoCEA()));
   return payload + "." + sig;
@@ -83,7 +83,7 @@ function sincronizarUsuariosDocentesSheet(ss, usuariosObj) {
     sheetU.appendRow(["AreaKey", "Usuario", "Contrasena", "Comision"]);
     aplicarEstiloEncabezado(sheetU, 4);
   } else {
-    dataU = sheetU.getDataRange().getValues();
+    dataU = sheetU.getDataRange().getDisplayValues();
   }
 
   const mapaExistente = {};
@@ -113,10 +113,11 @@ function sincronizarUsuariosDocentesSheet(ss, usuariosObj) {
 
     if (mapaExistente[key]) {
       if (newUser) sheetU.getRange(mapaExistente[key].row, 2).setValue(newUser);
-      if (newPass) sheetU.getRange(mapaExistente[key].row, 3).setValue(newPass);
+      if (String(item.pass || '').trim()) sheetU.getRange(mapaExistente[key].row, 3).setValue(newPass);
       sheetU.getRange(mapaExistente[key].row, 4).setValue(comVal);
+      if (item.asigKey) sheetU.getRange(mapaExistente[key].row, 5).setValue(String(item.asigKey).trim());
     } else {
-      sheetU.appendRow([key, newUser, newPass, comVal]);
+      sheetU.appendRow([key, newUser, newPass, comVal, String(item.asigKey || key).trim()]);
     }
   }
 }
@@ -354,7 +355,7 @@ function leerDatosCEA(auth) {
     const usuariosDocentesObj = {};
     const sheetUsuarios = ss.getSheetByName("Usuarios_Docentes");
     if (sheetUsuarios) {
-      const dataUsuarios = sheetUsuarios.getDataRange().getValues();
+      const dataUsuarios = sheetUsuarios.getDataRange().getDisplayValues();
       for (let i = 1; i < dataUsuarios.length; i++) {
         const key = String(dataUsuarios[i][0] || '').trim();
         const user = String(dataUsuarios[i][1] || '').trim();
@@ -365,7 +366,8 @@ function leerDatosCEA(auth) {
           usuariosDocentesObj[key] = { 
             user: user || "",
             pass: '',
-            comision: esComision
+            comision: esComision,
+            asigKey: String(dataUsuarios[i][4] || key).trim()
           };
         }
       }
@@ -3385,8 +3387,9 @@ function codificarClaveCEA(password) {
 }
 
 function comprobarClaveCEA(password, stored) {
-  if (!password || !stored) return false;
-  if (!String(stored).startsWith('cea$')) return String(password) === String(stored);
+  if (password == null || stored == null) return false;
+  stored = String(stored).trim();
+  if (!String(stored).startsWith('cea$')) return String(password).trim() === stored;
   const parts = String(stored).split('$');
   return parts.length === 3 && parts[2] === Utilities.base64Encode(Utilities.computeHmacSha256Signature(parts[1] + ':' + password, secretoCEA()));
 }
@@ -3421,56 +3424,75 @@ function datosPeticionCEA(e) {
   return data;
 }
 
+function areaCuentaDocenteCEA(ss, row) {
+  const key = String(row[0]).trim();
+  if (row[4]) return areaCanonicaCEA(row[4]);
+  const texts = ss.getSheetByName('Director_y_Textos');
+  const config = texts && texts.getDataRange().getValues().find(item => item[0] === 'config_global_cea_json');
+  try {
+    const asignaciones = config && JSON.parse(config[1]).cea_docentes_asignaciones;
+    if (asignaciones && asignaciones[key] && asignaciones[key].asigKey) return areaCanonicaCEA(asignaciones[key].asigKey);
+  } catch (error) {}
+  return areaCanonicaCEA(key);
+}
+
+function usuarioCanonicoCEA(value) {
+  return String(value == null ? '' : value).normalize('NFC').trim().toLowerCase();
+}
+
 function sesionCEA(token) {
   const auth = validarTokenSeguro(token);
   exigirCEA(auth, 'La sesión venció. Ingresa nuevamente.', 'SESION');
   const ss = obtenerSpreadsheetPrincipal();
   if (auth.r === 'director') {
     const sheet = ss.getSheetByName('Director_y_Textos');
-    const values = sheet ? sheet.getDataRange().getValues() : [];
+    const values = sheet ? sheet.getDataRange().getDisplayValues() : [];
     const user = values.find(row => row[0] === 'director_usuario');
     const pass = values.find(row => row[0] === 'director_contrasena');
-    exigirCEA(user && pass && String(user[1]).toLowerCase() === auth.u && auth.v === hashCEA(pass[1]), 'La cuenta cambió. Ingresa nuevamente.', 'SESION');
+    exigirCEA(user && pass && usuarioCanonicoCEA(user[1]) === auth.u && auth.v === hashCEA(pass[1]), 'La cuenta cambió. Ingresa nuevamente.', 'SESION');
   } else {
     const sheet = ss.getSheetByName('Usuarios_Docentes');
-    const rows = sheet ? sheet.getDataRange().getValues() : [];
-    const row = rows.slice(1).find(item => String(item[1]).toLowerCase() === auth.u && String(item[0]) === auth.areaKey);
+    const rows = sheet ? sheet.getDataRange().getDisplayValues() : [];
+    const row = rows.slice(1).find(item => usuarioCanonicoCEA(item[1]) === auth.u && String(item[0]).trim() === (auth.cuentaKey || auth.areaKey) && hashCEA(item[2]) === auth.v);
     exigirCEA(row && auth.v === hashCEA(row[2]), 'La cuenta cambió. Ingresa nuevamente.', 'SESION');
-    auth.comision = String(row[3]).toUpperCase() === 'SI' || row[3] === true;
+    exigirCEA(areaCuentaDocenteCEA(ss, row) === auth.areaKey, 'La asignación cambió. Ingresa nuevamente.', 'SESION');
+    auth.comision = /^(SI|TRUE)$/i.test(String(row[3]).trim());
   }
   return auth;
 }
 
 function iniciarSesionCEA(ss, data) {
-  const user = String(data.user || '').trim().toLowerCase();
+  const user = usuarioCanonicoCEA(data.user);
   const password = String(data.pass || '').trim();
   exigirCEA(user && password, 'Ingresa usuario y contraseña.');
   exigirCEA(verificarRateLimit('login_' + user, 5, 60), 'Espera un minuto antes de intentar nuevamente.');
   const texts = ss.getSheetByName('Director_y_Textos');
-  const values = texts ? texts.getDataRange().getValues() : [];
+  const values = texts ? texts.getDataRange().getDisplayValues() : [];
   const userRow = values.findIndex(row => row[0] === 'director_usuario');
   const passRow = values.findIndex(row => row[0] === 'director_contrasena');
-  if (userRow >= 0 && passRow >= 0 && String(values[userRow][1]).toLowerCase() === user && comprobarClaveCEA(password, values[passRow][1])) {
+  if (userRow >= 0 && passRow >= 0 && usuarioCanonicoCEA(values[userRow][1]) === user && comprobarClaveCEA(password, values[passRow][1])) {
     let stored = String(values[passRow][1]);
     if (!stored.startsWith('cea$')) {
       stored = codificarClaveCEA(password);
       texts.getRange(passRow + 1, 2).setValue(stored);
     }
+    CacheService.getScriptCache().put('login_' + user, '0', 60);
     return {status: 'success', role: 'director', user: user, name: 'Dirección', token: generarTokenSeguro(user, 'director', '', hashCEA(stored))};
   }
   const users = ss.getSheetByName('Usuarios_Docentes');
-  const rows = users ? users.getDataRange().getValues() : [];
+  const rows = users ? users.getDataRange().getDisplayValues() : [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    if (String(row[1]).trim().toLowerCase() !== user || !comprobarClaveCEA(password, row[2])) continue;
+    if (usuarioCanonicoCEA(row[1]) !== user || !comprobarClaveCEA(password, row[2])) continue;
     let stored = String(row[2]);
     if (!stored.startsWith('cea$')) {
       stored = codificarClaveCEA(password);
       users.getRange(i + 1, 3).setValue(stored);
     }
+    CacheService.getScriptCache().put('login_' + user, '0', 60);
     const teachers = ss.getSheetByName('Docentes');
-    const teacher = teachers && teachers.getDataRange().getValues().find(item => String(item[0]) === String(row[0]));
-    return {status: 'success', role: 'docente', user: user, areaKey: String(row[0]), name: teacher ? teacher[1] : user, comision: String(row[3]).toUpperCase() === 'SI', token: generarTokenSeguro(user, 'docente', String(row[0]), hashCEA(stored))};
+    const teacher = teachers && teachers.getDataRange().getValues().find(item => String(item[0]) === String(row[0]).trim());
+    return {status: 'success', role: 'docente', user: user, areaKey: areaCuentaDocenteCEA(ss, row), name: teacher ? teacher[1] : user, comision: String(row[3]).toUpperCase() === 'SI', token: generarTokenSeguro(user, 'docente', areaCuentaDocenteCEA(ss, row), hashCEA(stored), String(row[0]).trim())};
   }
   throw new Error('Usuario o contraseña incorrectos.');
 }
@@ -3516,7 +3538,7 @@ function filtrarDatosCEA(data, auth) {
     delete data.inscripciones;
     const ownKardex = data.kardexDocentes[auth.areaKey];
     data.kardexDocentes = ownKardex ? {[auth.areaKey]: ownKardex} : {};
-    data.usuariosDocentes = {[auth.areaKey]: data.usuariosDocentes[auth.areaKey] || {user: auth.u, pass: '', comision: auth.comision}};
+    data.usuariosDocentes = {[auth.areaKey]: data.usuariosDocentes[auth.cuentaKey || auth.areaKey] || {user: auth.u, pass: '', comision: auth.comision}};
     Object.keys(data.controlSubidaCentralizadores).forEach(key => {
       if (!permisoAreaCEA(auth, data.controlSubidaCentralizadores[key].carreraKey, false)) delete data.controlSubidaCentralizadores[key];
     });
@@ -3814,9 +3836,10 @@ function cambiarClaveCEA(ss, data, auth) {
   const userIndex = values.findIndex(row => row[0] === 'director_usuario');
   const passIndex = values.findIndex(row => row[0] === 'director_contrasena');
   const area = director ? '' : String(data.areaKey || '');
+  const cuenta = auth.r === 'docente' ? (auth.cuentaKey || auth.areaKey) : area;
   exigirCEA(director ? auth.r === 'director' : permisoAreaCEA(auth, area, false), 'No puedes cambiar esta cuenta.', 'PERMISO');
-  exigirCEA(!rows.slice(1).some(row => String(row[1]).toLowerCase() === user && (director || String(row[0]) !== area)), 'Ese nombre de usuario ya existe.');
-  if (!director) exigirCEA(userIndex < 0 || String(values[userIndex][1]).toLowerCase() !== user, 'Ese nombre de usuario ya existe.');
+  exigirCEA(!rows.slice(1).some(row => usuarioCanonicoCEA(row[1]) === user && (director || String(row[0]) !== cuenta)), 'Ese nombre de usuario ya existe.');
+  if (!director) exigirCEA(userIndex < 0 || usuarioCanonicoCEA(values[userIndex][1]) !== user, 'Ese nombre de usuario ya existe.');
   const stored = codificarClaveCEA(password);
   if (director) {
     exigirCEA(passIndex >= 0 && comprobarClaveCEA(data.passActual, values[passIndex][1]), 'La contraseña actual es incorrecta.');
@@ -3824,14 +3847,14 @@ function cambiarClaveCEA(ss, data, auth) {
     values[passIndex][1] = stored;
     escribirTablaCEA(ss, 'Director_y_Textos', values);
   } else {
-    const index = rows.findIndex((row, i) => i > 0 && String(row[0]) === area);
+    const index = rows.findIndex((row, i) => i > 0 && String(row[0]) === cuenta);
     exigirCEA(index > 0, 'La cuenta docente no existe.');
     exigirCEA(auth.r === 'director' || comprobarClaveCEA(data.passActual, rows[index][2]), 'La contraseña actual es incorrecta.');
     rows[index][1] = user;
     rows[index][2] = stored;
     escribirTablaCEA(ss, 'Usuarios_Docentes', rows);
   }
-  return {status: 'success', user: user, token: generarTokenSeguro(user, director ? 'director' : 'docente', area, hashCEA(stored))};
+  return {status: 'success', user: user, token: generarTokenSeguro(user, director ? 'director' : 'docente', area, hashCEA(stored), cuenta)};
 }
 
 function estadoInscripcionCEA(fila) {

@@ -1349,11 +1349,12 @@ async function aplicarDatosGoogleSheets(data) {
         const remoteUser = data.usuariosDocentes[k].user;
         const remotePass = data.usuariosDocentes[k].pass;
         const remoteComision = data.usuariosDocentes[k].comision;
-        const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[k]?.pass) || ('cea.' + k.replace('tec-', '').replace('hum-', ''));
+        const defPass = ''; 
         merged[k] = {
           ...(merged[k] || {}),
+          asigKey: data.usuariosDocentes[k].asigKey || merged[k]?.asigKey || k,
           user: (!haEditadoRecientemente && remoteUser !== undefined && remoteUser !== '') ? remoteUser : (merged[k]?.user || remoteUser || ('profe.' + k.replace('tec-', '').replace('hum-', ''))),
-          pass: (!haEditadoRecientemente && remotePass !== undefined && remotePass !== '') ? remotePass : (merged[k]?.pass || remotePass || defPass),
+          pass: '',
           comision: (!haEditadoRecientemente && remoteComision !== undefined) ? (remoteComision === true || String(remoteComision).toUpperCase() === 'SI') : (merged[k]?.comision || false)
         };
       });
@@ -2525,7 +2526,7 @@ function toggleMostrarContrasenasDocentes(forzarEstado, ev) {
     if (!i.value || i.value.trim() === '') {
       const card = i.closest('.docente-admin-card') || i.closest('.fila-docente-unificado') || i.closest('tr');
       const key = card?.dataset?.key || card?.querySelector('.doc-select-carrera')?.value;
-      const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && key && USUARIOS_DOCENTES_DEFAULT[key]?.pass) || (key ? ('cea.' + key.replace('tec-', '').replace('hum-', '')) : 'cea123');
+      const defPass = ''; 
       if (key && usuariosDocMap[key]?.pass) {
         i.value = usuariosDocMap[key].pass;
       } else if (defPass) {
@@ -2833,7 +2834,7 @@ function renderDocenteCardAdmin(doc, idx, areaTipo) {
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           Contraseña:
         </span>
-        <input type="${contrasenasDocentesVisibles ? 'text' : 'password'}" class="doc-input-cred doc-pass-inp" placeholder="Contraseña de acceso" value="${escapeHTML(doc.pass)}" style="flex:1;box-sizing:border-box;padding:6px 10px;font-size:0.84rem;font-family:monospace;font-weight:700;border:1.5px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);outline:none" title="Contraseña del docente (guarda automáticamente al escribir)" oninput="autoGuardarCredencialDocente(this)" onchange="autoGuardarCredencialDocente(this)" />
+        <input type="${contrasenasDocentesVisibles ? 'text' : 'password'}" class="doc-input-cred doc-pass-inp" placeholder="Nueva contraseña (opcional)" value="${escapeHTML(doc.pass)}" style="flex:1;box-sizing:border-box;padding:6px 10px;font-size:0.84rem;font-family:monospace;font-weight:700;border:1.5px solid var(--border-col);border-radius:6px;background:var(--bg-card);color:var(--text-main);outline:none" title="Contraseña del docente (guarda automáticamente al escribir)" oninput="autoGuardarCredencialDocente(this)" onchange="autoGuardarCredencialDocente(this)" />
       </div>
     </div>
   `;
@@ -2867,7 +2868,7 @@ function cargarDocentesUnificados() {
     const areaFinal = asig.area || u.area || areaTipo || (asigFinal.startsWith('hum') ? 'hum' : 'tec');
     const nom = (d && d[docKey] !== undefined) ? d[docKey] : (asig.nombre || nombreDef || '');
 
-    const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[docKey]?.pass) || ('cea.' + String(docKey).replace(/^(tec-|hum-|doc-)/, '').slice(-4));
+    const defPass = ''; 
     const defUser = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[docKey]?.user) || ('profe.' + String(docKey).replace(/^(tec-|hum-|doc-)/, '').slice(-6));
     const defU = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[docKey])
       ? USUARIOS_DOCENTES_DEFAULT[docKey]
@@ -20831,9 +20832,14 @@ async function restaurarSesion() {
 }
 
 function adminLogout() {
+  localStorage.removeItem('cea_session');
+  window.cerrarAcademicMobileDrawer?.();
+  cerrarModalCarrera();
+  cerrarModalEditarActividad();
+  document.querySelectorAll('dialog[open]').forEach(dialogo => dialogo.close());
   window.restaurarHorarioPublico?.();
   try { document.documentElement.style.scrollBehavior = ''; } catch(e) {}
-  document.body.classList.remove('admin-logged-in', 'docente-logged-in', 'admin-panel-active', 'docente-panel-active', 'public-view-active');
+  document.body.classList.remove('admin-logged-in', 'docente-logged-in', 'admin-panel-active', 'docente-panel-active', 'public-view-active', 'modo-director', 'modo-comision');
   document.body.style.overflow = '';
   document.documentElement.style.overflow = '';
   ceaPersistencia.clearPrivate();
@@ -20841,6 +20847,9 @@ function adminLogout() {
   localStorage.removeItem('cea_director_creds');
   window.modoEdicionHorarioActivo = false;
   elementoEditandoActivo = null;
+  estadoLapicesDirectosVisibles = false;
+  document.querySelectorAll('[contenteditable="true"]').forEach(el => { el.contentEditable = 'false'; el.classList.remove('editable-in-place-active'); });
+  document.querySelectorAll('.galeria-edit-btn, .galeria-del-btn, .btn-doc-del, .btn-photo-action, .btn-sede-del').forEach(el => el.remove());
 
   const liveBar = document.getElementById('directorLiveBar');
   if (liveBar) liveBar.style.display = 'none';

@@ -5192,68 +5192,68 @@
 
         ${esTecnica ? `
           <td class="td-center">
-            <input type="number" min="0" max="10" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="10" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="ser" data-idx="${i}" value="${mostrarNotaCalif(d.ser, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'ser')" />
           </td>
           <td class="td-center">
-            <input type="number" min="0" max="30" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="30" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="saber" data-idx="${i}" value="${mostrarNotaCalif(d.saber, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'saber')" />
           </td>
           <td class="td-center">
-            <input type="number" min="0" max="10" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="10" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="decidir" data-idx="${i}" value="${mostrarNotaCalif(d.decidir, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'decidir')" />
           </td>
           <td class="td-center">
-            <input type="number" min="0" max="20" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="20" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="proceso" data-idx="${i}" value="${mostrarNotaCalif(d.proceso, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'proceso')" />
           </td>
           <td class="td-center">
-            <input type="number" min="0" max="20" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="20" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="producto" data-idx="${i}" value="${mostrarNotaCalif(d.producto, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'producto')" />
           </td>
           <td class="td-center">
-            <input type="number" min="0" max="10" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="10" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="autoevaluacion" data-idx="${i}" value="${mostrarNotaCalif(d.autoevaluacion, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'autoevaluacion')" />
           </td>
         ` : `
           <td class="td-center">
-            <input type="number" min="0" max="10" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="10" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="ser" data-idx="${i}" value="${mostrarNotaCalif(d.ser, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'ser')" />
           </td>
           <td class="td-center">
-            <input type="number" min="0" max="40" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="40" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="saber" data-idx="${i}" value="${mostrarNotaCalif(d.saber, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'saber')" />
           </td>
           <td class="td-center">
-            <input type="number" min="0" max="30" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="30" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="hacer" data-idx="${i}" value="${mostrarNotaCalif(mostrarHacerCalif(d), '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'hacer')" />
           </td>
           <td class="td-center">
-            <input type="number" min="0" max="10" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="10" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="decidir" data-idx="${i}" value="${mostrarNotaCalif(d.decidir, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'decidir')" />
           </td>
           <td class="td-center">
-            <input type="number" min="0" max="10" step="1" class="calif-input-nota" placeholder="-" 
+            <input type="number" min="0" max="10" step="1" class="calif-input-nota" inputmode="numeric" enterkeyhint="next" placeholder="-" 
               data-col="autoevaluacion" data-idx="${i}" value="${mostrarNotaCalif(d.autoevaluacion, '')}" 
               onfocus="this.select()" onclick="this.select()"
               ${!puedeEditar ? 'readonly disabled' : ''} oninput="window.alCambiarNota(this, ${i}, 'autoevaluacion')" />
@@ -5405,7 +5405,102 @@
     if (!guardadosEnCursoCalif.has(registro)) mostrarProgresoGuardadoCalif(registro, 'pendiente', 0);
   }
 
+  function prepararEditorNotasMovil(tabla) {
+    if (!tabla) return;
+    const wrap = tabla.closest('.calif-table-responsive');
+    if (!wrap || wrap.previousElementSibling?.classList.contains('calif-mobile-grades')) return;
+    const rows = [...tabla.querySelectorAll('tbody tr')].filter(row => row.querySelector('.calif-input-nota'));
+    if (!rows.length) return;
+    const panel = document.createElement('section');
+    panel.className = 'calif-mobile-grades';
+    panel.innerHTML = `<button type="button" class="btn-calif btn-calif-secondary calif-mobile-toggle" aria-expanded="false">Llenar por estudiante</button><div class="calif-mobile-editor" hidden><label>Estudiante<select aria-label="Estudiante para llenar notas"></select></label><div class="calif-mobile-fields"></div><p class="calif-mobile-result" aria-live="polite"></p><div class="calif-mobile-students"><button type="button" class="btn-calif btn-calif-secondary" data-step="-1">Anterior</button><button type="button" class="btn-calif btn-calif-secondary" data-step="1">Siguiente estudiante</button></div><p>Los cambios se confirman con Guardar, en la barra superior.</p></div>`;
+    const select = panel.querySelector('select');
+    rows.forEach((row, idx) => {
+      const name = [...row.querySelectorAll('.td-text')].map(cell => cell.textContent.trim()).join(' ');
+      select.add(new Option((idx + 1) + '. ' + name, String(idx)));
+    });
+    const labels = {ser:'Ser', saber:'Saber', hacer:'Hacer', decidir:'Decidir', proceso:'Proceso', producto:'Producto', autoevaluacion:'Autoevaluación'};
+    const fields = panel.querySelector('.calif-mobile-fields');
+    const summary = panel.querySelector('.calif-mobile-result');
+    const updateSummary = () => {
+      const row = rows[Number(select.value)];
+      summary.textContent = 'Nota final: ' + row.querySelector('.calif-cell-total').textContent.trim() + ' · ' + (row.querySelector('.calif-badge-obs')?.textContent.trim() || '');
+    };
+    const render = () => {
+      const row = rows[Number(select.value)];
+      fields.replaceChildren();
+      [...row.querySelectorAll('.calif-input-nota')].forEach(original => {
+        const label = document.createElement('label');
+        label.textContent = (labels[original.dataset.col] || original.dataset.col) + ' / ' + original.max;
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = original.min;
+        input.max = original.max;
+        input.step = original.step;
+        input.inputMode = 'numeric';
+        input.enterKeyHint = 'next';
+        input.value = original.value;
+        input.placeholder = '–';
+        input.disabled = original.disabled;
+        input.readOnly = original.readOnly;
+        input.dataset.campo = original.dataset.col;
+        input.addEventListener('focus', () => input.select());
+        input.addEventListener('input', () => {
+          original.value = input.value;
+          original.dispatchEvent(new Event('input', {bubbles:true}));
+          input.setAttribute('aria-invalid', String(original.classList.contains('nota-error')));
+          updateSummary();
+        });
+        input.addEventListener('keydown', event => {
+          if (event.key !== 'Enter') return;
+          event.preventDefault();
+          const inputs = [...fields.querySelectorAll('input:not(:disabled)')];
+          const next = inputs[inputs.indexOf(input) + 1];
+          if (next) next.focus();
+          else if (select.selectedIndex < rows.length - 1) { select.selectedIndex++; render(); fields.querySelector('input:not(:disabled)')?.focus(); }
+        });
+        label.appendChild(input);
+        fields.appendChild(label);
+      });
+      // La observación conserva el mismo control y las mismas reglas de la planilla.
+      const observation = row.querySelector('.calif-obs-trigger');
+      if (observation) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn-calif btn-calif-secondary';
+        button.textContent = 'Cambiar observación';
+        button.onclick = () => {
+          panel.querySelector('.calif-mobile-toggle').click();
+          observation.scrollIntoView({block:'center', inline:'center'});
+          observation.click();
+        };
+        fields.appendChild(button);
+      }
+      panel.querySelector('[data-step="-1"]').disabled = select.selectedIndex === 0;
+      panel.querySelector('[data-step="1"]').disabled = select.selectedIndex === rows.length - 1;
+      updateSummary();
+    };
+    select.onchange = render;
+    panel.querySelectorAll('[data-step]').forEach(button => { button.onclick = () => { select.selectedIndex += Number(button.dataset.step); render(); }; });
+    panel.querySelector('.calif-mobile-toggle').onclick = event => {
+      const open = event.currentTarget.getAttribute('aria-expanded') !== 'true';
+      event.currentTarget.setAttribute('aria-expanded', String(open));
+      event.currentTarget.textContent = open ? 'Volver a la tabla' : 'Llenar por estudiante';
+      panel.querySelector('.calif-mobile-editor').hidden = !open;
+      wrap.classList.toggle('calif-mobile-table-hidden', open);
+      if (open) render();
+    };
+    wrap.before(panel);
+    const observer = new MutationObserver(() => {
+      if (panel.querySelector('.calif-mobile-editor').hidden) return;
+      if (!panel.contains(document.activeElement)) render();
+      else updateSummary();
+    });
+    observer.observe(tabla, {subtree:true, childList:true, characterData:true});
+  }
+
   function inicializarNavegacionTeclado(tabla, scroller) {
+    prepararEditorNotasMovil(tabla);
     if (!tabla || typeof tabla.addEventListener !== 'function') return;
 
     const asegurarFilaVisible = (inputEl) => {
@@ -6774,6 +6869,7 @@
     if (drawer) {
       drawer.classList.remove('activo');
       drawer.setAttribute('aria-hidden', 'true');
+      if (drawer._returnFocus?.isConnected) drawer._returnFocus.focus();
     }
     const aside = document.getElementById('admin-sidebar-nav') || document.querySelector('.docente-sidebar-nav');
     if (aside) aside.classList.remove('mobile-drawer-open');
@@ -6790,9 +6886,12 @@
   window.toggleAcademicMobileAccordion = toggleAcademicMobileAccordion;
 
   function abrirAcademicMobileDrawer() {
-    if (typeof cerrarMenuMovil === 'function') {
-      cerrarMenuMovil();
-    }
+    const session = typeof getSession === 'function' ? getSession() : null;
+    if (!session) return;
+    if (typeof cerrarMenuMovil === 'function') cerrarMenuMovil();
+    const docente = session.role === 'docente';
+    const source = docente ? document.querySelector('#docente-panel .docente-sidebar-nav') : document.getElementById('admin-sidebar-nav');
+    if (!source) return;
     let drawer = document.getElementById('academic-mobile-drawer');
     if (!drawer) {
       drawer = document.createElement('div');
@@ -6800,196 +6899,67 @@
       drawer.className = 'academic-mobile-drawer';
       document.body.appendChild(drawer);
     }
-
-    const sess = (typeof lsGet === 'function') ? lsGet('cea_session', null) : null;
-    const esDoc = (sess && sess.role === 'docente') || document.body.classList.contains('docente-logged-in');
-
-    const carrerasTec = (typeof obtenerAreasTecnicasConfig === 'function') ? obtenerAreasTecnicasConfig() : [
-      { key: 'tec-agropecuaria', nombre: 'Agropecuaria' },
-      { key: 'tec-sec', nombre: 'Secretariado Ejecutivo' },
-      { key: 'tec-tex', nombre: 'Textil y Confección' },
-      { key: 'tec-bel', nombre: 'Belleza Integral' },
-      { key: 'tec-gas', nombre: 'Gastronomía y Alimentación' },
-      { key: 'tec-sis', nombre: 'Sistemas Informáticos' }
-    ];
-
-    drawer.innerHTML = `
-      <div class="academic-drawer-backdrop" onclick="window.cerrarAcademicMobileDrawer()" title="Cerrar opciones"></div>
-      <aside class="academic-drawer-panel" role="dialog" aria-modal="true" aria-label="Menú Académico">
-        <div class="academic-drawer-header">
-          <div class="academic-drawer-brand">
-            <img src="logo.png" alt="CEA" class="academic-drawer-logo" onerror="this.style.display='none'">
-            <div>
-              <strong class="academic-drawer-title">CEA MADRE MARIE POUSSEPIN</strong>
-              <span class="academic-drawer-subtitle">${esDoc ? 'PANEL ACADÉMICO DOCENTE' : 'PANEL DEL DIRECTOR'}</span>
-            </div>
-          </div>
-          <button type="button" class="academic-drawer-close" onclick="window.cerrarAcademicMobileDrawer()" aria-label="Cerrar panel">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-
-        <div class="academic-drawer-body">
-          ${esDoc ? `
-            <!-- VISTA MÓVIL DOCENTE -->
-            <div class="academic-drawer-group-title">INICIO</div>
-            <div class="academic-drawer-list">
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.conmutarVistaDocenteSidebar('inicio')">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                <span class="academic-drawer-item-text">Inicio Docente</span>
-              </button>
-            </div>
-
-            <div class="academic-drawer-group-title">MIS CLASES Y CALIFICACIONES</div>
-            <div class="academic-drawer-list">
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.conmutarVistaDocenteSidebar('subir_notas')">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                <span class="academic-drawer-item-text">Llenar Notas / Registro</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.conmutarVistaDocenteSidebar('centralizador')">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <span class="academic-drawer-item-text">Boletín Centralizador</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.conmutarVistaDocenteSidebar('impresion_masiva')">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                <span class="academic-drawer-item-text">Imprimir Todos los Boletines</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.conmutarVistaDocenteSidebar('crear_paralelo')">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span class="academic-drawer-item-text">Crear Paralelo</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.conmutarVistaDocenteSidebar('afiliacion')">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
-                <span class="academic-drawer-item-text">Afiliación / Estudiantes</span>
-              </button>
-            </div>
-
-            <div class="academic-drawer-group-title">MI INFORMACIÓN</div>
-            <div class="academic-drawer-list">
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.conmutarVistaDocenteSidebar('perfil')">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <span class="academic-drawer-item-text">Perfil de la Especialidad</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.conmutarVistaDocenteSidebar('fotografia')">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                <span class="academic-drawer-item-text">Fotografía de la Especialidad</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.conmutarVistaDocenteSidebar('seguridad')">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span class="academic-drawer-item-text">Seguridad y Credenciales</span>
-              </button>
-            </div>
-
-            <div class="academic-drawer-group-title">SESIÓN</div>
-            <div class="academic-drawer-list">
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); if(typeof docenteLogout==='function') docenteLogout();" style="border-color:#fecaca;background:#fef2f2;color:#b91c1c">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                <span class="academic-drawer-item-text">Salir / Cerrar Sesión</span>
-              </button>
-            </div>
-          ` : `
-            <!-- VISTA MÓVIL DIRECTOR -->
-            <div class="academic-drawer-group-title">GESTIÓN ACADÉMICA</div>
-            <div class="academic-drawer-list">
-              <!-- ÁREA TÉCNICA -->
-              <div>
-                <button type="button" class="academic-drawer-item" onclick="window.toggleAcademicMobileAccordion('mob-accordion-tec')">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                  <span class="academic-drawer-item-text">Área Técnica (6 Carreras)</span>
-                  <svg class="academic-drawer-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="academic-drawer-sublist" id="mob-accordion-tec">
-                  <button type="button" class="academic-drawer-subitem" onclick="window.cerrarAcademicMobileDrawer(); window.navegarAreaTecnicaDirectorPrincipal(event)">
-                    <strong>Catálogo General de Carreras Técnicas</strong>
-                  </button>
-                  ${carrerasTec.map(c => `
-                    <button type="button" class="academic-drawer-subitem" onclick="window.cerrarAcademicMobileDrawer(); window.abrirCarreraDirector('${escapeHTML(c.key)}')">
-                      ${escapeHTML(c.nombre)}
-                    </button>
-                  `).join('')}
-                </div>
-              </div>
-
-              <!-- ÁREA HUMANÍSTICA -->
-              <div>
-                <button type="button" class="academic-drawer-item" onclick="window.toggleAcademicMobileAccordion('mob-accordion-hum')">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                  <span class="academic-drawer-item-text">Área Humanística (EPJA)</span>
-                  <svg class="academic-drawer-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="academic-drawer-sublist" id="mob-accordion-hum">
-                  <button type="button" class="academic-drawer-subitem" onclick="window.cerrarAcademicMobileDrawer(); window.navegarAreaHumanisticaDirectorPrincipal(event)">
-                    <strong>Catálogo de Cursos Humanísticos</strong>
-                  </button>
-                  <button type="button" class="academic-drawer-subitem" onclick="window.cerrarAcademicMobileDrawer(); window.abrirCarreraDirector('hum-cn')">
-                    Ciencias Naturales
-                  </button>
-                  <button type="button" class="academic-drawer-subitem" onclick="window.cerrarAcademicMobileDrawer(); window.abrirCarreraDirector('hum-mat')">
-                    Matemática y Estadística
-                  </button>
-                  <button type="button" class="academic-drawer-subitem" onclick="window.cerrarAcademicMobileDrawer(); window.abrirCarreraDirector('hum-cs')">
-                    Ciencias Sociales
-                  </button>
-                  <button type="button" class="academic-drawer-subitem" onclick="window.cerrarAcademicMobileDrawer(); window.abrirCarreraDirector('hum-len')">
-                    Lenguaje y Literatura
-                  </button>
-                </div>
-              </div>
-
-              <!-- AFILIACIÓN GENERAL -->
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.navegarAdminGlobal('calificaciones', 'afiliacion')">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
-                <span class="academic-drawer-item-text">Afiliación General 2026</span>
-              </button>
-
-              <!-- REVISAR NOTAS -->
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.navegarAdminGlobal('calificaciones', 'revisar_notas')">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                <span class="academic-drawer-item-text">Boletines</span>
-              </button>
-            </div>
-
-            <div class="academic-drawer-group-title">ADMINISTRACIÓN Y CONTROL</div>
-            <div class="academic-drawer-list">
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.navegarAdminGlobal('calificaciones', 'semestres')">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <span class="academic-drawer-item-text">Semestres</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.navegarAdminGlobal('calificaciones', 'bloqueos')">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span class="academic-drawer-item-text">Bloqueo de Calificaciones</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.navegarAdminGlobal('calificaciones', 'auditoria')">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-                <span class="academic-drawer-item-text">Historial de Modificaciones</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); window.navegarAdminGlobal('calificaciones', 'reportes')">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <span class="academic-drawer-item-text">Reportes Académicos</span>
-              </button>
-              <button type="button" class="academic-drawer-item" onclick="window.abrirHorarioDirector()">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                <span class="academic-drawer-item-text">Horario</span>
-              </button>
-            </div>
-
-            <div class="academic-drawer-group-title">SESIÓN</div>
-            <div class="academic-drawer-list">
-              <button type="button" class="academic-drawer-item" onclick="window.cerrarAcademicMobileDrawer(); if(typeof adminLogout==='function') adminLogout();" style="border-color:#fecaca;background:#fef2f2;color:#b91c1c">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                <span class="academic-drawer-item-text">Salir / Cerrar Sesión</span>
-              </button>
-            </div>
-          `}
-        </div>
-      </aside>
-    `;
-
+    drawer._returnFocus = document.activeElement;
+    drawer.innerHTML = `<div class="academic-drawer-backdrop" title="Cerrar opciones"></div>
+      <aside class="academic-drawer-panel" role="dialog" aria-modal="true" aria-label="Menú del ${docente ? 'docente' : 'director'}">
+        <div class="academic-drawer-header"><div class="academic-drawer-brand"><img src="logo.png" alt="CEA" class="academic-drawer-logo"><div><strong class="academic-drawer-title">CEA MADRE MARIE POUSSEPIN</strong><span class="academic-drawer-subtitle">${docente ? 'PANEL DOCENTE' : 'PANEL DEL DIRECTOR'}</span></div></div><button type="button" class="academic-drawer-close" aria-label="Cerrar menú">&times;</button></div>
+        <label class="academic-mobile-search">Buscar una opción<input type="search" placeholder="Notas, docentes, horarios…" aria-label="Buscar en el menú"></label>
+        <nav class="academic-drawer-body" aria-label="Opciones del panel"></nav>
+      </aside>`;
+    const body = drawer.querySelector('nav');
+    const selector = '.admin-sidebar-item, .admin-sidebar-subitem, .docente-sidebar-item, .docente-subitem-btn, .admin-sidebar-group-title, .docente-sidebar-group-title, .docente-sidebar-logout-box button, .admin-sidebar-logout-btn';
+    const actions = new Set();
+    source.querySelectorAll(selector).forEach(original => {
+      if (original.matches('button')) {
+        const action = original.getAttribute('onclick') || '';
+        if (!action || actions.has(action)) return;
+        actions.add(action);
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'academic-drawer-item';
+        item.dataset.sourceAction = action;
+        item.innerHTML = original.innerHTML;
+        if (original.matches('.active')) item.setAttribute('aria-current', 'page');
+        if (original.matches('.admin-sidebar-subitem, .docente-subitem-btn')) item.classList.add('academic-mobile-subitem');
+        item.addEventListener('click', () => {
+          cerrarAcademicMobileDrawer();
+          original.click();
+        });
+        body.appendChild(item);
+      } else {
+        const heading = document.createElement('div');
+        heading.className = 'academic-drawer-group-title';
+        heading.textContent = original.textContent;
+        body.appendChild(heading);
+      }
+    });
+    // El cierre de sesión siempre está disponible, incluso en diseños con un pie diferente.
+    if (![...actions].some(action => /Logout/.test(action))) {
+      const logout = document.createElement('button');
+      logout.type = 'button';
+      logout.className = 'academic-drawer-item';
+      logout.textContent = 'Cerrar sesión';
+      logout.onclick = () => { cerrarAcademicMobileDrawer(); adminLogout(); };
+      body.appendChild(logout);
+    }
+    drawer.querySelector('input').addEventListener('input', event => {
+      const normalize = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const query = normalize(event.target.value.trim());
+      body.querySelectorAll('button').forEach(button => { button.hidden = !normalize(button.textContent).includes(query); });
+    });
+    drawer.querySelector('.academic-drawer-close').onclick = cerrarAcademicMobileDrawer;
+    drawer.querySelector('.academic-drawer-backdrop').onclick = cerrarAcademicMobileDrawer;
+    drawer.onkeydown = event => {
+      if (event.key === 'Escape') cerrarAcademicMobileDrawer();
+      if (event.key !== 'Tab') return;
+      const items = [...drawer.querySelectorAll('button:not([hidden]), input')];
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
     drawer.classList.add('activo');
     drawer.setAttribute('aria-hidden', 'false');
-    if (typeof actualizarBadgesPapeleraUI === 'function') {
-      actualizarBadgesPapeleraUI();
-    }
+    drawer.querySelector('.academic-drawer-close').focus();
   }
 
   window.abrirAcademicMobileDrawer = abrirAcademicMobileDrawer;
