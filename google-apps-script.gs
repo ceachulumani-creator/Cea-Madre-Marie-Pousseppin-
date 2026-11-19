@@ -133,6 +133,84 @@ function claveVisibleDocenteCEA(row) {
   return visible && comprobarClaveCEA(visible, stored) ? visible : '';
 }
 
+function docentesEliminadosCEA(ss) {
+  const sheet = ss.getSheetByName('Docentes_Eliminados');
+  return new Set(sheet ? sheet.getDataRange().getValues().slice(1).map(row => String(row[0]).trim()).filter(Boolean) : []);
+}
+
+function depurarDocentesEliminadosCEA(ss, data) {
+  if (!data.docentes && !data.usuarios && !['guardar-contenido-vivo', 'guardar-textos'].includes(data.action)) return;
+  const eliminados = docentesEliminadosCEA(ss);
+  if (!eliminados.size) return;
+  ['docentes', 'usuarios'].forEach(campo => {
+    if (data[campo]) eliminados.forEach(key => delete data[campo][key]);
+  });
+  const contenido = data.action === 'guardar-contenido-vivo' && data.key === 'config_global_cea_json';
+  if (contenido || (data.action === 'guardar-textos' && data.config_global_cea_json)) {
+    const config = JSON.parse((contenido ? data.valor : data.config_global_cea_json) || '{}');
+    ['cea_docentes', 'cea_docentes_asignaciones', 'cea_usuarios_docentes'].forEach(campo => {
+      if (config[campo]) eliminados.forEach(key => delete config[campo][key]);
+    });
+    delete config.cea_docentes_eliminados;
+    if (contenido) { data.valor = JSON.stringify(config); data.htmlValor = data.valor; }
+    else data.config_global_cea_json = JSON.stringify(config);
+  }
+}
+
+function eliminarDocentePersistenteCEA(ss, codigo) {
+  const key = String(codigo || '').trim();
+  exigirCEA(key, 'Selecciona un docente válido.');
+  const sheetD = ss.getSheetByName('Docentes');
+  const sheetU = ss.getSheetByName('Usuarios_Docentes');
+  const docs = sheetD ? sheetD.getDataRange().getValues() : [];
+  const users = sheetU ? sheetU.getDataRange().getValues() : [];
+  const docente = docs.slice(1).find(row => String(row[0]).trim() === key);
+  const cuenta = users.slice(1).find(row => String(row[0]).trim() === key);
+  const nombre = docente ? String(docente[1] || '') : '';
+  const area = cuenta ? areaCuentaDocenteCEA(ss, cuenta) : key;
+  let restantesD = docs.filter((row, i) => i === 0 || String(row[0]).trim() !== key);
+  const restantesU = users.filter((row, i) => i === 0 || String(row[0]).trim() !== key);
+  const codigos = [key];
+  if (area !== key && !restantesU.slice(1).some(row => String(row[0]).trim() === area) && restantesD.slice(1).some(row => String(row[0]).trim() === area && String(row[1]) === nombre)) {
+    restantesD = restantesD.filter((row, i) => i === 0 || String(row[0]).trim() !== area);
+    codigos.push(area);
+  }
+  const otraCuenta = restantesU.slice(1).find(row => areaCuentaDocenteCEA(ss, row) === area);
+  const otroDocente = otraCuenta && restantesD.slice(1).find(row => String(row[0]).trim() === String(otraCuenta[0]).trim());
+  const reemplazo = otroDocente ? String(otroDocente[1] || '') : '';
+  if (sheetD) escribirTablaCEA(ss, 'Docentes', restantesD);
+  if (sheetU) escribirTablaCEA(ss, 'Usuarios_Docentes', restantesU);
+  const textos = ss.getSheetByName('Director_y_Textos');
+  if (textos) {
+    const rows = textos.getDataRange().getValues();
+    const index = rows.findIndex(row => row[0] === 'config_global_cea_json');
+    if (index >= 0) {
+      const config = JSON.parse(rows[index][1] || '{}');
+      ['cea_docentes', 'cea_docentes_asignaciones', 'cea_usuarios_docentes'].forEach(campo => { if (config[campo]) codigos.forEach(codigo => delete config[campo][codigo]); });
+      if (Array.isArray(config.cea_areas_tec)) config.cea_areas_tec.forEach(item => { if (item.key === area && (item.docente === nombre || item.docente === key)) item.docente = reemplazo; });
+      rows[index][1] = JSON.stringify(config);
+      escribirTablaCEA(ss, 'Director_y_Textos', rows);
+    }
+  }
+  ['Carreras_Tecnicas', 'Materias_Humanistica'].forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) return;
+    const rows = sheet.getDataRange().getValues();
+    rows.slice(1).forEach(row => {
+      const col = name === 'Carreras_Tecnicas' ? 2 : 1;
+      const texto = String(row[0]).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const materia = {'hum-cn':'naturales', 'hum-mat':'matemat', 'hum-cs':'sociales', 'hum-len':'lengu'}[area];
+      const mismaArea = areaCanonicaCEA(row[0]) === area || (name === 'Materias_Humanistica' && materia && texto.includes(materia));
+      if (String(row[col]) === key || (mismaArea && nombre && String(row[col]) === nombre)) row[col] = reemplazo;
+    });
+    escribirTablaCEA(ss, name, rows);
+  });
+  const papelera = ss.getSheetByName('Docentes_Eliminados') || ss.insertSheet('Docentes_Eliminados');
+  if (!papelera.getLastRow()) papelera.appendRow(['Codigo', 'Fecha']);
+  codigos.forEach(codigo => { if (!docentesEliminadosCEA(ss).has(codigo)) papelera.appendRow([codigo, new Date().toISOString()]); });
+  return {status:'success', codigo:key, docentesEliminados:[...docentesEliminadosCEA(ss)]};
+}
+
 // ─── RESOLUCIÓN RESILIENTE DE HOJA DE CÁLCULO PRINCIPAL ───
 const NOMBRE_HOJA_CALCULO = "BD_OFICIAL_CEA_MADRE_MARIE_POUSSEPIN";
 const SPREADSHEET_ID_MANUAL = ""; // Opcional: ID de la hoja del sistema institucional si se desea fijar manualmente
@@ -639,6 +717,7 @@ function leerDatosCEA(auth) {
             paralelo: String(dCR[i][9] || 'A'),
             fecha: String(dCR[i][10] || ''),
             estado: String(dCR[i][11] || 'BORRADOR'),
+            publicadoConsulta: String(dCR[i][11]) === 'PUBLICADO' || dCR[0].indexOf('EstadoPublicacion') >= 0 && dCR[i][dCR[0].indexOf('EstadoPublicacion')] === 'PUBLICADO',
             fechaModificacion: String(dCR[i][12] || ''),
             usuarioModif: String(dCR[i][13] || ''),
             criterios: crit,
@@ -731,6 +810,7 @@ function leerDatosCEA(auth) {
       data: filtrarDatosCEA({
         textos: textosObj,
         docentes: docentesObj,
+        docentesEliminados: [...docentesEliminadosCEA(ss)],
         carreras: carrerasList,
         materiasHumanistica: materiasHumList,
         horarios: horariosObj,
@@ -917,13 +997,18 @@ function procesarSolicitudCEA(e, auth) {
         return responseJSON({ status: "error", message: "Demasiadas peticiones. Por favor espera 3 minutos antes de enviar otra solicitud." });
       }
 
+      const configuracionInscripcion = ss.getSheetByName('Director_y_Textos').getDataRange().getValues();
+      const anioConfigurado = configuracionInscripcion.find(fila => fila[0] === 'insc_gestion')?.[1];
+      const gestionInscripcion = String(postData.gestion || anioConfigurado || gestion).trim();
+      exigirCEA(/^\d{4}$/.test(gestionInscripcion) && Number(gestionInscripcion) >= 1900, 'La gestión de inscripción no es válida.');
+
       let sheetIns = ss.getSheetByName("Inscripciones") || ss.insertSheet("Inscripciones");
       if (sheetIns.getLastRow() === 0) {
         sheetIns.appendRow(["Gestión", "Mes", "Fecha", "Nombre Completo", "CI", "Fecha Nacimiento", "Teléfono", "Área", "Carrera/Nivel", "Observaciones", "Semestre", "Caso Excepcional", "Detalle Excepción", "Sede / Subcentro", "De dónde vienes"]);
         aplicarEstiloEncabezado(sheetIns, 15);
       }
       sheetIns.appendRow([
-        gestion, mes, fecha,
+        gestionInscripcion, mes, fecha,
         sanitizarEntradaTexto(postData.nombre || ""),
         sanitizarEntradaTexto(postData.ci || ""),
         sanitizarEntradaTexto(postData.fechaNacimiento || ""),
@@ -1760,6 +1845,9 @@ function procesarSolicitudCEA(e, auth) {
         const nivel = nivelHumanisticoOficialCEA(modulo.nivel);
         const numero = Number(modulo.numero);
         const nombre = String(modulo.nombre || '').trim();
+        const gestionModulo = String(modulo.gestion || new Date().getFullYear()).trim();
+        const semestreModulo = modulo.semestre || (new Date().getMonth() >= 6 ? 'Segundo Semestre' : 'Primer Semestre');
+        exigirCEA(/^\d{4}$/.test(gestionModulo),'Selecciona una gestión válida para el módulo.');
         exigirCEA(carreraKey.startsWith('hum-') && carreraKey !== 'hum-humanistica' && [1, 2].includes(numero) &&
           ['basico','auxiliar','aplicados','complementarios','especializados'].includes(nivelNotasCEA(nivel)) && nombre && nombre.length <= 160, 'Completa un nombre válido para el módulo.');
         const codigo = numero === 1 ? carreraKey : carreraKey + '-M2';
@@ -1771,7 +1859,7 @@ function procesarSolicitudCEA(e, auth) {
         const registros = ss.getSheetByName('Calificaciones_Registros');
         if (registros) registros.getDataRange().getValues().slice(1).forEach((fila, indice) => {
           const numeroGuardado = /-HUM[A-Z0-9]*M2-\d{4}-S[12]-P/i.test(String(fila[0])) ? 2 : 1;
-          if (String(fila[2]) === carreraKey && nivelNotasCEA(fila[4]) === nivelNotasCEA(nivel) && numeroGuardado === numero) {
+          if (String(fila[2]) === carreraKey && nivelNotasCEA(fila[4]) === nivelNotasCEA(nivel) && numeroGuardado === numero && String(fila[8]).trim() === gestionModulo && /2|segundo/i.test(fila[7]) === /2|segundo/i.test(semestreModulo)) {
             registros.getRange(indice + 2, 6).setValue(nombre + ' - ' + nivel);
           }
         });
@@ -1894,28 +1982,7 @@ function procesarSolicitudCEA(e, auth) {
     }
 
     else if (action === "eliminar-docente") {
-      const codigo = String(postData.codigo || "").trim().toLowerCase();
-      if (codigo) {
-        let sheetD = ss.getSheetByName("Docentes");
-        if (sheetD) {
-          const dataD = sheetD.getDataRange().getValues();
-          for (let i = dataD.length - 1; i >= 1; i--) {
-            if (String(dataD[i][0]).trim().toLowerCase() === codigo) {
-              sheetD.deleteRow(i + 1);
-            }
-          }
-        }
-        let sheetU = ss.getSheetByName("Usuarios_Docentes");
-        if (sheetU) {
-          const dataU = sheetU.getDataRange().getValues();
-          for (let i = dataU.length - 1; i >= 1; i--) {
-            if (String(dataU[i][0]).trim().toLowerCase() === codigo) {
-              sheetU.deleteRow(i + 1);
-            }
-          }
-        }
-        return responseJSON({ status: "success", message: "Docente y sus accesos eliminados del sistema institucional." });
-      }
+      return responseJSON(eliminarDocentePersistenteCEA(ss, postData.codigo));
     }
 
     else if (action === "guardar-foto-galeria") {
@@ -2341,7 +2408,7 @@ function procesarSolicitudCEA(e, auth) {
       // Guardar o actualizar registro principal
       const dataReg = sheetReg.getDataRange().getValues();
       let filaRegEnc = -1;
-      let estadoBloqueoExistente = "DESBLOQUEADO";
+
       let usuarioBloqueoExistente = "";
       let fechaBloqueoExistente = "";
       let motivoBloqueoExistente = "";
@@ -2349,7 +2416,7 @@ function procesarSolicitudCEA(e, auth) {
       for (let i = 1; i < dataReg.length; i++) {
         if (String(dataReg[i][0]).trim() === idReg) {
           filaRegEnc = i + 1;
-          estadoBloqueoExistente = String(dataReg[i][15] || "DESBLOQUEADO").trim();
+
           usuarioBloqueoExistente = String(dataReg[i][16] || "");
           fechaBloqueoExistente = String(dataReg[i][17] || "");
           motivoBloqueoExistente = String(dataReg[i][18] || "");
@@ -2358,18 +2425,10 @@ function procesarSolicitudCEA(e, auth) {
       }
 
       // PROTECCIÓN DE SEGURIDAD EN EL BACKEND:
-      // Si el registro está BLOQUEADO por la Dirección, rechazar cualquier modificación docente
-      const tokenObj = (typeof validarTokenSeguro === 'function' && postData.token) ? validarTokenSeguro(postData.token) : null;
-      const esDirectorOAdmin = tokenObj && (tokenObj.r === 'director' || tokenObj.r === 'admin');
+      // La autorizacion de area se verifica antes de guardar. La publicacion
+      // y los bloqueos historicos no impiden corregir las notas autorizadas.
+      exigirCEA(auth, 'Inicia sesion para guardar las calificaciones.', 'AUTH');
 
-      if (estadoBloqueoExistente === "BLOQUEADO" && !esDirectorOAdmin) {
-        return responseJSON({
-          status: "error",
-          message: "OPERACIÓN DENEGADA: Este registro de calificaciones se encuentra BLOQUEADO por la Dirección y no admite modificaciones ordinarias."
-        });
-      }
-
-      // VALIDACIÓN ESTRICTA DE LÍMITES DE CALIFICACIONES EN EL SERVIDOR (REGLAMENTO EPJA)
       const esTecnicaBackend = (reg.tipo || "tecnica") === "tecnica";
       const maxSer = 10;
       const maxSaber = esTecnicaBackend ? 30 : 40;
@@ -2405,7 +2464,7 @@ function procesarSolicitudCEA(e, auth) {
         }
       }
 
-      const estadoBloqueoFinal = reg.bloqueado ? "BLOQUEADO" : (estadoBloqueoExistente === "BLOQUEADO" ? "BLOQUEADO" : "DESBLOQUEADO");
+      const estadoBloqueoFinal = 'DESBLOQUEADO';
 
       const tipoReg = reg.tipo || (filaRegEnc > 0 ? String(dataReg[filaRegEnc - 1][1] || "tecnica") : "tecnica");
       const areaKeyReg = reg.areaKey || (filaRegEnc > 0 ? String(dataReg[filaRegEnc - 1][2] || "") : "");
@@ -2494,7 +2553,10 @@ function procesarSolicitudCEA(e, auth) {
           return anterior && String(anterior[1]).trim() === idReg &&
             String(anterior[0]) === String(row[0]) && Number(anterior[2]) === Number(row[2]);
         });
-      if (mismasFilas) {
+      if (cantidadAnterior === 0) {
+        // Una planilla nueva se agrega sin reescribir el historial de otros años.
+        if (nuevasFilas.length) sheetDet.getRange(sheetDet.getLastRow()+1,1,nuevasFilas.length,20).setValues(nuevasFilas);
+      } else if (mismasFilas) {
         let primeraModificada = nuevasFilas.length;
         let ultimaModificada = -1;
         nuevasFilas.forEach((row, i) => {
@@ -2530,7 +2592,7 @@ function procesarSolicitudCEA(e, auth) {
         }
       }
       if (filaRegEnc < 0 && sheetReg.getLastRow() > 1) {
-        sheetReg.getRange(2, 1, sheetReg.getLastRow() - 1, 19).sort([
+        sheetReg.getRange(2, 1, sheetReg.getLastRow() - 1, Math.max(19,sheetReg.getLastColumn())).sort([
           { column: 1, ascending: true }  // ID_Registro
         ]);
       }
@@ -2878,6 +2940,24 @@ function procesarSolicitudCEA(e, auth) {
       return responseJSON({ status: modificado ? "success" : "not_found", message: modificado ? "Estado actualizado a " + nuevoEstado : "Registro no encontrado." });
     }
 
+    else if (action === 'habilitar-gestion-academica') {
+      const anio = String(postData.anio || '').trim();
+      exigirCEA(/^\d{4}$/.test(anio) && Number(anio) >= 1900, 'Ingresa una gestión de cuatro dígitos válida.');
+      const hoja = ss.getSheetByName('Director_y_Textos');
+      const filas = hoja.getDataRange().getValues();
+      const posicion = filas.findIndex(fila=>fila[0]==='cea_gestiones_lista');
+      let anteriores = [];
+      try { anteriores = JSON.parse(posicion >= 0 ? filas[posicion][1] : '[]'); } catch(error) {}
+      const gestiones = [...new Set([...(Array.isArray(anteriores)?anteriores:[]),anio].map(String).filter(valor=>/^\d{4}$/.test(valor)))].sort((a,b)=>b.localeCompare(a));
+      if (posicion >= 0) hoja.getRange(posicion+1,2).setValue(JSON.stringify(gestiones));
+      else hoja.appendRow(['cea_gestiones_lista',JSON.stringify(gestiones)]);
+      return responseJSON({status:'success',gestiones});
+    }
+
+    else if (action === 'publicar-boletin-curso') {
+      return responseJSON(publicarBoletinCursoCEA(ss, postData, auth));
+    }
+
     else if (action === "publicar-lote-calificaciones") {
       const ids = new Set(Array.isArray(postData.ids) ? postData.ids.map(String) : []);
       const gestion = String(postData.gestion || '').trim();
@@ -2920,8 +3000,8 @@ function procesarSolicitudCEA(e, auth) {
     }
 
     else if (action === "consultar-calificaciones-estudiante") {
-      const ciBuscado = String(postData.ci || "").trim().toLowerCase();
-      const ciDigits = ciBuscado.replace(/[^\d]/g, "");
+      const ciBuscado = documentoConsultaNotasCEA(postData.ci);
+      exigirCEA(ciBuscado, 'Ingresa tu cédula de identidad.');
 
       let sheetDet = ss.getSheetByName("Calificaciones_Detalle");
       let sheetReg = ss.getSheetByName("Calificaciones_Registros");
@@ -2932,12 +3012,15 @@ function procesarSolicitudCEA(e, auth) {
 
       const dataReg = sheetReg.getDataRange().getValues();
       const dataDet = sheetDet.getDataRange().getValues();
+      const columnaPublicacion = dataReg[0].indexOf('EstadoPublicacion');
+      const mallas = ss.getSheetByName('Mallas_Curriculares')?.getDataRange().getValues().slice(1) || [];
+      const docentes = ss.getSheetByName('Docentes')?.getDataRange().getValues().slice(1) || [];
 
       // Mapa de registros PUBLICADOS
       const mapaRegPublicados = {};
       for (let i = 1; i < dataReg.length; i++) {
         const fila = dataReg[i];
-        if (String(fila[11]).trim() === "PUBLICADO") {
+        if (String(fila[11]).trim() === "PUBLICADO" || columnaPublicacion >= 0 && fila[columnaPublicacion] === 'PUBLICADO') {
           mapaRegPublicados[String(fila[0]).trim()] = {
             id: String(fila[0]),
             tipo: String(fila[1]),
@@ -2950,19 +3033,24 @@ function procesarSolicitudCEA(e, auth) {
             gestion: String(fila[8]),
             paralelo: String(fila[9]),
             fecha: String(fila[10]),
+            fechaModificacion: String(fila[12] || fila[10] || ''),
             estado: "PUBLICADO"
           };
+          const registro = mapaRegPublicados[String(fila[0]).trim()];
+          registro.catalogoModulos = catalogoConsultaNotasCEA(registro, mallas);
+          registro.numeroModulo = posicionConsultaNotasCEA(registro);
+          const docente = docentes.find(item => String(item[0]) === registro.areaKey);
+          if (!registro.docente || registro.docente === registro.areaKey) registro.docente = String(docente?.[1] || '');
         }
       }
 
       const resultados = [];
       for (let i = 1; i < dataDet.length; i++) {
         const fila = dataDet[i];
-        const ciFila = String(fila[6] || "").trim().toLowerCase();
-        const ciFilaDigits = ciFila.replace(/[^\d]/g, "");
+        const ciFila = documentoConsultaNotasCEA(fila[6]);
         const idRegFila = String(fila[1] || "").trim();
 
-        if (mapaRegPublicados[idRegFila] && (ciFila === ciBuscado || (ciDigits && ciFilaDigits && ciDigits === ciFilaDigits))) {
+        if (mapaRegPublicados[idRegFila] && ciFila === ciBuscado) {
           resultados.push({
             registro: mapaRegPublicados[idRegFila],
             detalle: {
@@ -2982,7 +3070,9 @@ function procesarSolicitudCEA(e, auth) {
               hacer: fila[13],
               autoevaluacion: fila[14],
               notaFinal: fila[15],
-              observacion: String(fila[16] || "APROBADO")
+              observacion: String(fila[16] || ""),
+              observacionManual: String(fila[17] || ""),
+              notasRegistradas: fila[19] === true || /^(SI|TRUE)$/i.test(String(fila[19])) || fila.slice(8, 15).some(valor => valor !== '' && valor != null) || Number(fila[15]) > 0
             }
           });
         }
@@ -3636,6 +3726,16 @@ function versionNotasCEA(ss, id) {
 function autorizarOperacionCEA(ss, data, auth) {
   const action = data.action;
   if (auth.r === 'director') return;
+  if (action === 'habilitar-gestion-academica') return;
+  if (action === 'publicar-boletin-curso') {
+    exigirCEA(data.areaKey && permisoAreaCEA(auth, data.areaKey, false), 'Solo puedes publicar las notas de tu propia carrera o área.', 'PERMISO');
+    return;
+  }
+  if (action === 'guardar-boletin') {
+    exigirCEA(Array.isArray(data.planillas) && data.planillas.length > 0 && data.planillas.length <= 30, 'El boletín no contiene planillas válidas.');
+    data.planillas.forEach(planilla => autorizarOperacionCEA(ss, {...planilla, action:'guardar-calificaciones-registro'}, auth));
+    return;
+  }
   if (action === 'guardar-paralelos') {
     const sheet = ss.getSheetByName('Director_y_Textos');
     const row = sheet && sheet.getDataRange().getValues().find(item => item[0] === 'cea_calificaciones_paralelos_config');
@@ -3653,10 +3753,8 @@ function autorizarOperacionCEA(ss, data, auth) {
     const sheet = ss.getSheetByName('Calificaciones_Registros');
     const row = sheet && sheet.getDataRange().getValues().find(item => String(item[0]) === id);
     exigirCEA(permisoAreaCEA(auth, row ? row[2] : data.registro && data.registro.areaKey, false), 'Este registro pertenece a otra área.', 'PERMISO');
-    exigirCEA(!row || (row[15] !== 'BLOQUEADO' && !['FINALIZADO', 'PUBLICADO', 'ARCHIVADO'].includes(String(row[11]))), 'Dirección ha bloqueado este registro.', 'BLOQUEADO');
     if (data.registro) {
       exigirCEA(permisoAreaCEA(auth, data.registro.areaKey, false), 'No puedes trasladar registros a otra área.', 'PERMISO');
-      exigirCEA(!data.registro.bloqueado && data.registro.estado !== 'PUBLICADO', 'La publicación y el bloqueo corresponden a Dirección.', 'PERMISO');
     }
     exigirCEA(data.nuevoEstado !== 'PUBLICADO', 'La publicación corresponde a Dirección.', 'PERMISO');
     return;
@@ -3726,6 +3824,7 @@ function doPost(e) {
     ss = obtenerSpreadsheetPrincipal();
     const auth = CEA_ACCIONES_PUBLICAS.includes(data.action) ? null : sesionCEA(data.token);
     if (auth) autorizarOperacionCEA(ss, data, auth);
+    depurarDocentesEliminadosCEA(ss, data);
     if (data.action === 'login') return responseJSON(iniciarSesionCEA(ss, data));
     if (data.action === 'obtener-datos-privados') return leerDatosCEA(auth);
     if (data.action === 'obtenerInscripciones') return responseJSON({status: 'success', inscripciones: JSON.parse(leerDatosCEA(auth).getContent()).data.inscripciones});
@@ -3751,7 +3850,6 @@ function doPost(e) {
     if (collection) exigirCEA(data.baseVersion === versionHojaCEA(ss, collection), 'Estos datos cambiaron en otra sesión. Recarga antes de guardar.', 'CONFLICTO');
     const guardarBoletin = data.action === 'guardar-boletin';
     if (guardarBoletin) {
-      exigirCEA(auth.r === 'director', 'Solo Dirección puede guardar el boletín.', 'PERMISO');
       exigirCEA(Array.isArray(data.planillas) && data.planillas.length > 0 && data.planillas.length <= 30, 'El boletín no contiene planillas válidas.');
       const ids = new Set();
       for (const planilla of data.planillas) {
@@ -4050,6 +4148,66 @@ function moduloPlanillaSistemasCEA(area, nivel, id, modulo, codigo) {
   const indice = numero >= 1 && numero <= 5 ? numero - 1 : numero - inicio;
   if (indice === 2 || indice === 3) return malla[indice];
   return null;
+}
+
+function publicarBoletinCursoCEA(ss, data, auth) {
+  exigirCEA(auth && data.areaKey && data.nivel && data.paralelo && /^\d{4}$/.test(String(data.gestion)) && data.semestre, 'Selecciona el curso, paralelo, gestión y semestre que deseas publicar.');
+  const area = areaCanonicaCEA(data.areaKey);
+  exigirCEA(auth.r === 'director' || permisoAreaCEA(auth, area, false), 'Solo puedes publicar las notas de tu propia área.', 'PERMISO');
+  const hoja = ss.getSheetByName('Calificaciones_Registros');
+  const detalle = ss.getSheetByName('Calificaciones_Detalle');
+  exigirCEA(hoja && detalle, 'Guarda las notas antes de publicarlas.');
+  const filas = hoja.getDataRange().getValues();
+  const conNotas = new Set(detalle.getDataRange().getValues().slice(1).filter(fila => fila[19] === true || /^(SI|TRUE)$/i.test(String(fila[19])) || fila.slice(8,15).some(valor => valor !== '' && valor != null) || Number(fila[15]) > 0).map(fila => String(fila[1])));
+  const seleccion = filas.slice(1).map((fila,i)=>({fila,nro:i+2})).filter(({fila}) => areaCanonicaCEA(fila[2]) === area && nivelNotasCEA(fila[4]) === nivelNotasCEA(data.nivel) && String(fila[8]).trim() === String(data.gestion).trim() && /2|segundo/i.test(fila[7]) === /2|segundo/i.test(data.semestre) && String(fila[9] || 'A').trim().toUpperCase() === String(data.paralelo).trim().toUpperCase() && conNotas.has(String(fila[0])) && (!data.idRegistro || String(fila[0]) === String(data.idRegistro)));
+  exigirCEA(seleccion.length, 'No hay notas guardadas para publicar en este curso.');
+  let estadoCol = filas[0].indexOf('EstadoPublicacion') + 1;
+  let fechaCol = filas[0].indexOf('FechaPublicacion') + 1;
+  if (!estadoCol) estadoCol = hoja.getLastColumn() + 1;
+  if (!fechaCol) fechaCol = Math.max(hoja.getLastColumn(), estadoCol) + 1;
+  if (typeof hoja.getMaxColumns === 'function' && hoja.getMaxColumns() < fechaCol) hoja.insertColumnsAfter(hoja.getMaxColumns(),fechaCol-hoja.getMaxColumns());
+  hoja.getRange(1,estadoCol).setValue('EstadoPublicacion');
+  hoja.getRange(1,fechaCol).setValue('FechaPublicacion');
+  const fecha = new Date().toISOString();
+  seleccion.forEach(({nro})=>{
+    hoja.getRange(nro,estadoCol).setValue('PUBLICADO');
+    hoja.getRange(nro,fechaCol).setValue(fecha);
+  });
+  // Publicar para consulta no modifica el estado de edición ni los bloqueos.
+  SpreadsheetApp.flush();
+  const solicitados = new Set(seleccion.map(({fila})=>String(fila[0])));
+  const confirmados = hoja.getDataRange().getValues().slice(1).filter(fila=>solicitados.has(String(fila[0])) && fila[estadoCol-1] === 'PUBLICADO').map(fila=>String(fila[0]));
+  exigirCEA(confirmados.length === solicitados.size,'No se confirmó la publicación de todas las planillas.');
+  return {status:'success', publicados:confirmados, fecha};
+}
+
+function documentoConsultaNotasCEA(valor) {
+  return String(valor || '').trim().toUpperCase().replace(/\s+(LP|SC|CB|OR|PT|TJ|CH|BE|BN|PA)\.?$/i, '').replace(/[^A-Z0-9]/g, '');
+}
+
+function catalogoConsultaNotasCEA(registro, filas) {
+  const tecnica = registro.tipo !== 'humanistica';
+  const propias = filas.filter(fila => areaCanonicaCEA(fila[0]) === areaCanonicaCEA(registro.areaKey) && nivelNotasCEA(fila[1]) === nivelNotasCEA(registro.nivel))
+    .sort((a,b) => registro.tipo === 'humanistica' ? Number(/-M2$/i.test(a[2])) - Number(/-M2$/i.test(b[2])) : numeroModuloSistemasCEA(a[2]) - numeroModuloSistemasCEA(b[2]));
+  let modulos = propias.map(fila => [String(fila[2] || ''), String(fila[3] || '')]);
+  if (tecnica && areaCanonicaCEA(registro.areaKey) === 'tec-sis') modulos = mallaSistemasCEA(modulos, registro.nivel);
+  return Array.from({length:tecnica ? 5 : 2}, (_, indice) => ({
+    codigo: modulos[indice]?.[0] || (tecnica ? 'Módulo ' + (indice + 1) : registro.areaKey + (indice ? '-M2' : '')),
+    nombre: modulos[indice]?.[1] || 'Módulo ' + (indice + 1)
+  }));
+}
+
+function posicionConsultaNotasCEA(registro) {
+  const normalizar = valor => String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const claveId = String(registro.id || '').match(/-(?:m[oó]?dulo|mod)([ivx]+|\d+)-\d{4}-s[12]-p/i)?.[1];
+  if (registro.tipo === 'humanistica') {
+    if (/-HUM[A-Z0-9]*M2-\d{4}-S[12]-P/i.test(registro.id) || /MODULO\s*2/i.test(normalizar(registro.modulo))) return 2;
+  }
+  const numero = numeroModuloSistemasCEA(claveId) || numeroModuloSistemasCEA(String(registro.modulo || '').split(':')[0]);
+  if (numero) return registro.tipo === 'humanistica' ? Math.min(2, numero) : ((numero - 1) % 5) + 1;
+  const nombre = normalizar(String(registro.modulo || '').replace(/^[^:]+:\s*/, ''));
+  const indice = registro.catalogoModulos.findIndex(modulo => normalizar(modulo.nombre) === nombre || normalizar(modulo.codigo) === normalizar(registro.modulo));
+  return indice >= 0 ? indice + 1 : (registro.tipo === 'humanistica' ? 1 : null);
 }
 
 function numeroModuloSistemasCEA(clave) {

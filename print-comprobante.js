@@ -528,7 +528,7 @@
 
   function obtenerMetadatosFicha(data) {
     if (!data._codigoReg) {
-      data._codigoReg = 'CEA-2026-' + Math.floor(100000 + Math.random() * 900000);
+      data._codigoReg = 'CEA-'+String(data.gestion || new Date().getFullYear())+'-' + Math.floor(100000 + Math.random() * 900000);
     }
     if (!data._fechaEmisionTexto) {
       data._fechaEmisionTexto = new Date().toLocaleDateString('es-BO', {
@@ -574,7 +574,7 @@
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
-    a.download = filename || 'CEA_Inscripcion_2026.pdf';
+    a.download = filename || 'CEA_Inscripcion_'+new Date().getFullYear()+'.pdf';
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {

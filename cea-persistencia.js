@@ -25,6 +25,7 @@
   }
 
   function clearPrivate() {
+    window.ceaCachePrivada?.clear();
     Object.keys(localStorage).filter(key => key.startsWith('cea_') && privateKey(key)).forEach(key => localStorage.removeItem(key));
     if (typeof window.cargarRespaldoNominaCEA === 'function') window.cargarRespaldoNominaCEA([]);
     revisions = {};
@@ -68,7 +69,7 @@
     const readOnly = /^(obtener|consultar|verificar)/.test(payload.action);
     const collection = collections[payload.action];
     const id = payload.idRegistro || payload.registro && payload.registro.id;
-    const guardadoNotas = ['guardar-calificaciones-registro', 'guardar-boletin'].includes(payload.action);
+    const guardadoNotas = ['guardar-calificaciones-registro', 'guardar-boletin', 'publicar-boletin-curso'].includes(payload.action);
     const noteAction = ['guardar-calificaciones-registro', 'cambiar-estado-calificaciones', 'cambiar-bloqueo-calificaciones'].includes(payload.action);
     const tokenEnCola = lsGet('cea_session', null)?.token || '';
     if (tokenEnCola && payload.action !== 'login') payload.token = payload.token || tokenEnCola;

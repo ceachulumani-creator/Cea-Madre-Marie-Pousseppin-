@@ -1,5 +1,13 @@
 # Activar la actualización del CEA
 
+## Si el boletín muestra «Dirección ha bloqueado este registro»
+
+La versión actual permite corregir y publicar las notas de la propia área aunque el registro tenga un bloqueo antiguo. Si aparece ese mensaje, la implementación que atiende a la web todavía ejecuta una versión anterior.
+
+Copia el contenido completo de `google-apps-script.gs` en el proyecto de Apps Script vinculado a la web. Guarda y entra en **Implementar > Gestionar implementaciones > Editar > Nueva versión > Implementar**. Guardar el código sin actualizar la implementación no cambia el servidor utilizado por la página. Conserva la URL `/exec` de esa implementación y publica también `calificaciones.js` e `index.html` actualizados. No borres las notas ni los estudiantes para solucionar el bloqueo.
+
+## Actualización completa
+
 1. En Google Drive, crea una copia privada de la hoja oficial. Comprueba que la nómina y las notas estén en esa hoja.
 2. Abre la hoja oficial y entra en **Extensiones > Apps Script**. Sustituye el código anterior por el contenido completo de `google-apps-script.gs` y guarda.
 3. Selecciona la función **configurarSistemaCEA** y pulsa **Ejecutar**. Autoriza la ejecución con la cuenta propietaria. La función vincula el archivo oficial, agrega los identificadores de matrícula y conserva los registros existentes. Si la nómina oficial todavía está en Excel, impórtala desde Dirección después de publicar la nueva versión.

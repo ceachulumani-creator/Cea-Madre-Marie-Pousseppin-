@@ -903,7 +903,12 @@ async function aplicarDatosGoogleSheets(data) {
       }
     }
 
+    if (Array.isArray(data.docentesEliminados)) lsSet('cea_docentes_eliminados', data.docentesEliminados);
+
     // 1. Textos & Director
+    if (data.textos?.cea_gestiones_lista) {
+      try { const gestiones = JSON.parse(data.textos.cea_gestiones_lista); if (Array.isArray(gestiones)) lsSet('cea_gestiones_lista',gestiones); } catch(error) {}
+    }
     if (data.textos) {
       const t = data.textos;
 
@@ -1091,8 +1096,10 @@ async function aplicarDatosGoogleSheets(data) {
     }
 
     // 2. Docentes
-    if (data.docentes && typeof data.docentes === 'object' && Object.keys(data.docentes).length > 0) {
-      lsSet('cea_docentes', data.docentes);
+    if (data.docentes && typeof data.docentes === 'object') {
+      const docentesRemotos = {...data.docentes};
+      (data.docentesEliminados || []).forEach(key => { docentesRemotos[key] = ''; });
+      lsSet('cea_docentes', docentesRemotos);
       cargarDocentes();
       if (typeof cargarDocentesUnificados === 'function') cargarDocentesUnificados();
     if (typeof refrescarCredencialesDocentesDesdeServidor === 'function') await refrescarCredencialesDocentesDesdeServidor();
@@ -2872,7 +2879,8 @@ function obtenerDocentesParaCredencialesDefecto() {
       comision: card.querySelector('.doc-chk-comision')?.checked || false});
   });
   const lista = [...docentes.values()];
-  const disponibles = lista.filter(item => /[a-záéíóúüñ]/i.test(item.nombre.replace(/^(?:(?:lic|licda|ing|prof|profa|dr|dra|tec|msc)\.\s*|(?:lic|licda|ing|prof|profa|dr|dra|tec|msc)(?:\s+|$))+/i, '')) && !/^(sin (asignar|docente|nombre)|no asignado)$/i.test(item.nombre));
+  const eliminados = new Set(lsGet('cea_docentes_eliminados', []));
+  const disponibles = lista.filter(item => !eliminados.has(item.key) && /[a-záéíóúüñ]/i.test(item.nombre.replace(/^(?:(?:lic|licda|ing|prof|profa|dr|dra|tec|msc)\.\s*|(?:lic|licda|ing|prof|profa|dr|dra|tec|msc)(?:\s+|$))+/i, '')) && !/^(sin (asignar|docente|nombre)|no asignado)$/i.test(item.nombre));
   return {docentes: disponibles, omitidos: lista.length - disponibles.length};
 }
 
@@ -3101,6 +3109,11 @@ function cargarDocentesUnificados() {
     });
   }
 
+  const eliminados = new Set(lsGet('cea_docentes_eliminados', []));
+  for (const lista of [listaHum, listaTec]) {
+    for (let i = lista.length - 1; i >= 0; i--) if (eliminados.has(lista[i].key)) lista.splice(i, 1);
+  }
+
   // Actualizar conteos
   const elCntTodas = document.getElementById('cnt-doc-todas');
   const elCntTec = document.getElementById('cnt-doc-tec');
@@ -3271,62 +3284,41 @@ async function agregarNuevoDocenteFila(areaTipo = 'tec') {
 }
 
 async function eliminarDocenteCardOElemento(btn) {
+  if (!['director', 'admin'].includes(getSession()?.role) || btn.disabled) return;
   const card = btn.closest('.docente-admin-card') || btn.closest('tr');
-  if (!card) return;
-  const nomInp = card.querySelector('.doc-input-nombre');
-  const nom = nomInp ? nomInp.value.trim() : 'este docente';
-  const asigSel = card.querySelector('.doc-select-carrera');
-  const asigKey = asigSel ? asigSel.value : null;
-  const docKey = card.dataset.key || asigKey;
-
-  const ok = await mostrarConfirmModal(`¿Estás seguro de eliminar a "${nom || 'este docente'}"? Se eliminará tanto del sitio web como de la base de datos en línea.`, 'Eliminar Docente', 'Eliminar Docente', true);
-  if (!ok) return;
-
-  card.remove();
-
-  if (docKey) {
-    const d = lsGet('cea_docentes', DOCENTES_DEFAULT);
-    const viejoNom = d[docKey] || nom;
-    delete d[docKey];
-
-    const usuarios = lsGet('cea_usuarios_docentes', {});
-    delete usuarios[docKey];
-    lsSet('cea_usuarios_docentes', usuarios);
-
-    const asignaciones = lsGet('cea_docentes_asignaciones', {});
-    delete asignaciones[docKey];
-    lsSet('cea_docentes_asignaciones', asignaciones);
-
-    // Si este docente era el principal asignado en d[asigKey], promover al siguiente docente asignado si existe
-    if (asigKey && d[asigKey] === viejoNom) {
-      const restantes = obtenerDocentesAsignadosACarrera(asigKey).filter(n => n !== viejoNom);
-      d[asigKey] = restantes[0] || '';
-    }
-    lsSet('cea_docentes', d);
-
-    const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
-    const aItem = areas.find(a => a.key === asigKey);
-    if (aItem && aItem.docente === viejoNom) {
-      const restantes = obtenerDocentesAsignadosACarrera(asigKey).filter(n => n !== viejoNom);
-      aItem.docente = restantes[0] || '';
-      lsSet('cea_areas_tec', areas);
-      await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
-    }
-
-    if (viejoNom && typeof actualizarNombreDocenteEnTodoElSistema === 'function') {
-      actualizarNombreDocenteEnTodoElSistema(viejoNom, '', asigKey);
-    }
-
+  const codigo = card?.dataset.key;
+  if (!codigo) return;
+  const nombre = card.querySelector('.doc-input-nombre')?.value.trim() || 'este docente';
+  if (!await mostrarConfirmModal('¿Eliminar a "' + nombre + '" y su cuenta de acceso?', 'Eliminar docente', 'Eliminar docente', true)) return;
+  const token = getSessionToken();
+  btn.disabled = true;
+  card.setAttribute('aria-busy', 'true');
+  mostrarMsg('msg-docentes-unificados', 'Eliminando docente…', 'info');
+  clearTimeout(_timerAutoGuardarDocente);
+  try {
+    const result = await enviarGoogleSheet({action:'eliminar-docente', codigo});
+    if (result?.status !== 'success' || result.codigo !== codigo || !result.docentesEliminados?.includes(codigo)) throw new Error('El servidor no confirmó la eliminación. Actualiza su implementación y vuelve a consultar.');
+    if (getSessionToken() !== token) return;
+    _ultimaEdicionLocalTimestamp = Math.max(Date.now(), _ultimaEdicionLocalTimestamp + 1);
+    const anterior = _aplicandoDatosRemotos;
+    _aplicandoDatosRemotos = true;
+    try {
+      lsSet('cea_docentes_eliminados', result.docentesEliminados);
+      for (const campo of ['cea_docentes', 'cea_usuarios_docentes', 'cea_docentes_asignaciones']) {
+        const datos = lsGet(campo, {});
+        result.docentesEliminados.forEach(key => { delete datos[key]; credencialesDocentesActuales.delete(key); });
+        lsSet(campo, datos);
+      }
+    } finally { _aplicandoDatosRemotos = anterior; }
     cargarDocentes();
-    if (typeof cargarAreasTecSilencioso === 'function') cargarAreasTecSilencioso();
-    if (typeof renderSeccionHumanistica === 'function') renderSeccionHumanistica();
-
-    mostrarMsg('msg-docentes-unificados', `Eliminando a ${nom} en el sistema...`, 'success');
-    await enviarGoogleSheet({ action: 'eliminar-docente', codigo: docKey });
-    await enviarGoogleSheet({ action: 'guardar-docentes', docentes: d });
-    await enviarGoogleSheet({ action: 'guardar-usuarios-docentes', usuarios: usuarios });
-    mostrarMsg('msg-docentes-unificados', `Docente "${nom}" eliminado exitosamente.`, 'success');
-    mostrarToastLive(`Docente "${nom}" eliminado.`);
+    try { await cargarDatosGoogleSheets(true, {silencioso:true, acceso:true}); }
+    catch (_) { mostrarMsg('msg-docentes-unificados', 'Docente eliminado. No se pudo actualizar el resto de la vista; vuelve a consultar.', 'info'); return; }
+    mostrarMsg('msg-docentes-unificados', 'Docente eliminado correctamente.', 'success');
+  } catch (error) {
+    mostrarMsg('msg-docentes-unificados', 'No se pudo eliminar. ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    card.removeAttribute('aria-busy');
   }
 }
 
@@ -10270,7 +10262,7 @@ function cargarDiasClases() {
 }
 
 /* ─── FECHAS LÍMITE Y PERIODOS DE INSCRIPCIÓN POR SEMESTRE ─── */
-function desglosarFechaISO(str, defY = 2026, defM = 1, defD = 15) {
+function desglosarFechaISO(str, defY = new Date().getFullYear(), defM = 1, defD = 15) {
   if (!str) return { y: defY, m: defM, d: defD };
   const partes = String(str).split('-');
   if (partes.length !== 3) return { y: defY, m: defM, d: defD };
@@ -10956,7 +10948,7 @@ async function guardarCalendarioDirecto() {
 }
 
 /* ─── GESTOR DE CALENDARIO EDUCATIVO EN DASHBOARD DEL DIRECTOR ─── */
-let gestionCalendarioAdminActual = 2026;
+let gestionCalendarioAdminActual = new Date().getFullYear();
 
 function cargarCalendarioAdmin(year = null) {
   const y = parseInt(year, 10) || gestionCalendarioAdminActual || (new Date().getFullYear() || 2026);
@@ -14605,7 +14597,7 @@ function cargarUsuariosPanel() {
     { key: 'tec-gas', label: 'Gastronomía' },
     { key: 'tec-agr', label: 'Agropecuaria' }
   ];
-  container.innerHTML = areas.map(a => {
+  container.innerHTML = areas.filter(a => !lsGet('cea_docentes_eliminados', []).includes(a.key)).map(a => {
     const u = usuarios[a.key] || { user: '', pass: '' };
     return `<div style="margin-bottom:14px;padding:14px;background:var(--verde-light);border-radius:8px">
       <p style="font-weight:700;color:var(--verde-dark);margin-bottom:8px;font-size:0.9rem">${docentes[a.key] || a.label} — <em>${a.label}</em></p>
@@ -16850,7 +16842,7 @@ function descargarComprobanteInscripcionPDF(dataOverride) {
     return;
   }
 
-  const codigoReg = 'CEA-2026-' + Math.floor(100000 + Math.random() * 900000);
+  const codigoReg = 'CEA-'+String(data.gestion || new Date().getFullYear())+'-' + Math.floor(100000 + Math.random() * 900000);
   const fechaHoy = new Date().toLocaleDateString('es-BO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const directorNom = (lsGet('cea_textos_director', {}).director_nombre) || 'Lic. José Luis Alanoca Mamani';
 
@@ -17118,7 +17110,7 @@ function renderizarFichaVerificacionExitosa(data, codigoReg) {
 
   const esTec = String(data.area || '').toLowerCase().includes('tec');
   const esCasoExcep = Boolean(data.esCasoExcepcional || (data.casoExcepcional && !['No','no','false','0','—','Ninguno','Regular'].includes(String(data.casoExcepcional).trim())));
-  const folioFinal = codigoReg || data.codigoReg || ('CEA-2026-' + (data.ci ? String(data.ci).slice(-4) : 'VALID'));
+  const folioFinal = codigoReg || data.codigoReg || ('CEA-'+String(data.gestion || new Date().getFullYear())+'-' + (data.ci ? String(data.ci).slice(-4) : 'VALID'));
 
   body.innerHTML = `
     <div>
@@ -17618,7 +17610,7 @@ function exportarMensajesContactoCSV() {
 let estadoFiltroInscripciones = 'todas';
 window.estadoFiltroInscripciones = estadoFiltroInscripciones;
 let estadoFiltroSemestre = 'todos'; // 'todos', 'sem1', 'sem2'
-let estadoFiltroGestion = '2026';
+let estadoFiltroGestion = String(new Date().getFullYear());
 window.estadoFiltroGestion = estadoFiltroGestion;
 let estadoFiltroSede = 'todas';
 window.estadoFiltroSede = estadoFiltroSede;
@@ -17727,6 +17719,7 @@ function actualizarOpcionesFiltroGestion() {
   const gestionesSet = new Set();
   const anioActual = String(new Date().getFullYear() || '2026');
   gestionesSet.add(anioActual);
+  if (typeof window.getGestionesDisponibles === 'function') window.getGestionesDisponibles().forEach(anio=>gestionesSet.add(anio));
 
   if (Array.isArray(ins)) {
     ins.forEach(item => {
@@ -17835,27 +17828,7 @@ function cargarInscripciones() {
     const ins = Array.isArray(rawIns) ? rawIns.filter(Boolean) : [];
 
     // Si la gestión seleccionada no tiene registros pero existen pre-inscripciones en otras gestiones o en el historial, mostrar todas o la gestión con datos
-    let gestionFiltroActual = estadoFiltroGestion;
-    if (gestionFiltroActual && gestionFiltroActual !== 'todas') {
-      const tieneEnGestion = ins.some(item => clasificarGestionRegistro(item) === String(gestionFiltroActual));
-      if (!tieneEnGestion && ins.length > 0) {
-        // Encontrar la gestión más reciente con datos o usar todas
-        const primeraGestion = clasificarGestionRegistro(ins[0]);
-        if (primeraGestion) {
-          gestionFiltroActual = primeraGestion;
-          estadoFiltroGestion = primeraGestion;
-          window.estadoFiltroGestion = primeraGestion;
-          const selG = document.getElementById('filtro-gestion-select');
-          if (selG) selG.value = primeraGestion;
-        } else {
-          gestionFiltroActual = 'todas';
-          estadoFiltroGestion = 'todas';
-          window.estadoFiltroGestion = 'todas';
-          const selG = document.getElementById('filtro-gestion-select');
-          if (selG) selG.value = 'todas';
-        }
-      }
-    }
+    const gestionFiltroActual = estadoFiltroGestion;
 
     // Filtrar según gestión seleccionada (o histórico completo)
     const insGestion = (gestionFiltroActual && gestionFiltroActual !== 'todas')
@@ -20904,6 +20877,86 @@ function estadoAccesoInstitucional(texto, error = false) {
   mensaje.style.display = texto ? 'block' : 'none';
 }
 
+function activarVistaPanelInstitucional(session, cargando = false) {
+  if (!session?.token || !['director', 'admin', 'docente'].includes(session.role)) return false;
+  const docente = session.role === 'docente';
+  const acceso = document.getElementById('admin-login');
+  document.querySelectorAll('.panel-acceso-estado').forEach(estado => estado.remove());
+  document.querySelectorAll('.panel-acceso-cargando').forEach(panel => { panel.classList.remove('panel-acceso-cargando'); panel.setAttribute('aria-busy', 'false'); });
+  document.getElementById('btn-reintentar-acceso')?.remove();
+  document.body.classList.toggle('acceso-panel-pendiente', cargando);
+  acceso?.setAttribute('aria-busy', String(cargando));
+  if (cargando) {
+    document.body.classList.remove('admin-logged-in', 'docente-logged-in', 'admin-panel-active', 'docente-panel-active', 'public-view-active');
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+    if (acceso) { acceso.hidden = false; acceso.style.display = 'block'; }
+    for (const id of ['admin-panel', 'docente-panel']) {
+      const panel = document.getElementById(id);
+      if (panel) { panel.hidden = true; panel.style.display = 'none'; }
+    }
+    estadoAccesoInstitucional('Verificando acceso…');
+    return true;
+  }
+  if (acceso) { acceso.hidden = true; acceso.style.display = 'none'; }
+  const claveAcceso = document.getElementById('admin-pass');
+  if (claveAcceso) claveAcceso.value = '';
+  document.body.classList.remove('admin-logged-in', 'docente-logged-in', 'admin-panel-active', 'docente-panel-active', 'public-view-active');
+  document.body.classList.add(docente ? 'docente-logged-in' : 'admin-logged-in', docente ? 'docente-panel-active' : 'admin-panel-active');
+  const idActivo = docente ? 'docente-panel' : 'admin-panel';
+  for (const id of ['admin-panel', 'docente-panel']) {
+    const panel = document.getElementById(id);
+    if (!panel) continue;
+    panel.hidden = id !== idActivo;
+    panel.style.display = id === idActivo ? 'block' : 'none';
+    panel.setAttribute('aria-busy', 'false');
+  }
+  if (location.hash !== '#admin') {
+    const destino = new URL(window.location.href);
+    destino.hash = 'admin';
+    try { history.replaceState(null, '', destino.href); }
+    catch (error) { window.location.hash = '#admin'; }
+  }
+  estadoAccesoInstitucional('');
+  window.scrollTo(0, 0);
+  return true;
+}
+
+async function abrirPanelConSesion(session) {
+  if (!activarVistaPanelInstitucional(session, true)) return false;
+  try {
+    await cargarDatosGoogleSheets(true, {silencioso:true, acceso:true});
+    if (getSessionToken() !== session.token) return false;
+    if (session.role === 'docente') mostrarPanelDocente(session.areaKey);
+    else await mostrarPanelAdmin();
+    return true;
+  } catch (error) {
+    if (getSessionToken() !== session.token) return false;
+    if (error.code === 'SESION') { adminLogout(); estadoAccesoInstitucional('Tu sesión venció. Ingresa nuevamente.', true); }
+    else if (document.querySelector(session.role === 'docente' ? 'body.docente-panel-active #docente-main-stage' : 'body.admin-panel-active #admin-main-stage')) {
+      // El panel ya esta abierto: un fallo secundario no debe volver a cubrirlo.
+      activarVistaPanelInstitucional(session);
+      console.warn('No se pudo actualizar una sección del panel.', error);
+      return true;
+    } else {
+      activarVistaPanelInstitucional(session, true);
+      estadoAccesoInstitucional('No se pudo completar el acceso. Vuelve a intentar.', true);
+      const acceso = document.getElementById('admin-login');
+      acceso?.setAttribute('aria-busy', 'false');
+      if (acceso) {
+        const reintentar = document.createElement('button');
+        reintentar.id = 'btn-reintentar-acceso';
+        reintentar.type = 'button';
+        reintentar.className = 'btn-submit';
+        reintentar.textContent = 'Volver a intentar';
+        reintentar.addEventListener('click', () => abrirPanelConSesion(lsGet('cea_session', null)));
+        acceso.append(reintentar);
+      }
+    }
+    return false;
+  }
+}
+
 async function adminLogin(event) {
   event?.preventDefault();
   if (accesoInstitucionalEnCurso) return;
@@ -20918,6 +20971,7 @@ async function adminLogin(event) {
   }
 
   accesoInstitucionalEnCurso = true;
+  document.getElementById('admin-login')?.setAttribute('aria-busy', 'true');
   if (boton) boton.disabled = true;
   estadoAccesoInstitucional('Iniciando sesión…');
   let token;
@@ -20935,18 +20989,10 @@ async function adminLogin(event) {
       areaKey: acceso.areaKey, comision: acceso.comision === true || /^(si|true)$/i.test(String(acceso.comision))
     });
 
-    estadoAccesoInstitucional('Cargando el panel…');
-    await cargarDatosGoogleSheets(true, {silencioso: true, acceso: true});
-    if (getSessionToken() !== token) return;
-
     estadoLapicesDirectosVisibles = true;
     window.modoEdicionHorarioActivo = role === 'director';
-    if (window.location.hash !== '#admin') window.location.hash = '#admin';
-    if (role === 'director') await mostrarPanelAdmin();
-    else mostrarPanelDocente(acceso.areaKey);
-    contrasena.value = '';
     mostrarClaveAcceso(false);
-    estadoAccesoInstitucional('');
+    await abrirPanelConSesion(lsGet('cea_session', null));
   } catch (error) {
     if (token && getSessionToken() === token) adminLogout();
     const mensaje = error.code === 'TIEMPO_AGOTADO'
@@ -20955,21 +21001,16 @@ async function adminLogin(event) {
     estadoAccesoInstitucional(mensaje, true);
   } finally {
     accesoInstitucionalEnCurso = false;
+    document.getElementById('admin-login')?.setAttribute('aria-busy', 'false');
     if (boton) boton.disabled = false;
   }
 }
 
 async function restaurarSesion() {
   const session = lsGet('cea_session', null);
-  if (session) {
-    try {
-      await cargarDatosGoogleSheets(true, {silencioso: true, acceso: true});
-    } catch (error) {
-      if (getSessionToken() === session.token && error.code === 'SESION') adminLogout();
-      return;
-    }
-    if (getSessionToken() !== session.token) return;
-    if (window.location.hash !== '#admin') window.location.hash = '#admin';
+  if (session?.token) {
+    await abrirPanelConSesion(session);
+    return;
   }
   renderLapicesDirectosDirector();
   if (typeof renderDocumentosDinamicos === 'function') renderDocumentosDinamicos();
@@ -20987,6 +21028,7 @@ async function restaurarSesion() {
 }
 
 function adminLogout() {
+  window.limpiarEdicionBoletin?.();
   mostrarClaveAcceso(false);
   credencialesDocentesActuales.clear();
   document.querySelectorAll('.doc-pass-inp').forEach(input => { input.value = ''; input.type = 'password'; });
@@ -20997,7 +21039,7 @@ function adminLogout() {
   document.querySelectorAll('dialog[open]').forEach(dialogo => dialogo.close());
   window.restaurarHorarioPublico?.();
   try { document.documentElement.style.scrollBehavior = ''; } catch(e) {}
-  document.body.classList.remove('admin-logged-in', 'docente-logged-in', 'admin-panel-active', 'docente-panel-active', 'public-view-active', 'modo-director', 'modo-comision');
+  document.body.classList.remove('admin-logged-in', 'docente-logged-in', 'admin-panel-active', 'docente-panel-active', 'public-view-active', 'modo-director', 'modo-comision', 'acceso-panel-pendiente');
   document.body.style.overflow = '';
   document.documentElement.style.overflow = '';
   ceaPersistencia.clearPrivate();
@@ -21016,7 +21058,10 @@ function adminLogout() {
   if (fabDir) fabDir.style.display = 'none';
 
   const loginBox = document.getElementById('admin-login');
-  if (loginBox) loginBox.style.display = 'block';
+  if (loginBox) { loginBox.hidden = false; loginBox.style.display = 'block'; loginBox.setAttribute('aria-busy', 'false'); }
+  document.getElementById('btn-reintentar-acceso')?.remove();
+  document.querySelectorAll('.panel-acceso-estado').forEach(estado => estado.remove());
+  document.querySelectorAll('.panel-acceso-cargando').forEach(panel => { panel.classList.remove('panel-acceso-cargando'); panel.setAttribute('aria-busy', 'false'); });
 
   const panelAdmin = document.getElementById('admin-panel') || document.getElementById('admin-content');
   if (panelAdmin) panelAdmin.style.display = 'none';
@@ -21162,6 +21207,8 @@ async function mostrarPanelAdmin() {
     return;
   }
 
+  activarVistaPanelInstitucional(session);
+
   const loginBox = document.getElementById('admin-login');
   if (loginBox) loginBox.style.display = 'none';
 
@@ -21208,6 +21255,9 @@ async function mostrarPanelAdmin() {
 }
 
 function mostrarPanelDocente(areaKey) {
+  const session = lsGet('cea_session', null);
+  if (!session?.token || session.role !== 'docente') return;
+  activarVistaPanelInstitucional(session);
   try {
     document.documentElement.style.scrollBehavior = 'auto';
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });

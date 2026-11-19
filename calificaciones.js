@@ -739,6 +739,7 @@
       ? lsGet(CALIF_STORAGE_KEYS.GESTIONES, ['2026'])
       : JSON.parse(localStorage.getItem(CALIF_STORAGE_KEYS.GESTIONES) || '["2026"]');
     const anios = [
+      ...Array.from({length:Math.max(2040,new Date().getFullYear())-2026+1},(_,indice)=>String(2026+indice)),
       String(new Date().getFullYear()),
       ...(Array.isArray(lista) ? lista : []),
       ...obtenerEstudiantesAfiliacion().map(est => est.gestion),
@@ -750,23 +751,21 @@
 
   async function crearNuevaGestion(nuevoAnio) {
     const anioStr = String(nuevoAnio || '').trim();
-    if (!anioStr || !/^\d{4}$/.test(anioStr)) {
-      alert('Por favor ingrese un año de 4 dígitos válido (Ej: 2027).');
+    if (!/^\d{4}$/.test(anioStr) || Number(anioStr) < 1900) {
+      alert('Ingresa una gestión de cuatro dígitos válida.');
       return false;
     }
-    const lista = getGestionesDisponibles();
-    if (!lista.includes(anioStr)) {
-      lista.push(anioStr);
-      lista.sort((a, b) => b.localeCompare(a)); // Más recientes primero
-      if (typeof lsSet === 'function') lsSet(CALIF_STORAGE_KEYS.GESTIONES, lista);
-      else localStorage.setItem(CALIF_STORAGE_KEYS.GESTIONES, JSON.stringify(lista));
-      await registrarAuditoria('GESTION', 'NUEVA_GESTION', `Habilitación de nueva gestión académica: ${anioStr}`);
-      alert(`Gestión académica ${anioStr} habilitada correctamente. Los registros anteriores se conservan intactos.`);
+    try {
+      const respuesta = await sincronizarCalifGoogleSheet('habilitar-gestion-academica',{anio:anioStr});
+      if (!Array.isArray(respuesta.gestiones) || !respuesta.gestiones.includes(anioStr)) throw new Error('No se confirmó la gestión.');
+      lsSet(CALIF_STORAGE_KEYS.GESTIONES,respuesta.gestiones);
+      _gestionActiva = anioStr;
+      return true;
+    } catch(error) {
+      if (!error.ceaReported) alert(error.message || 'No se pudo habilitar la gestión.');
+      return false;
     }
-    _gestionActiva = anioStr;
-    return true;
   }
-
 
   function getParalelosHabilitadosCurso(carreraKey, nivel, gestion) {
     const list = (typeof getParalelosDisponibles === 'function') 
@@ -779,7 +778,7 @@
     regs.forEach(r => {
       const matchCar = r.areaKey === carreraKey || r.carreraAreaKey === carreraKey || normalizarCadena(r.carrera || '') === normalizarCadena(carreraKey);
       const matchNiv = r.nivel === nivel || normalizarCadena(r.nivel || '') === normalizarCadena(nivel);
-      if (matchCar && matchNiv && r.paralelo) {
+      if (matchCar && matchNiv && coincidePeriodoMatricula(r,gestion || _gestionActiva,_semestreActivo) && r.paralelo) {
         setP.add(r.paralelo.toUpperCase());
       }
     });
@@ -794,7 +793,7 @@
         const aNivCan = (typeof normalizarNivelCanonica === 'function') ? normalizarNivelCanonica(a.nivel || '') : '';
         const nCan = (typeof normalizarNivelCanonica === 'function') ? normalizarNivelCanonica(nivel || '') : '';
         const matchNiv = (aNivCan && nCan) ? (aNivCan === nCan) : (normalizarCadena(a.nivel || '') === nNorm);
-        if (matchCar && matchNiv && a.paralelo) {
+        if (matchCar && matchNiv && coincidePeriodoMatricula(a,gestion || _gestionActiva,_semestreActivo) && a.paralelo) {
           setP.add(a.paralelo.toUpperCase());
         }
       });
@@ -878,9 +877,10 @@
       setRegistros(regs);
     }
     return regs.map(registro => {
+      registro = {...registro,bloqueado:false,estadoBloqueo:'DESBLOQUEADO'};
       if (registro.tipo === 'humanistica') {
         const nivel = nivelHumanisticoOficialCalif(registro.nivel);
-        const modulo = obtenerMallaOficialHumanistica(registro.areaKey || registro.carreraAreaKey, nivel)[numeroModuloHumanisticoCalif(registro) - 1];
+        const modulo = obtenerMallaOficialHumanistica(registro.areaKey || registro.carreraAreaKey, nivel,registro.gestion,registro.semestre)[numeroModuloHumanisticoCalif(registro) - 1];
         return {...registro, nivel, moduloCodigo: modulo.codigo, moduloNombre: modulo.nombre, modulo: modulo.completo, criterios: CRITERIOS_HUMANISTICA_DEFAULT};
       }
       const malla = mallaSistemasCalif(registro.areaKey || registro.carreraAreaKey, registro.nivel);
@@ -1113,14 +1113,19 @@
     return found;
   }
 
-  function obtenerMallaOficialHumanistica(areaKey, nivel) {
+  function obtenerMallaOficialHumanistica(areaKey, nivel, gestion = _gestionActiva, semestre = _semestreActivo) {
     const guardada = lsGet('cea_malla_' + areaKey, []);
     const malla = Array.isArray(guardada) ? guardada : [];
     const curso = malla.find(item => normalizarNivelCanonica(item.nivel) === normalizarNivelCanonica(nivel));
     return [1, 2].map(numero => {
       const codigo = numero === 1 ? areaKey : areaKey + '-M2';
       const guardado = curso?.modulos?.find(item => (Array.isArray(item) ? item[0] : item.codigo) === codigo);
-      const nombre = (Array.isArray(guardado) ? guardado[1] : guardado?.nombre) || 'Módulo ' + numero;
+      const registros = lsGet(CALIF_STORAGE_KEYS.REGISTROS,[]);
+      const historico = (Array.isArray(registros)?registros:[]).find(r=>r.areaKey===areaKey && normalizarNivelCanonica(r.nivel)===normalizarNivelCanonica(nivel) && coincidePeriodoMatricula(r,gestion,semestre) && numeroModuloHumanisticoCalif(r)===numero);
+      const textoGuardado = String(historico?.modulo || '').trim();
+      const sufijo = ' - '+nivel;
+      const nombreHistorico = textoGuardado.endsWith(sufijo) ? textoGuardado.slice(0,-sufijo.length) : textoGuardado;
+      const nombre = nombreHistorico || (Array.isArray(guardado) ? guardado[1] : guardado?.nombre) || 'Módulo ' + numero;
       return {codigo, nombre, completo: nombre + ' - ' + nivel, areaKey, numero};
     });
   }
@@ -1131,7 +1136,7 @@
 
   function selectorModulosHumanisticaCalif(registro, modo, editable) {
     const areaKey = registro.areaKey || registro.carreraAreaKey;
-    const modulos = obtenerMallaOficialHumanistica(areaKey, registro.nivel);
+    const modulos = obtenerMallaOficialHumanistica(areaKey, registro.nivel,registro.gestion,registro.semestre);
     const numero = numeroModuloHumanisticoCalif(registro);
     return `<div class="calif-modulo-tabs-bar-wrap">
       <div class="calif-modulo-tabs-bar">${modulos.map(modulo => `<button type="button" class="calif-modulo-tab-btn ${modulo.numero === numero ? 'active' : ''}" onclick="window.cambiarModuloPlanilla(${argumentosCalif(areaKey, registro.nivel, modulo.codigo, modulo.nombre, registro.paralelo || 'A', modo)})">
@@ -1154,7 +1159,7 @@
     estado.textContent = 'Guardando…';
     try {
       await sincronizarCalifGoogleSheet('guardar-malla', {carreraKey: registro.areaKey,
-        moduloHumanistico: {nivel: registro.nivel, numero: numeroModuloHumanisticoCalif(registro), nombre}});
+        moduloHumanistico: {nivel: registro.nivel, numero: numeroModuloHumanisticoCalif(registro), nombre,gestion:registro.gestion,semestre:registro.semestre}});
       await cargarDatosGoogleSheets(true);
       if (_registroActivo?.id === registro.id) {
         const resultado = obtenerOCrearRegistro({...registro, registroId: registro.id}, registro.semestre, registro.gestion, registro.paralelo);
@@ -1431,7 +1436,7 @@
 
   function obtenerOCrearRegistro(asig, semestre = null, gestion = null, paralelo = 'A', activar = true) {
     if (asig.tipo === 'humanistica') {
-      const modulo = obtenerMallaOficialHumanistica(asig.areaKey, asig.nivel)[numeroModuloHumanisticoCalif(asig) - 1];
+      const modulo = obtenerMallaOficialHumanistica(asig.areaKey, asig.nivel,gestion || _gestionActiva,semestre || _semestreActivo)[numeroModuloHumanisticoCalif(asig) - 1];
       asig = {...asig, moduloCodigo: modulo.codigo, moduloNombre: modulo.nombre, moduloCompleto: modulo.completo};
     }
     const g = gestion || _gestionActiva || '2026';
@@ -1789,7 +1794,7 @@
               <img src="logo.png" alt="CEA" style="width:26px;height:auto" onerror="this.style.display='none'">
               <div>
                 <strong style="color:#ffffff;font-size:0.80rem;display:block;line-height:1.2">CEA MADRE MARIE POUSSEPIN</strong>
-                <span style="font-size:0.68rem;color:#86efac;font-weight:700">PANEL ACADÉMICO 2026</span>
+                <span style="font-size:0.68rem;color:#86efac;font-weight:700">PANEL ACADÉMICO ${escapeHTML(_gestionActiva)}</span>
               </div>
             </div>
             <button type="button" class="sidebar-close-btn" onclick="if(typeof adminLogout==='function') adminLogout(); else location.reload();" title="Salir / Cerrar Sesión" style="background:rgba(255,255,255,0.15);border:none;color:#ffffff;border-radius:6px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
@@ -1954,6 +1959,7 @@
   }
 
   function conmutarVistaDocenteSidebar(tabName) {
+    if (!permitirSalirBoletin(() => conmutarVistaDocenteSidebar(tabName))) return;
     try {
       window.scrollTo(0, 0);
       if (document.body) document.body.scrollTop = 0;
@@ -4681,6 +4687,8 @@
     } else {
       const tree = document.getElementById('docente-cursos-container');
       if (tree) tree.style.display = 'none';
+      const boletin = document.getElementById('docente-stage-centralizador');
+      if (boletin && !boletin.contains(container)) boletin.style.display = 'none';
     }
 
     container.style.display = 'block';
@@ -4692,14 +4700,12 @@
     }
 
     const esTecnica = registro.tipo === 'tecnica';
-    const esBloqueado = Boolean(registro.bloqueado || registro.estadoBloqueo === 'BLOQUEADO');
+    const esBloqueado = false;
     const esFinalizado = registro.estado === 'FINALIZADO';
     const esPublicado = registro.estado === 'PUBLICADO';
 
-    // Regla estricta: si está BLOQUEADO, nadie edita desde el docente
-    const puedeEditar = (modo === 'director')
-      ? true // El director puede gestionar
-      : (!esBloqueado && !esFinalizado && !esPublicado);
+    // Ambos roles pueden corregir notas; el servidor valida el area autorizada.
+    const puedeEditar = modo === 'director' || modo === 'docente';
 
     const stats = calcularEstadisticasPlanilla(detalles);
 
@@ -4792,7 +4798,7 @@
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#15803d" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                       <div>
                         <strong>Finalizar Registro</strong>
-                        <span style="display:block;font-size:0.72rem;color:#64748b">Cerrar y proteger calificaciones</span>
+                        <span style="display:block;font-size:0.72rem;color:#64748b">Guardar y marcar como finalizado</span>
                       </div>
                     </button>
                     <button type="button" class="calif-dropdown-item" onclick="window.publicarRegistroDocente(); window.closeAllDropdownsCalif();">
@@ -4806,35 +4812,17 @@
 
                   ${modo === 'director' ? `
                     ${!esBloqueado ? `
-                      <button type="button" class="calif-dropdown-item" onclick="window.bloquearRegistroDirectorModal('${registro.id}'); window.closeAllDropdownsCalif();">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#dc2626" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                        <div>
-                          <strong style="color:#dc2626">Bloquear Calificaciones</strong>
-                          <span style="display:block;font-size:0.72rem;color:#64748b">Impedir modificaciones</span>
-                        </div>
-                      </button>
+                      
                     ` : `
-                      <button type="button" class="calif-dropdown-item" onclick="window.desbloquearRegistroDirector('${registro.id}'); window.closeAllDropdownsCalif();">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0284c7" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-                        <div>
-                          <strong style="color:#0284c7">Desbloquear Registro</strong>
-                          <span style="display:block;font-size:0.72rem;color:#64748b">Permitir edición docente</span>
-                        </div>
-                      </button>
+                      
                     `}
 
                     ${(esFinalizado || esPublicado) && !esBloqueado ? `
-                      <button type="button" class="calif-dropdown-item" onclick="window.autorizarReaperturaRegistro('${registro.id}'); window.closeAllDropdownsCalif();">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#d97706" stroke-width="2.2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
-                        <div>
-                          <strong>Autorizar Reapertura</strong>
-                          <span style="display:block;font-size:0.72rem;color:#64748b">Permitir corrección docente</span>
-                        </div>
-                      </button>
+                      
                     ` : ''}
 
                     ${!esPublicado ? `
-                      <button type="button" class="calif-dropdown-item" onclick="window.publicarRegistroCalificaciones('${registro.id}'); window.closeAllDropdownsCalif();">
+                      <button type="button" class="calif-dropdown-item" onclick="window.publicarRegistroCalificaciones.call(this,'${registro.id}'); window.closeAllDropdownsCalif();">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#059669" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
                         <div>
                           <strong style="color:#059669">Publicar Notas</strong>
@@ -4961,6 +4949,7 @@
         ` : ''}
 
         <!-- TABLA PRINCIPAL DE NOTAS -->
+        ${controlesPublicacionBoletin({...registro,carreraKey:registro.areaKey || registro.carreraAreaKey,nivelNombre:registro.nivel,modulos:[{codigo:registro.moduloCodigo}],mapaModulos:[{idRegistro:registro.id}]},'registro')}
         <div class="calif-table-responsive">
           <table class="calif-eval-table" id="tabla-eval-principal">
             <thead>
@@ -5143,6 +5132,7 @@
   };
 
   window.cambiarObservacionCalif = (boton, idx) => {
+    recordarOriginalPlanillaCalif();
     const fila = _detallesActivos?.[idx];
     if (!fila || !_registroActivo || !RESULTADOS_OBSERVACION_CALIF.includes(boton.dataset.valor)) return;
     if (!fila.estadoParticipante && estadoParticipanteCalif(fila) !== 'EFECTIVO') {
@@ -5273,6 +5263,7 @@
   }
 
   function alCambiarNota(input, idx, campo) {
+    recordarOriginalPlanillaCalif();
     const val = String(input.value).trim();
     const maxVal = parseFloat(input.getAttribute('max')) || 100;
     const minVal = parseFloat(input.getAttribute('min')) || 0;
@@ -5338,6 +5329,13 @@
   const camposEditadosCalif = new WeakMap();
   const cambiosPendientesCalif = new WeakMap();
   const guardadosEnCursoCalif = new WeakMap();
+  const originalesPlanillaCalif = new WeakMap();
+
+  function recordarOriginalPlanillaCalif() {
+    if (_registroActivo && !originalesPlanillaCalif.has(_registroActivo)) {
+      originalesPlanillaCalif.set(_registroActivo, {registro:structuredClone(_registroActivo), detalles:structuredClone(_detallesActivos)});
+    }
+  }
 
   function hayNotasPendientes(registro) {
     return cambiosPendientesCalif.has(registro) || guardadosEnCursoCalif.has(registro);
@@ -5362,6 +5360,14 @@
       const acciones = document.createElement('div');
       acciones.className = 'calif-acciones-barra-superior';
       acciones.append(fuente.content.cloneNode(true));
+      const guardar = acciones.querySelector('button[onclick*="guardar"]');
+      const imprimir = acciones.querySelector('button[onclick*="imprimir"]');
+      const informacion = document.createElement('div');
+      informacion.className = 'calif-info-acciones';
+      [...acciones.children].filter(item => item !== guardar && item !== imprimir).forEach(item => informacion.appendChild(item));
+      acciones.replaceChildren(informacion);
+      if (imprimir) acciones.appendChild(imprimir);
+      if (guardar) { guardar.classList.add('calif-guardar-destacado'); acciones.appendChild(guardar); }
       barra.append(acciones);
     }
   }
@@ -5396,6 +5402,11 @@
     indicador.children[2].hidden = estado === 'error' || estado === 'pendiente';
     if (estado === 'enviando') indicador.children[2].removeAttribute('value');
     else indicador.children[2].value = porcentaje;
+    const guardar = topbar.closest('.calif-acciones-barra-superior')?.querySelector('.calif-guardar-destacado');
+    if (guardar) {
+      guardar.classList.toggle('calif-guardar-pendiente', estado === 'pendiente' || estado === 'error');
+      guardar.setAttribute('aria-busy', String(estado === 'enviando'));
+    }
   }
 
   function marcarNotasPendientes() {
@@ -5749,6 +5760,10 @@
           }
         }
         const pendiente = cambiosPendientesCalif.has(registro);
+        if (!pendiente) originalesPlanillaCalif.delete(registro);
+        else if (Array.isArray(confirmados)) originalesPlanillaCalif.set(registro, {
+          registro: structuredClone(registro), detalles: structuredClone(confirmados)
+        });
         mostrarProgresoGuardadoCalif(registro, pendiente ? 'pendiente' : 'confirmado', pendiente ? 0 : 100);
         return !pendiente;
       } catch (error) {
@@ -5790,9 +5805,8 @@
     registro.estado = normalizarCadena(registro.estado || 'BORRADOR').trim().toUpperCase();
 
     // Protección frontend
-    if (registro.bloqueado) {
-      throw new Error('Este registro se encuentra BLOQUEADO por la Dirección y no admite modificaciones.');
-    }
+    registro.bloqueado=false; registro.estadoBloqueo='DESBLOQUEADO';
+
 
     // VALIDACIÓN ESTRICTA EN FRONTEND: Bloquear si existen calificaciones inválidas
     const inputsError = document.querySelectorAll('.calif-input-nota.nota-invalida-error, .calif-input-nota.nota-error');
@@ -5906,28 +5920,9 @@
   }
 
   async function publicarRegistroCalificaciones(idRegistro) {
-    const registros = getRegistros();
-    const reg = registros.find(r => r.id === idRegistro);
-    if (!reg) return;
-
-    const conf = confirm(`¿Deseas PUBLICAR las calificaciones de ${reg.carrera} - ${reg.modulo}?\n\nAl publicar, los estudiantes podrán consultar sus notas oficiales en la página web.`);
-    if (!conf) return;
-
-    reg.estado = 'PUBLICADO';
-    reg.fechaModificacion = new Date().toISOString();
-    setRegistros(registros);
-
-    await registrarAuditoria(reg.id, 'PUBLICAR', `Publicación oficial de notas por la Dirección.`);
-    await sincronizarCalifGoogleSheet('cambiar-estado-calificaciones', {
-      idRegistro: reg.id,
-      nuevoEstado: 'PUBLICADO',
-      detalle: 'Calificaciones publicadas para consulta estudiantil'
-    });
-
-    alert('Calificaciones publicadas con éxito.');
-    const session = (typeof lsGet === 'function') ? lsGet('cea_session', {}) : {};
-    const modo = (session.role === 'director' || session.role === 'admin') ? 'director' : 'docente';
-    renderPlanillaEvaluacion(reg, _detallesActivos, modo);
+    const registro=getRegistros().find(r=>r.id===idRegistro);
+    if (!registro) return false;
+    return publicarSeleccionCalificaciones(this instanceof HTMLButtonElement?this:botonPublicacionRegistro(),seleccionPublicacion(registro,'registro'));
   }
 
   // ─── 12. GESTIÓN DE ESTUDIANTES EN NÓMINA ───
@@ -6352,7 +6347,7 @@
       docenteNombre = 'Plantel Docente Humanístico';
       const materiaSeleccionada = materiasHum.find(materia => materia.clase === carreraKey);
       const seleccionadas = materiaSeleccionada ? [materiaSeleccionada] : materiasHum;
-      modulos = seleccionadas.flatMap(materia => obtenerMallaOficialHumanistica(materia.clase, nivelNombre).map(modulo =>
+      modulos = seleccionadas.flatMap(materia => obtenerMallaOficialHumanistica(materia.clase, nivelNombre,g,s).map(modulo =>
         ({...modulo, nombre: materiaSeleccionada ? modulo.nombre : materia.area + ' · ' + modulo.nombre})));
     }
 
@@ -7308,12 +7303,10 @@
                     Ver Planilla
                   </button>
 
-                  <button type="button" class="btn-calif ${esBloqueado ? 'btn-calif-unblock' : 'btn-calif-block'}" style="flex:1;min-width:85px;font-size:0.76rem;font-weight:800;padding:6px 8px;justify-content:center" onclick="window.conmutarBloqueoCursoDirector('${escapeHTML(carObj.key)}', '${escapeHTML(niv)}', '${escapeHTML(par)}', ${!esBloqueado})" title="${esBloqueado ? 'Desbloquear curso' : 'Bloquear curso'}">
-                    ${esBloqueado ? 'Desbloquear' : 'Bloquear'}
-                  </button>
+                  
 
                   ${!algunPublicado ? `
-                    <button type="button" class="btn-calif btn-calif-publish" style="flex:1;min-width:80px;font-size:0.76rem;font-weight:800;padding:6px 8px;justify-content:center" onclick="window.publicarNotasCursoDirector('${escapeHTML(carObj.key)}', '${escapeHTML(niv)}', '${escapeHTML(par)}')" title="Publicar notas">
+                    <button type="button" class="btn-calif btn-calif-publish" style="flex:1;min-width:80px;font-size:0.76rem;font-weight:800;padding:6px 8px;justify-content:center" onclick="window.publicarNotasCursoDirector.call(this,'${escapeHTML(carObj.key)}', '${escapeHTML(niv)}', '${escapeHTML(par)}')" title="Publicar notas">
                       Publicar
                     </button>
                   ` : ''}
@@ -7561,12 +7554,10 @@
                     Ver Planilla
                   </button>
 
-                  <button type="button" class="btn-calif ${esBloqueado ? 'btn-calif-unblock' : 'btn-calif-block'}" style="flex:1;min-width:85px;font-size:0.76rem;font-weight:800;padding:6px 8px;justify-content:center" onclick="window.conmutarBloqueoCursoDirector('${escapeHTML(matObj.clase)}', '${escapeHTML(niv)}', '${escapeHTML(par)}', ${!esBloqueado})" title="${esBloqueado ? 'Desbloquear curso' : 'Bloquear curso'}">
-                    ${esBloqueado ? 'Desbloquear' : 'Bloquear'}
-                  </button>
+                  
 
                   ${!algunPublicado ? `
-                    <button type="button" class="btn-calif btn-calif-publish" style="flex:1;min-width:80px;font-size:0.76rem;font-weight:800;padding:6px 8px;justify-content:center;background:#15803d;border-color:#166534" onclick="window.publicarNotasCursoDirector('${escapeHTML(matObj.clase)}', '${escapeHTML(niv)}', '${escapeHTML(par)}')" title="Publicar notas">
+                    <button type="button" class="btn-calif btn-calif-publish" style="flex:1;min-width:80px;font-size:0.76rem;font-weight:800;padding:6px 8px;justify-content:center;background:#15803d;border-color:#166534" onclick="window.publicarNotasCursoDirector.call(this,'${escapeHTML(matObj.clase)}', '${escapeHTML(niv)}', '${escapeHTML(par)}')" title="Publicar notas">
                       Publicar
                     </button>
                   ` : ''}
@@ -8431,6 +8422,8 @@
 
   // ─── VISTA: REVISAR NOTAS (DIRECTOR) CON CENTRALIZADOR INTEGRADO ───
   function habilitarNavegacionBoletin(tabla) {
+    if (!tabla || tabla.dataset.navegacionBoletin === 'activa') return;
+    tabla.dataset.navegacionBoletin = 'activa';
     const selectorNota = '.cen-digital-nota-input:not(:disabled):not([readonly])';
 
     tabla.addEventListener('click', event => {
@@ -8454,8 +8447,11 @@
         destino = notas[notas.indexOf(nota) + (key === 'ArrowRight' ? 1 : -1)];
       } else if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Enter') {
         const columna = nota.closest('td').cellIndex;
-        const otraFila = key === 'ArrowUp' ? fila.previousElementSibling : fila.nextElementSibling;
-        destino = otraFila?.cells[columna]?.querySelector(selectorNota);
+        let otraFila = key === 'ArrowUp' ? fila.previousElementSibling : fila.nextElementSibling;
+        while (otraFila && !destino) {
+          destino = otraFila.cells[columna]?.querySelector(selectorNota);
+          otraFila = key === 'ArrowUp' ? otraFila.previousElementSibling : otraFila.nextElementSibling;
+        }
       } else {
         return;
       }
@@ -8467,7 +8463,7 @@
 
   function renderVistaRevisarNotas(container, carreraKey = null, nivelNom = null, paralelo = null) {
     if (!container) return;
-    if (!permitirSalirBoletin()) {
+    if (!permitirSalirBoletin(() => renderVistaRevisarNotas(container, carreraKey, nivelNom, paralelo))) {
       const datos = _centralizadorActivoDatos;
       const carrera = container.querySelector('#revision-notas-carrera');
       if (carrera && datos) carrera.value = datos.carreraKey;
@@ -8569,6 +8565,7 @@
           </div>
         </div>
 
+        ${controlesPublicacionBoletin(datos)}
         <div class="revision-notas-tabla" tabindex="0" role="region" aria-label="Tabla de calificaciones">
           <table class="calif-revisar-table-clean${window._revisarNotasModoEdicion ? ' boletin-en-edicion' : ''}" style="width:100%;border-collapse:collapse;border:none !important;margin:0;font-size:0.85rem">
             <thead>
@@ -8645,54 +8642,290 @@
   }
   window.renderVistaRevisarNotas = renderVistaRevisarNotas;
 
+  let publicandoBoletinActual = false;
+  function seleccionPublicacion(datos, origen = 'boletin') {
+    return {areaKey:datos.carreraKey || datos.areaKey || datos.carreraAreaKey,nivel:datos.nivelNombre || datos.nivel,paralelo:datos.paralelo || 'A',gestion:String(datos.gestion),semestre:datos.semestre,...(origen === 'registro' ? {idRegistro:datos.id || datos.mapaModulos?.[0]?.idRegistro} : {})};
+  }
+
+  function controlesPublicacionBoletin(datos, origen = 'boletin') {
+    const ids = new Set((datos.mapaModulos || []).map(m => m.idRegistro));
+    const publicados = getRegistros().filter(r => ids.has(r.id) && (r.publicadoConsulta || r.estado === 'PUBLICADO')).length;
+    const modulo = origen === 'registro';
+    const contexto = escapeHTML(JSON.stringify(seleccionPublicacion(datos,origen)));
+    return `<section class="boletin-publicacion" data-publicacion-contexto="${contexto}"><div><h4>${modulo ? 'Publicación de este módulo' : 'Publicación de notas'}</h4><p>${modulo ? 'Publica las notas de este módulo' : 'Publica las notas de este curso, paralelo y semestre'} para que cada estudiante consulte y descargue su boletín. Los cambios pendientes se guardarán antes de publicar. Después podrás seguir corrigiendo las notas.</p></div><button type="button" class="btn-calif btn-calif-publish" ${modulo ? 'data-publicar-registro' : 'data-publicar-boletin'} onclick="window.${modulo ? 'publicarNotasRegistro' : 'publicarNotasBoletin'}(this)">Publicar notas</button><p class="boletin-publicacion-estado" role="status" aria-live="polite">${publicados} de ${(datos.modulos || []).length} módulos publicados</p></section>`;
+  }
+
+  function estadoPublicacion(boton) {
+    const existente = boton?.closest('.boletin-publicacion')?.querySelector('[role="status"]');
+    if (existente) return existente;
+    const barra = document.getElementById(getSessionSegura().role === 'docente' ? 'docente-stage-topbar' : 'admin-stage-topbar') || document.body;
+    let estado = barra.querySelector('.calif-publicacion-global');
+    if (!estado) { estado=document.createElement('p'); estado.className='calif-publicacion-global'; estado.setAttribute('role','status'); barra.append(estado); }
+    return estado;
+  }
+
+  async function publicarSeleccionCalificaciones(boton, seleccion) {
+    if (publicandoBoletinActual) return false;
+    const estado = estadoPublicacion(boton);
+    if (!seleccion?.areaKey || !seleccion.nivel || !seleccion.semestre || !/^\d{4}$/.test(seleccion.gestion)) {
+      estado.textContent='Selecciona el curso, la gestión y el semestre antes de publicar.';return false;
+    }
+    const token = getSessionSegura().token, generacion = generacionSesionBoletin;
+    const textoOriginal = boton?.textContent;
+    publicandoBoletinActual=true;
+    if (boton) { boton.disabled=true; boton.textContent='Publicando…'; boton.setAttribute('aria-busy','true'); }
+    try {
+      estado.textContent='Guardando los cambios antes de publicar…';
+      if (seleccion.idRegistro && _registroActivo?.id === seleccion.idRegistro && hayNotasPendientes(_registroActivo)) {
+        if (!await guardarRegistroCalificaciones()) throw new Error('No se pudieron guardar todos los cambios. Las notas no se publicaron.');
+      }
+      if (!seleccion.idRegistro && (notasBoletinPendientes.size || guardandoNotasBoletin)) {
+        while (guardandoNotasBoletin) {
+          await new Promise(resolve=>setTimeout(resolve,100));
+          if (getSessionSegura().token!==token || generacion!==generacionSesionBoletin) return false;
+        }
+        if (notasBoletinPendientes.size && !await window.guardarNotasBoletin()) throw new Error('No se pudieron guardar todos los cambios. Las notas no se publicaron.');
+      }
+      if (getSessionSegura().token!==token || generacion!==generacionSesionBoletin) return false;
+      estado.textContent='Publicando las calificaciones guardadas…';
+      const respuesta=await sincronizarCalifGoogleSheet('publicar-boletin-curso',seleccion);
+      if (getSessionSegura().token!==token || generacion!==generacionSesionBoletin) return false;
+      if (respuesta.status!=='success' || !Array.isArray(respuesta.publicados) || !respuesta.publicados.length || (seleccion.idRegistro && (respuesta.publicados.length!==1 || respuesta.publicados[0]!==seleccion.idRegistro))) throw new Error('No se confirmó la publicación. Vuelve a intentar.');
+      const ids=new Set(respuesta.publicados);
+      setRegistros(getRegistros().map(r=>ids.has(r.id)?{...r,publicadoConsulta:true,fechaPublicacion:respuesta.fecha}:r));
+      if (estado.isConnected) estado.textContent=respuesta.publicados.length+' módulo(s) publicados. Los estudiantes ya pueden consultar y descargar sus boletines. Puedes seguir editando las notas.';
+      return true;
+    } catch(error) {
+      if (estado.isConnected && getSessionSegura().token===token) estado.textContent=error.message || 'No se pudo publicar. Vuelve a intentar.';
+      return false;
+    } finally {
+      publicandoBoletinActual=false;
+      if (boton?.isConnected) { boton.disabled=false; boton.textContent=textoOriginal || 'Publicar notas'; boton.setAttribute('aria-busy','false'); }
+    }
+  }
+  function contextoPublicacion(boton) {
+    try { return JSON.parse(boton?.closest('.boletin-publicacion')?.dataset.publicacionContexto || 'null'); } catch(error) { return null; }
+  }
+  window.publicarNotasBoletin = boton => publicarSeleccionCalificaciones(boton,contextoPublicacion(boton));
+  window.publicarNotasRegistro = boton => publicarSeleccionCalificaciones(boton,contextoPublicacion(boton));
+  function botonPublicacionRegistro() {
+    const prefijo=getSessionSegura().role==='docente'?'#docente-planilla-container':'#admin-planilla-container';
+    return document.querySelector(prefijo+' [data-publicar-registro]');
+  }
+
   const notasBoletinPendientes = new Map();
   let guardandoNotasBoletin = false;
+  let generacionSesionBoletin = 0;
+  let contenedorBoletinActivo = null;
+  let originalBoletinCalif = null;
+  let guardarBoletinDocentePorModulo = false;
+  const registrosPreparadosBoletinCalif = new Set();
+  window.limpiarEdicionBoletin = function() {
+    generacionSesionBoletin++;
+    notasBoletinPendientes.clear();
+    originalBoletinCalif = null;
+    guardarBoletinDocentePorModulo = false;
+    registrosPreparadosBoletinCalif.clear();
+    guardandoNotasBoletin = false;
+    window._docenteCentralizadorModoEdicion = false;
+    publicandoBoletinActual = false;
+  };
 
-  function permitirSalirBoletin() {
+  function estadoBotonesGuardarBoletin() {
+    document.querySelectorAll('[data-guardar-boletin]').forEach(button => {
+      button.disabled = guardandoNotasBoletin || !window._docenteCentralizadorModoEdicion;
+      button.textContent = guardandoNotasBoletin ? 'Guardando…' : 'Guardar';
+    });
+  }
+
+  function permitirSalirBoletin(continuar) {
     if (!notasBoletinPendientes.size && !guardandoNotasBoletin) return true;
+    if (continuar) pedirSalidaEdicionCalif(continuar);
     if (!guardandoNotasBoletin) mostrarProgresoGuardadoCalif(null, 'pendiente', 0, 'Pulsa Guardar antes de salir del boletín.');
     return false;
   }
 
+  let retomandoNavegacionCalif = false;
+
+  function hayEdicionSinGuardarCalif() {
+    return notasBoletinPendientes.size > 0 || guardandoNotasBoletin ||
+      Boolean(_registroActivo && document.getElementById('tabla-eval-principal')?.getClientRects().length && hayNotasPendientes(_registroActivo));
+  }
+
+  function descartarEdicionCalif() {
+    if (_registroActivo && originalesPlanillaCalif.has(_registroActivo)) {
+      const original = originalesPlanillaCalif.get(_registroActivo);
+      Object.assign(_registroActivo, original.registro);
+      _detallesActivos = window._detallesActivos = structuredClone(original.detalles);
+      setDetalles(getDetalles().filter(item => item.idRegistro !== _registroActivo.id).concat(_detallesActivos));
+      actualizarCeldasPlanillaCalif(_registroActivo, _detallesActivos);
+      originalesPlanillaCalif.delete(_registroActivo);
+    }
+    if (_registroActivo) {
+      cambiosPendientesCalif.delete(_registroActivo);
+      camposEditadosCalif.delete(_registroActivo);
+    }
+    if (originalBoletinCalif && registrosPreparadosBoletinCalif.size) {
+      setRegistros(getRegistros().filter(item => !registrosPreparadosBoletinCalif.has(item.id)).concat(originalBoletinCalif.registros.filter(item => registrosPreparadosBoletinCalif.has(item.id))));
+      setDetalles(getDetalles().filter(item => !registrosPreparadosBoletinCalif.has(item.idRegistro)).concat(originalBoletinCalif.detalles.filter(item => registrosPreparadosBoletinCalif.has(item.idRegistro))));
+    }
+    notasBoletinPendientes.clear();
+    originalBoletinCalif = null;
+    registrosPreparadosBoletinCalif.clear();
+    document.querySelectorAll('.calif-guardar-pendiente').forEach(button => button.classList.remove('calif-guardar-pendiente'));
+  }
+
+  function pedirSalidaEdicionCalif(continuar) {
+    if (document.getElementById('calif-salir-sin-guardar')) return;
+    const dialogo = document.createElement('dialog');
+    dialogo.id = 'calif-salir-sin-guardar';
+    dialogo.className = 'calif-dialogo-salida';
+    dialogo.setAttribute('aria-labelledby', 'calif-titulo-salida');
+    dialogo.innerHTML = `<h3 id="calif-titulo-salida">Tienes cambios sin guardar</h3><p>Elige qué hacer antes de salir de esta vista.</p><p role="status" class="calif-salida-estado"></p><div class="calif-salida-acciones"><button type="button" data-salida="descartar">Salir sin guardar</button><button type="button" class="calif-guardar-destacado" data-salida="guardar">Guardar y salir</button></div>`;
+    let trabajando = false;
+    const cerrar = () => { dialogo.close(); dialogo.remove(); };
+    dialogo.addEventListener('cancel', event => { event.preventDefault(); if (!trabajando) cerrar(); });
+    dialogo.querySelectorAll('[data-salida]').forEach(button => button.addEventListener('click', async () => {
+      if (trabajando) return;
+      trabajando = true;
+      dialogo.querySelectorAll('button').forEach(item => { item.disabled = true; });
+      const estado = dialogo.querySelector('[role="status"]');
+      try {
+        estado.textContent = 'Esperando la confirmación del guardado en curso…';
+        if (_registroActivo && guardadosEnCursoCalif.has(_registroActivo)) await guardadosEnCursoCalif.get(_registroActivo);
+        for (let intentos = 0; guardandoNotasBoletin; intentos++) {
+          if (intentos > 450) throw new Error('El guardado sigue en curso. Espera su confirmación.');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (button.dataset.salida === 'guardar') {
+          estado.textContent = 'Guardando cambios…';
+          if (notasBoletinPendientes.size && !await window.guardarNotasBoletin()) throw new Error('No se pudo guardar el boletín. Conservamos tus cambios.');
+          if (_registroActivo && hayNotasPendientes(_registroActivo) && !await guardarRegistroCalificaciones()) throw new Error('No se pudo guardar la planilla. Conservamos tus cambios.');
+        } else descartarEdicionCalif();
+        cerrar();
+        retomandoNavegacionCalif = true;
+        try { continuar(); } finally { retomandoNavegacionCalif = false; }
+      } catch (error) {
+        estado.textContent = error.message;
+        trabajando = false;
+        dialogo.querySelectorAll('button').forEach(item => { item.disabled = false; });
+      }
+    }));
+    document.body.appendChild(dialogo);
+    dialogo.showModal();
+  }
+
+  function interceptarSalidaEdicionCalif(event) {
+    if (retomandoNavegacionCalif || !getSessionSegura().token || !hayEdicionSinGuardarCalif()) return;
+    const control = event.target.closest('button, a, select, [onclick]');
+    if (!control || control.closest('#calif-salir-sin-guardar')) return;
+    const accion = control.dataset.sourceAction || control.getAttribute(event.type === 'change' ? 'onchange' : 'onclick') || '';
+    const navega = /(?:navegar|abrirCarrera|abrirModulo|abrirRegistro|abrirPlanilla|seleccionarCurso|seleccionarNivel|revisarNotasDirector|cambiarSubtab|cambiarModulo|cambiarCurso|cambiarNivel|cambiarParalelo|cambiarEspecialidad|cambiarGestion|cambiarSemestre|conmutarVista|conmutarArea|conmutarEdicion|switchAdminSubTab|cerrarVisor|volver|adminLogout|mostrarVisor|renderVistaRevisarNotas)/i.test(accion) ||
+      (control.tagName === 'A' && Boolean(control.getAttribute('href')));
+    if (!navega) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    pedirSalidaEdicionCalif(() => {
+      if (event.type === 'change') control.dispatchEvent(new Event('change', {bubbles:true}));
+      else control.click();
+    });
+  }
+  document.addEventListener('click', interceptarSalidaEdicionCalif, true);
+  document.addEventListener('change', interceptarSalidaEdicionCalif, true);
+
+  function confirmarPlanillasBoletin(confirmadas, pendientesPorRegistro) {
+    const ids = new Set(confirmadas.map(planilla => planilla.id));
+    setDetalles(getDetalles().filter(d => !ids.has(d.idRegistro)).concat(confirmadas.flatMap(p => p.detalles)));
+    const fechas = new Map(confirmadas.map(p => [p.id, p.fechaModificacion]));
+    setRegistros(getRegistros().map(registro => ids.has(registro.id)
+      ? {...registro, fechaModificacion: fechas.get(registro.id) || new Date().toISOString()} : registro));
+    for (const id of ids) {
+      for (const [clave, cambio] of pendientesPorRegistro.get(id) || []) {
+        if (notasBoletinPendientes.get(clave) === cambio) notasBoletinPendientes.delete(clave);
+      }
+      registrosPreparadosBoletinCalif.delete(id);
+    }
+    if (originalBoletinCalif) {
+      originalBoletinCalif.registros = originalBoletinCalif.registros.filter(r => !ids.has(r.id)).concat(structuredClone(getRegistros().filter(r => ids.has(r.id))));
+      originalBoletinCalif.detalles = originalBoletinCalif.detalles.filter(d => !ids.has(d.idRegistro)).concat(structuredClone(confirmadas.flatMap(p => p.detalles)));
+    }
+  }
+
+  async function enviarPlanillasBoletin(planillas, pendientesPorRegistro, sesionVigente) {
+    const docente = getSessionSegura().role === 'docente';
+    if (!docente || !guardarBoletinDocentePorModulo) {
+      try { return await sincronizarCalifGoogleSheet('guardar-boletin', {planillas: [...planillas.values()]}); }
+      catch (error) {
+        // Implementaciones anteriores reservaban el lote a Direccion; cada registro
+        // conserva en el servidor la autorizacion del area y los bloqueos del docente.
+        if (!docente || !/requiere una cuenta de direcci[oó]n/i.test(error.message || '')) throw error;
+        guardarBoletinDocentePorModulo = true;
+      }
+    }
+    const confirmadas = [];
+    for (const planilla of planillas.values()) {
+      if (!sesionVigente()) throw new Error('La sesión cambió. Vuelve a ingresar.');
+      const respuesta = await sincronizarCalifGoogleSheet('guardar-calificaciones-registro', planilla);
+      if (!sesionVigente()) throw new Error('La sesión cambió. Vuelve a ingresar.');
+      if (respuesta.status !== 'success' || !Array.isArray(respuesta.detalles)) throw new Error('No se confirmó el guardado del módulo. Conservamos los cambios pendientes.');
+      const confirmada = {id:planilla.registro.id, detalles:respuesta.detalles, fechaModificacion:new Date().toISOString()};
+      confirmarPlanillasBoletin([confirmada], pendientesPorRegistro);
+      confirmadas.push(confirmada);
+    }
+    return {status:'success', confirmadas};
+  }
+
   window.guardarNotasBoletin = async function() {
-    if (guardandoNotasBoletin || !notasBoletinPendientes.size) return;
+    if (guardandoNotasBoletin) return false;
+    if (!notasBoletinPendientes.size) {
+      mostrarProgresoGuardadoCalif(null, 'confirmado', 100, 'No hay cambios pendientes.');
+      return true;
+    }
+    const token = getSessionSegura().token;
+    const generacion = generacionSesionBoletin;
     guardandoNotasBoletin = true;
+    estadoBotonesGuardarBoletin();
     mostrarProgresoGuardadoCalif(null, 'enviando', 0);
     try {
       const pendientes = [...notasBoletinPendientes];
       const planillas = new Map();
-      for (const [, cambio] of pendientes) {
+      const pendientesPorRegistro = new Map();
+      for (const [clave, cambio] of pendientes) {
         const preparado = prepararNotaBoletin(...cambio);
         const id = preparado.registro.id;
+        registrosPreparadosBoletinCalif.add(id);
         if (!planillas.has(id)) planillas.set(id, {...preparado, cambiosNotas: []});
         planillas.get(id).cambiosNotas.push(...preparado.cambiosNotas);
+        if (!pendientesPorRegistro.has(id)) pendientesPorRegistro.set(id, []);
+        pendientesPorRegistro.get(id).push([clave, cambio]);
       }
-      const respuesta = await sincronizarCalifGoogleSheet('guardar-boletin', {planillas: [...planillas.values()]});
+      const respuesta = await enviarPlanillasBoletin(planillas, pendientesPorRegistro, () => generacion === generacionSesionBoletin && getSessionSegura().token === token);
+      if (generacion !== generacionSesionBoletin || getSessionSegura().token !== token) return false;
       if (respuesta.status !== 'success' || respuesta.confirmadas?.length !== planillas.size ||
           respuesta.confirmadas.some(planilla => !planillas.has(planilla.id) || !Array.isArray(planilla.detalles))) {
         throw new Error('No se confirmó el guardado de todas las planillas.');
       }
-      setDetalles(getDetalles().filter(d => !planillas.has(d.idRegistro)).concat(respuesta.confirmadas.flatMap(p => p.detalles)));
-      const fechas = new Map(respuesta.confirmadas.map(planilla => [planilla.id, planilla.fechaModificacion]));
-      setRegistros(getRegistros().map(registro => fechas.has(registro.id)
-        ? {...registro, fechaModificacion: fechas.get(registro.id) || new Date().toISOString()}
-        : registro));
-
-      for (const [clave, cambio] of pendientes) {
-        if (notasBoletinPendientes.get(clave) === cambio) notasBoletinPendientes.delete(clave);
-      }
+      confirmarPlanillasBoletin(respuesta.confirmadas, pendientesPorRegistro);
       const pendiente = notasBoletinPendientes.size > 0;
+      originalBoletinCalif = pendiente ? {registros:structuredClone(getRegistros()), detalles:structuredClone(getDetalles())} : null;
+      if (!pendiente) registrosPreparadosBoletinCalif.clear();
       mostrarProgresoGuardadoCalif(null, pendiente ? 'pendiente' : 'confirmado', pendiente ? 0 : 100);
+      return !pendiente;
     } catch (error) {
+      if (generacion !== generacionSesionBoletin) return false;
       mostrarProgresoGuardadoCalif(null, 'error', 0, error.message || 'No se pudo guardar el boletín.');
+      return false;
     } finally {
-      guardandoNotasBoletin = false;
+      if (generacion === generacionSesionBoletin) {
+        guardandoNotasBoletin = false;
+        estadoBotonesGuardarBoletin();
+      }
     }
   };
 
   window._revisarNotasModoEdicion = false;
   window.conmutarEdicionRevisarNotasDirector = function(habilitar) {
-    if (!permitirSalirBoletin()) return;
+    if (!permitirSalirBoletin(() => window.conmutarEdicionRevisarNotasDirector(habilitar))) return;
     window._revisarNotasModoEdicion = Boolean(habilitar);
     const d = _centralizadorActivoDatos;
     const cont = document.getElementById('admin-calif-subtab-content') || document.getElementById('admin-stage-content');
@@ -9050,12 +9283,10 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
                                 Ver Planilla
                               </button>
                               
-                              <button type="button" class="btn-calif ${esBloq ? 'btn-calif-unblock' : 'btn-calif-block'}" style="padding:4px 9px;font-size:0.75rem;font-weight:700" onclick="window.conmutarBloqueoCursoDirector('${escapeHTML(g.key)}', '${escapeHTML(c.nivel)}', '${escapeHTML(c.paralelo)}', ${!esBloq})" title="${esBloq ? 'Desbloquear curso' : 'Bloquear curso'}">
-                                ${esBloq ? 'Desbloquear' : 'Bloquear'}
-                              </button>
+                              
 
                               ${c.estado !== 'NOTAS PUBLICADAS' ? `
-                                <button type="button" class="btn-calif btn-calif-publish" style="padding:4px 9px;font-size:0.75rem;font-weight:700" onclick="window.publicarNotasCursoDirector('${escapeHTML(g.key)}', '${escapeHTML(c.nivel)}', '${escapeHTML(c.paralelo)}')" title="Publicar calificaciones de este curso">
+                                <button type="button" class="btn-calif btn-calif-publish" style="padding:4px 9px;font-size:0.75rem;font-weight:700" onclick="window.publicarNotasCursoDirector.call(this,'${escapeHTML(g.key)}', '${escapeHTML(c.nivel)}', '${escapeHTML(c.paralelo)}')" title="Publicar calificaciones de este curso">
                                   Publicar
                                 </button>
                               ` : ''}
@@ -9169,21 +9400,17 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
               Consulta Oficial de Calificaciones
             </h3>
             <p style="margin:4px 0 0 0;font-size:0.85rem;color:var(--text-sec)">
-              Ingresa tus datos de verificación personal para acceder a tus calificaciones publicadas.
+              Ingresa tu cédula de identidad para consultar y descargar tus calificaciones publicadas.
             </p>
           </div>
           <button type="button" onclick="document.getElementById('${modalId}').style.display='none'" style="background:none;border:none;font-size:1.6rem;cursor:pointer;color:var(--text-sec)">&times;</button>
         </div>
 
         <form onsubmit="window.ejecutarConsultaEstudiante(event)">
-          <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+          <div class="form-grid" style="display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:16px">
             <div class="form-group">
               <label style="font-size:0.82rem;font-weight:700">Cédula de Identidad (CI) *</label>
               <input type="text" id="lookup-est-ci" class="calif-filter-input" required placeholder="Ej: 8345129" />
-            </div>
-            <div class="form-group">
-              <label style="font-size:0.82rem;font-weight:700">Fecha de Nacimiento o Teléfono *</label>
-              <input type="text" id="lookup-est-verif" class="calif-filter-input" required placeholder="Ej: 19/12/1998 o Celular" />
             </div>
           </div>
 
@@ -9203,153 +9430,8 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
   }
 
   async function ejecutarConsultaEstudiante(e) {
-    if (e) e.preventDefault();
-    const ciRaw = (document.getElementById('lookup-est-ci')?.value || '').trim();
-    const verifRaw = (document.getElementById('lookup-est-verif')?.value || '').trim();
-    const resBox = document.getElementById('lookup-est-resultados');
-    const btnSubmit = document.getElementById('btn-submit-lookup-est');
-    if (!ciRaw || !resBox) return;
-
-    if (btnSubmit) {
-      btnSubmit.disabled = true;
-      btnSubmit.innerHTML = `<span>Buscando calificaciones...</span>`;
-    }
-
-    try {
-      const ciDigits = ciRaw.replace(/\D/g, '');
-      const verifClean = verifRaw.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
-
-      const registros = getRegistros();
-      const todosDetalles = getDetalles();
-
-      // Solo registros PUBLICADOS
-      const regsPublicados = registros.filter(r => r.estado === 'PUBLICADO');
-      const misResultados = [];
-
-      regsPublicados.forEach(reg => {
-        const detallesReg = todosDetalles.filter(d => d.idRegistro === reg.id);
-        detallesReg.forEach(d => {
-          const ciD = String(d.ci || '').trim();
-          const ciDDigits = ciD.replace(/\D/g, '');
-          if ((ciD && ciD.toLowerCase() === ciRaw.toLowerCase()) || (ciDigits && ciDDigits === ciDigits)) {
-            misResultados.push({
-              registro: reg,
-              detalle: d
-            });
-          }
-        });
-      });
-
-      const gsheetUrl = (typeof obtenerGoogleSheetURL === 'function' ? obtenerGoogleSheetURL() : null) || (typeof GOOGLE_SCRIPT_URL !== 'undefined' ? GOOGLE_SCRIPT_URL : null);
-      if (gsheetUrl && gsheetUrl.includes('script.google.com')) {
-        try {
-          const resp = await fetch(gsheetUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({
-              action: 'consultar-calificaciones-estudiante',
-              ci: ciRaw,
-              verificacion: verifClean
-            })
-          });
-          const data = await resp.json();
-          if (data && data.status === 'success' && Array.isArray(data.calificaciones)) {
-            data.calificaciones.forEach(serverItem => {
-              const existe = misResultados.some(m => m.registro.id === serverItem.registro.id);
-              if (!existe) misResultados.push(serverItem);
-            });
-          }
-        } catch (errGAS) {
-          console.warn('Consulta en línea continuó con base de datos local:', errGAS);
-        }
-      }
-
-      resBox.style.display = 'block';
-
-      if (misResultados.length === 0) {
-        resBox.innerHTML = `
-          <div style="text-align:center;padding:24px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#991b1b">
-            <h4 style="margin:0 0 6px 0;font-size:1.05rem">No se encontraron calificaciones publicadas</h4>
-            <p style="margin:0;font-size:0.86rem;color:#7f1d1d">
-              No existen calificaciones publicadas actualmente para el documento de identidad <strong>${escapeHTML(ciRaw)}</strong>.
-            </p>
-          </div>
-        `;
-        return;
-      }
-
-      const primerDet = misResultados[0].detalle;
-      const nombreCompletoEst = `${primerDet.paterno || ''} ${primerDet.materno || ''} ${primerDet.nombres || ''}`.trim();
-
-      resBox.innerHTML = `
-        <div style="background:var(--verde-light);border:1px solid var(--verde);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-          <div>
-            <h4 style="margin:0;color:var(--verde-dark);font-size:1.05rem">${escapeHTML(nombreCompletoEst)}</h4>
-            <span style="font-size:0.80rem;color:var(--verde-dark)">CI: ${escapeHTML(ciRaw)} • Participante CEA Madre Marie Poussepin</span>
-          </div>
-          <span style="font-size:0.82rem;font-weight:800;background:var(--verde);color:#fff;padding:4px 12px;border-radius:20px">
-            ${misResultados.length} Módulo(s) Calificado(s)
-          </span>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:14px">
-          ${misResultados.map((item) => {
-            const reg = item.registro;
-            const det = item.detalle;
-            const esTec = reg.tipo === 'tecnica';
-            const isAprob = det.observacion === 'APROBADO';
-
-            return `
-              <div class="calif-boleta-card">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-                  <div>
-                    <span style="font-size:0.74rem;font-weight:800;background:${esTec ? '#dbeafe' : '#fce7f3'};color:${esTec ? '#1e40af' : '#9d174d'};padding:2px 8px;border-radius:4px;text-transform:uppercase">
-                      ${esTec ? 'Educación Técnica' : 'Educación Humanística'}
-                    </span>
-                    <h4 style="margin:4px 0 2px 0;color:var(--verde-dark);font-size:1.02rem">${escapeHTML(reg.modulo)}</h4>
-                    <span style="font-size:0.80rem;color:var(--text-sec)">${escapeHTML(reg.carrera)} • ${escapeHTML(reg.nivel)} • Paralelo "${escapeHTML(reg.paralelo || 'A')}" • Gestión ${escapeHTML(reg.gestion)} (${escapeHTML(reg.semestre)})</span>
-                  </div>
-                  <div style="text-align:right">
-                    <div style="font-size:1.45rem;font-weight:800;color:${isAprob ? 'var(--verde)' : '#b91c1c'}">
-                      ${det.notaFinal} <small style="font-size:0.8rem;color:var(--text-sec)">/ 100</small>
-                    </div>
-                    <span class="calif-badge-obs ${isAprob ? 'calif-obs-aprobado' : 'calif-obs-reprobado'}">${det.observacion}</span>
-                  </div>
-                </div>
-
-                <div style="background:#ffffff;border:1px solid var(--border-col);border-radius:8px;padding:10px 14px;font-size:0.80rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-                  ${esTec ? `
-                    <div><strong>SER:</strong> ${det.ser !== '' ? det.ser : '-'}/10</div>
-                    <div><strong>SABER:</strong> ${det.saber !== '' ? det.saber : '-'}/30</div>
-                    <div><strong>DECIDIR:</strong> ${det.decidir !== '' ? det.decidir : '-'}/10</div>
-                    <div><strong>PROCESO:</strong> ${det.proceso !== '' ? det.proceso : '-'}/20</div>
-                    <div><strong>PRODUCTO:</strong> ${det.producto !== '' ? det.producto : '-'}/20</div>
-                    <div><strong>AUTOEVAL.:</strong> ${det.autoevaluacion !== '' ? det.autoevaluacion : '-'}/10</div>
-                  ` : `
-                    <div><strong>SER:</strong> ${det.ser !== '' ? det.ser : '-'}/10</div>
-                    <div><strong>SABER:</strong> ${det.saber !== '' ? det.saber : '-'}/40</div>
-                    <div><strong>HACER:</strong> ${mostrarHacerCalif(det) === '' ? '-' : mostrarHacerCalif(det)}/30</div>
-                    <div><strong>DECIDIR:</strong> ${det.decidir !== '' ? det.decidir : '-'}/10</div>
-                    <div><strong>AUTOEVAL.:</strong> ${det.autoevaluacion !== '' ? det.autoevaluacion : '-'}/10</div>
-                  `}
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      `;
-    } finally {
-      if (btnSubmit) {
-        btnSubmit.disabled = false;
-        btnSubmit.innerHTML = `
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <span>Consultar Mis Calificaciones</span>
-        `;
-      }
-    }
+    return window.consultarBoletinEstudiante(e);
   }
-
-
 
   function obtenerAreasTecnicasConfig() {
     let lista = (typeof lsGet === 'function')
@@ -9528,6 +9610,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
 
   // ─── 15. VISOR DIGITAL DEL CENTRALIZADOR EN PANTALLA ───
   function mostrarVisorDigitalCentralizador(carreraKey, nivelNombre, gestion = null, semestre = null, paralelo = null, targetContainerId = null) {
+    if (!permitirSalirBoletin(() => mostrarVisorDigitalCentralizador(carreraKey, nivelNombre, gestion, semestre, paralelo, targetContainerId))) return;
     const g = gestion || _gestionActiva || '2026';
     let s = semestre;
     if (!s) {
@@ -9566,6 +9649,10 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
       }
     }
     if (!targetEl) return;
+    contenedorBoletinActivo = targetEl.id;
+    targetEl.style.display = 'block';
+    const planillaAnterior = document.getElementById(esDocente ? 'docente-planilla-container' : 'admin-planilla-container');
+    if (planillaAnterior && planillaAnterior !== targetEl && !planillaAnterior.contains(targetEl)) planillaAnterior.style.display = 'none';
 
     const areasTec = obtenerAreasTecnicasConfig();
     const semestres = ['Segundo Semestre', 'Primer Semestre'];
@@ -9582,6 +9669,12 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
     // Renderizar la Matriz Digital Interactiva (No réplica de papel, sino software de edición con recálculo en vivo)
     targetEl.innerHTML = `
       <div class="cen-digital-viewer cen-digital-paper">
+        ${esDocente ? `<template class="calif-acciones-superiores">
+          <button type="button" class="btn-calif btn-calif-secondary" onclick="window.imprimirCentralizadorOficial()">${SVG_ICONS.PRINT} Imprimir</button>
+          <button type="button" class="btn-calif btn-calif-secondary" data-guardar-boletin onclick="window.guardarNotasBoletin()" ${window._docenteCentralizadorModoEdicion ? '' : 'disabled'}>Guardar</button>
+          <div class="calif-estado-planilla"></div>
+          <span class="calif-contexto-superior">${escapeHTML(datos.carreraNombre)} · ${escapeHTML(nNom)} · Paralelo ${escapeHTML(p)}</span>
+        </template>` : ''}
         <!-- BARRA SUPERIOR DE ACCIONES (CON RELLENO VERDE INSTITUCIONAL COMO EN EL REGISTRO DE EVALUACIÓN) -->
         <div style="background:#063b17;color:#ffffff;border:1px solid #063b17;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;box-shadow:0 4px 12px rgba(6,59,23,0.18)">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -9669,7 +9762,8 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
         </div>
 
         <!-- CONTROL GLOBAL DE SUBIDA DEL BOLETÍN -->
-        ${controlSubidaHTML}
+          ${controlSubidaHTML}
+          ${controlesPublicacionBoletin(datos)}
 
         <!-- MATRIZ DIGITAL INTERACTIVA CON EDICIÓN DIRECTA DE NOTAS Y CHECK POR ESTUDIANTE -->
         <div style="background:#ffffff;border:2px solid var(--verde);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,0.06);margin-bottom:20px;overflow-x:auto">
@@ -9738,7 +9832,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
                       }
                       return `
                         <td style="padding:4px;text-align:center">
-                          <input type="number" min="0" max="100" class="cen-digital-nota-input" id="cen-input-${i}-${mIdx}" value="${notaVal}" placeholder="-" style="width:58px;padding:4px 6px;text-align:center;font-weight:800;border:1.5px solid #0284c7;border-radius:6px;background:#ffffff;color:#0f172a" onchange="window.alEditarNotaDesdeCentralizador('${escapeHTML(cKey)}', '${escapeHTML(nNom)}', '${escapeHTML(g)}', '${escapeHTML(s)}', '${escapeHTML(p)}', ${i}, ${mIdx}, this.value, '${escapeHTML(estKey)}')">
+                          <input type="number" min="0" max="100" inputmode="numeric" enterkeyhint="next" class="cen-digital-nota-input" id="cen-input-${i}-${mIdx}" value="${notaVal}" placeholder="-" style="width:58px;padding:4px 6px;text-align:center;font-weight:800;border:1.5px solid #0284c7;border-radius:6px;background:#ffffff;color:#0f172a" oninput="window.alEditarNotaDesdeCentralizador('${escapeHTML(cKey)}', '${escapeHTML(nNom)}', '${escapeHTML(g)}', '${escapeHTML(s)}', '${escapeHTML(p)}', ${i}, ${mIdx}, this.value, '${escapeHTML(estKey)}', ${esDocente ? 'true' : 'false'})">
                         </td>
                       `;
                     }).join('')}
@@ -9773,6 +9867,8 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
       </div>
     `;
 
+    habilitarNavegacionBoletin(targetEl.querySelector('.cen-digital-table'));
+
     const dMainStage = document.getElementById('docente-main-stage');
     if (dMainStage) dMainStage.scrollTop = 0;
     const aStageBody = document.getElementById('admin-stage-body');
@@ -9781,6 +9877,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
 
   // Sincronización en vivo cuando se edita una nota en el Centralizador Digital
   async function alEditarNotaDesdeCentralizador(cKey, nNom, g, s, p, estIndex, mIdx, nuevoValor, estKey, diferir = false) {
+    if (diferir && !originalBoletinCalif) originalBoletinCalif = {registros:structuredClone(getRegistros()), detalles:structuredClone(getDetalles())};
     const val = parseInt(nuevoValor, 10);
     if (isNaN(val) || val < 0 || val > 100) {
       if (nuevoValor !== '') {
@@ -9955,6 +10052,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
   window.cambiarNivelCentralizador = cambiarNivelCentralizador;
 
   function cerrarVisorDigitalCentralizador() {
+    if (!permitirSalirBoletin(cerrarVisorDigitalCentralizador)) return;
     const session = getSessionSegura();
     if (session.role === 'director' || session.role === 'admin') {
       const planCont = document.getElementById('admin-planilla-container');
@@ -9991,6 +10089,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
   // Conmutador del modo edición en el Boletín Centralizador Docente (Protección contra errores)
   window._docenteCentralizadorModoEdicion = false;
   window.conmutarEdicionCentralizadorDocente = function(habilitar) {
+    if (!permitirSalirBoletin(() => window.conmutarEdicionCentralizadorDocente(habilitar))) return;
     window._docenteCentralizadorModoEdicion = Boolean(habilitar);
     if (habilitar) {
       if (typeof mostrarToastCalif === 'function') {
@@ -10003,7 +10102,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
     }
     const d = _centralizadorActivoDatos;
     if (d) {
-      mostrarVisorDigitalCentralizador(d.carreraKey, d.nivelNombre, d.gestion, d.semestre, d.paralelo);
+      mostrarVisorDigitalCentralizador(d.carreraKey, d.nivelNombre, d.gestion, d.semestre, d.paralelo, contenedorBoletinActivo);
     }
   };
 
@@ -10763,7 +10862,15 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
 
   // ─── 16. SINCRONIZACIÓN ASÍNCRONA CON GOOGLE APPS SCRIPT ───
   async function sincronizarCalifGoogleSheet(action, payload) {
-    return enviarGoogleSheet({action: action, ...payload});
+    try {
+      return await enviarGoogleSheet({action: action, ...payload});
+    } catch (error) {
+      if (['guardar-boletin', 'guardar-calificaciones-registro', 'publicar-boletin-curso', 'cambiar-estado-calificaciones'].includes(action) &&
+          (error.code === 'BLOQUEADO' || /direcci[oó]n ha bloqueado este registro/i.test(error.message || ''))) {
+        throw new Error('El servidor conserva una versión anterior que bloquea las notas. Dirección debe actualizar la implementación de Apps Script. Tus cambios siguen pendientes; vuelve a guardar después de la actualización.');
+      }
+      throw error;
+    }
   }
 
 
@@ -11213,7 +11320,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
 
         <button type="button" class="admin-sidebar-item" data-section="inscripciones" onclick="window.navegarAdminGlobal('inscripciones')">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
-          <span class="sidebar-text">Preinscripciones 2026</span>
+          <span class="sidebar-text">Preinscripciones</span>
         </button>
 
         <button type="button" class="admin-sidebar-item" data-section="configuracion" onclick="window.navegarAdminGlobal('configuracion')">
@@ -11447,7 +11554,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
     } else if (seccion === 'inscripciones') {
       const el = document.getElementById('admin-group-inscripciones');
       if (el) el.style.display = 'block';
-      if (topTitle) topTitle.textContent = 'PREINSCRIPCIONES DE PARTICIPANTES 2026';
+      if (topTitle) topTitle.textContent = 'PREINSCRIPCIONES DE PARTICIPANTES';
       if (topSubtitle) topSubtitle.textContent = 'Revisión y aprobación de postulantes inscritos mediante la web';
       if (typeof lsSet === 'function') lsSet('cea_active_admin_subtab', 'inscripciones');
       if (typeof cargarInscripciones === 'function') cargarInscripciones();
@@ -13398,7 +13505,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
           <div>
             <h2 style="margin:0;color:#063b17;font-size:1.35rem;font-weight:900;display:flex;align-items:center;gap:10px">
               <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
-              ${esDoc ? `AFILIACIÓN DE ESTUDIANTES — ${escapeHTML((carNombreDoc || '').toUpperCase())}` : 'AFILIACIÓN GENERAL Y PADRÓN INSTITUCIONAL DE ESTUDIANTES 2026'}
+              ${esDoc ? `AFILIACIÓN DE ESTUDIANTES — ${escapeHTML((carNombreDoc || '').toUpperCase())}` : 'AFILIACIÓN GENERAL Y PADRÓN INSTITUCIONAL DE ESTUDIANTES '+escapeHTML(_gestionActiva)}
             </h2>
             <p style="margin:4px 0 0 0;font-size:0.85rem;color:#475569">
               ${esDoc 
@@ -15508,7 +15615,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
           <div style="border:1.8px solid #063b17;border-radius:6px;padding:5px 4px;background:#f0fdf4;-webkit-print-color-adjust:exact;print-color-adjust:exact">
             <span style="display:block;font-size:15pt;font-weight:900;color:#063b17;line-height:1">${totalEst}</span>
             <span style="font-size:6.8pt;color:#063b17;font-weight:900;text-transform:uppercase;display:block;margin-top:2px">Total Matriculados</span>
-            <span style="font-size:6pt;color:#475569">Padrón Institucional 2026</span>
+            <span style="font-size:6pt;color:#475569">Padrón Institucional ${escapeHTML(_gestionActiva)}</span>
           </div>
           <div style="border:1.8px solid #059669;border-radius:6px;padding:5px 4px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact">
             <span style="display:block;font-size:15pt;font-weight:900;color:#059669;line-height:1">${totalTec} <small style="font-size:8.5pt;font-weight:800">(${pctTec}%)</small></span>
@@ -16173,46 +16280,14 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
   }
   window.conmutarBloqueoCursoDirector = conmutarBloqueoCursoDirector;
 
-  function publicarNotasCursoDirector(carreraKey, nivelNom, paralelo) {
-    const conf = confirm('¿Confirmas la publicación oficial de todas las notas de este curso/nivel?\n\nAl publicar, el estado cambiará a NOTAS PUBLICADAS.');
-    if (!conf) return;
-
-    const todosRegs = getRegistros();
-    let modifCount = 0;
-    todosRegs.forEach(r => {
-      const matchCar = (r.carreraAreaKey === carreraKey || r.areaKey === carreraKey || normalizarCadena(r.carrera) === normalizarCadena(carreraKey));
-      if (matchCar && r.nivel === nivelNom && (r.paralelo || 'A') === (paralelo || 'A') && String(r.gestion) === String(_gestionActiva)) {
-        r.estado = 'PUBLICADO';
-        r.fechaModificacion = new Date().toISOString();
-        modifCount++;
-      }
-    });
-    setRegistros(todosRegs);
-    alert('Calificaciones del curso publicadas con éxito.');
-    renderSubtabAdminContenido();
+  async function publicarNotasCursoDirector(carreraKey, nivelNom, paralelo) {
+    return publicarSeleccionCalificaciones(this instanceof HTMLButtonElement?this:null,{areaKey:carreraKey,nivel:nivelNom,paralelo:paralelo || 'A',gestion:String(_gestionActiva),semestre:_semestreActivo});
   }
   window.publicarNotasCursoDirector = publicarNotasCursoDirector;
 
   async function publicarRegistroDocente() {
-    if (!_registroActivo || !_detallesActivos) return;
-    if (_registroActivo.bloqueado) {
-      alert('Este registro se encuentra BLOQUEADO por la Dirección.');
-      return;
-    }
-    const conf = confirm(`¿Confirmas que deseas PUBLICAR las calificaciones de ${_registroActivo.carrera} - ${_registroActivo.modulo}?\n\nAl publicar, el estado cambiará a NOTAS PUBLICADAS y quedará formalizado ante la Dirección.`);
-    if (!conf) return;
-
-    _registroActivo.estado = 'PUBLICADO';
-    _registroActivo.fechaModificacion = new Date().toISOString();
-    await guardarRegistroCalificaciones(true);
-    await registrarAuditoria(_registroActivo.id, 'PUBLICAR_DOCENTE', 'Calificaciones publicadas oficialmente por el docente.');
-    await sincronizarCalifGoogleSheet('cambiar-estado-calificaciones', {
-      idRegistro: _registroActivo.id,
-      nuevoEstado: 'PUBLICADO',
-      detalle: 'Calificaciones publicadas por docente'
-    });
-    alert('Calificaciones publicadas con éxito. Estado: NOTAS PUBLICADAS.');
-    renderPlanillaEvaluacion(_registroActivo, _detallesActivos, 'docente');
+    if (!_registroActivo) return false;
+    return publicarSeleccionCalificaciones(botonPublicacionRegistro(),seleccionPublicacion(_registroActivo,'registro'));
   }
   window.publicarRegistroDocente = publicarRegistroDocente;
 
