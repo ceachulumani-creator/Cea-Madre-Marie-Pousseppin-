@@ -8,7 +8,9 @@ Copia el contenido completo de `google-apps-script.gs` en el proyecto de Apps Sc
 
 ## Actualización completa
 
-El apartado docente **Usuario y contraseña** ahora incluye **Nombre completo del docente**. Para habilitar su guardado también debes actualizar la implementación de Apps Script con el archivo de este proyecto. El docente confirma su contraseña actual y puede dejar vacía la nueva contraseña cuando solo necesita corregir su nombre. Publica `calificaciones.js`, `calificaciones.css`, `cea-persistencia.js` e `index.html` actualizados.
+El perfil de la especialidad se guarda con **guardar-perfil-especialidad**, limitado al área de la sesión docente y con confirmación del servidor. La publicación de notas está disponible para Dirección y Docente. Los controles **SUBIDO**, marcar y desmarcar del centralizador se muestran únicamente en Dirección. Los permisos de horarios se conservan. Para aplicar estos ajustes, actualiza la implementación de Apps Script y publica los archivos web actualizados.
+
+El apartado docente **Usuario y contraseña** tiene dos formularios independientes. **Nombre del docente** se guarda con la sesión iniciada, sin pedir contraseña. **Usuario y contraseña** requiere la contraseña actual; para cambiar la clave hay que escribir la nueva y confirmarla. Actualiza la implementación de Apps Script y publica `app.js`, `calificaciones.js`, `calificaciones.css`, `cea-persistencia.js` e `index.html`. En Dirección, espera el mensaje **Datos guardados y confirmados** antes de cerrar la página. Ese mensaje aparece después de releer los nombres escritos en el servidor.
 
 1. En Google Drive, crea una copia privada de la hoja oficial. Comprueba que la nómina y las notas estén en esa hoja.
 2. Abre la hoja oficial y entra en **Extensiones > Apps Script**. Sustituye el código anterior por el contenido completo de `google-apps-script.gs` y guarda.

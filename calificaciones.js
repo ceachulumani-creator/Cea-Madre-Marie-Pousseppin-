@@ -2211,7 +2211,7 @@
 
     if (tabName === 'perfil') {
       const areasTec = (typeof lsGet === 'function') ? lsGet('cea_areas_tec', (typeof AREAS_TEC_DEFAULT !== 'undefined' ? AREAS_TEC_DEFAULT : [])) : [];
-      const currentArea = areasTec.find(a => a.key === docInfo.areaKey) || { key: docInfo.areaKey, nombre: nombreEspecialidad, resumen: '' };
+      const currentArea = areasTec.find(a => a.key === docInfo.areaKey) || {key:docInfo.areaKey,nombre:nombreEspecialidad,resumen:'', ...lsGet('cea_perfiles_especialidad', {})[docInfo.areaKey]};
       const fotoActual = (typeof obtenerFotoCarreraTec === 'function') ? obtenerFotoCarreraTec(docInfo.areaKey, currentArea) : (currentArea.foto || '');
       const usuariosDoc = (typeof lsGet === 'function') ? lsGet('cea_usuarios_docentes', (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' ? USUARIOS_DOCENTES_DEFAULT : {})) : {};
       const uDoc = usuariosDoc[docInfo.areaKey] || {};
@@ -2235,7 +2235,7 @@
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px">
             <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:18px">
               <h4 style="margin:0 0 14px 0;font-size:0.92rem;color:var(--verde-dark);font-weight:900;display:flex;align-items:center;gap:6px">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -3062,86 +3062,85 @@
   function formularioCuentaDocente(areaKey, usuarioActual, prefijo = 'sec') {
     const sesion = getSessionSegura();
     const nombre = sesion.name || lsGet('cea_docentes', {})[areaKey] || '';
-    return `<form class="calif-cuenta-docente" onsubmit="window.ejecutarCambioCredencialesDocente(event, '${escapeHTML(areaKey)}')">
-      <div class="calif-cuenta-campo">
-        <label for="${prefijo}-nombre-docente">Nombre completo del docente</label>
-        <input id="${prefijo}-nombre-docente" name="nombreDocente" class="calif-filter-input" type="text" value="${escapeHTML(nombre)}" autocomplete="name" minlength="2" maxlength="120" required aria-describedby="${prefijo}-nombre-ayuda">
-        <small id="${prefijo}-nombre-ayuda">Corrige aquí tus nombres y apellidos. Este es tu nombre como docente, distinto del usuario de acceso.</small>
-      </div>
-      <div class="calif-cuenta-campo">
-        <label for="${prefijo}-nuevo-user">Usuario de inicio de sesión</label>
-        <input id="${prefijo}-nuevo-user" name="usuario" class="calif-filter-input" type="text" value="${escapeHTML(sesion.user || usuarioActual)}" autocomplete="username" autocapitalize="none" spellcheck="false" required>
-      </div>
-      <div class="calif-cuenta-campo">
-        <label for="${prefijo}-pass-actual">Contraseña actual</label>
-        <input id="${prefijo}-pass-actual" name="passActual" class="calif-filter-input" type="password" autocomplete="current-password" required>
-        <small>Confirma tu contraseña actual para guardar los cambios.</small>
-      </div>
-      <div class="calif-cuenta-campo">
-        <label for="${prefijo}-nueva-pass">Nueva contraseña (opcional)</label>
-        <input id="${prefijo}-nueva-pass" name="nuevaPass" class="calif-filter-input" type="password" autocomplete="new-password" minlength="5">
-        <small>Déjala vacía si solo quieres corregir tu nombre o cambiar tu usuario.</small>
-      </div>
-      <div class="calif-cuenta-campo">
-        <label for="${prefijo}-nueva-pass-confirmar">Confirmar nueva contraseña</label>
-        <input id="${prefijo}-nueva-pass-confirmar" name="confirmarPass" class="calif-filter-input" type="password" autocomplete="new-password">
-      </div>
-      <p class="calif-cuenta-estado" role="status" aria-live="polite"></p>
-      <button type="submit" class="btn-calif btn-calif-primary">Guardar cambios</button>
-    </form>`;
+    return `<div class="calif-cuenta-secciones">
+      <form class="calif-cuenta-docente calif-nombre-docente" onsubmit="window.guardarNombreDocente(event, '${escapeHTML(areaKey)}')">
+        <h4>Nombre del docente</h4>
+        <div class="calif-cuenta-campo">
+          <label for="${prefijo}-nombre-docente">Nombre completo del docente</label>
+          <input id="${prefijo}-nombre-docente" name="nombreDocente" class="calif-filter-input" type="text" value="${escapeHTML(nombre)}" autocomplete="name" minlength="2" maxlength="120" required>
+          <small>Puedes corregir tus nombres y apellidos con tu sesión iniciada. No necesitas contraseña.</small>
+        </div>
+        <p class="calif-cuenta-estado" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn-calif btn-calif-primary">Guardar nombre</button>
+      </form>
+      <form class="calif-cuenta-docente calif-acceso-docente" onsubmit="window.ejecutarCambioCredencialesDocente(event, '${escapeHTML(areaKey)}')">
+        <h4>Usuario y contraseña</h4>
+        <div class="calif-cuenta-campo">
+          <label for="${prefijo}-nuevo-user">Usuario de inicio de sesión</label>
+          <input id="${prefijo}-nuevo-user" name="usuario" class="calif-filter-input" type="text" value="${escapeHTML(sesion.user || usuarioActual)}" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        </div>
+        <div class="calif-cuenta-campo">
+          <label for="${prefijo}-pass-actual">Contraseña actual</label>
+          <input id="${prefijo}-pass-actual" name="passActual" class="calif-filter-input" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="calif-cuenta-campo">
+          <label for="${prefijo}-nueva-pass">Nueva contraseña</label>
+          <input id="${prefijo}-nueva-pass" name="nuevaPass" class="calif-filter-input" type="password" autocomplete="new-password" minlength="5">
+          <small>Si solo cambias tu usuario, deja vacíos los campos de nueva contraseña.</small>
+        </div>
+        <div class="calif-cuenta-campo">
+          <label for="${prefijo}-nueva-pass-confirmar">Confirmar nueva contraseña</label>
+          <input id="${prefijo}-nueva-pass-confirmar" name="confirmarPass" class="calif-filter-input" type="password" autocomplete="new-password">
+        </div>
+        <p class="calif-cuenta-estado" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn-calif btn-calif-primary">Guardar datos de acceso</button>
+      </form>
+    </div>`;
   }
+
+  window.guardarNombreDocente = async function(e, areaKey) {
+    e.preventDefault();
+    const form=e.currentTarget || e.target;
+    if(form.dataset.guardando==='true') return false;
+    const estado=form.querySelector('[role="status"]'), boton=form.querySelector('[type="submit"]');
+    const nombre=form.elements.nombreDocente.value.replace(/\s+/g,' ').trim();
+    const sesion=getSessionSegura();
+    if(nombre.length<2 || nombre.length>120) {estado.textContent='Escribe tu nombre completo.';return false;}
+    form.dataset.guardando='true';boton.disabled=true;boton.textContent='Guardando…';boton.setAttribute('aria-busy','true');
+    estado.dataset.error='false';estado.textContent='Guardando el nombre…';
+    try {
+      const respuesta=await sincronizarCalifGoogleSheet('guardar-nombre-docente',{areaKey,nombreDocente:nombre});
+      if(respuesta.status!=='success' || !respuesta.perfilActualizado || respuesta.nombreDocente!==nombre || !respuesta.cuentaKey) throw new Error('No se confirmó el nombre. Actualiza la implementación de Apps Script y vuelve a guardar.');
+      if(getSessionSegura().token!==sesion.token) return false;
+      lsSet('cea_session',{...sesion,name:respuesta.nombreDocente,cuentaKey:respuesta.cuentaKey});
+      const docentes=lsGet('cea_docentes',{});docentes[respuesta.cuentaKey]=respuesta.nombreDocente;lsSet('cea_docentes',docentes);
+      document.querySelectorAll('[data-nombre-docente-actual]').forEach(el=>{el.textContent=respuesta.nombreDocente;});
+      estado.textContent='Nombre guardado y confirmado. Ya puedes salir o cerrar la página.';
+      return true;
+    }catch(error){estado.dataset.error='true';estado.textContent=error.message || 'No se guardó el nombre. Vuelve a intentar.';return false;}
+    finally{form.dataset.guardando='false';boton.disabled=false;boton.textContent='Guardar nombre';boton.removeAttribute('aria-busy');}
+  };
 
   async function ejecutarCambioCredencialesDocente(e, areaKey) {
     e.preventDefault();
-    const form = e.currentTarget || e.target;
-    if (form.dataset.guardando === 'true') return false;
-    const estado = form.querySelector('[role="status"]');
-    const boton = form.querySelector('[type="submit"]');
-    const nombre = form.elements.nombreDocente.value.replace(/\s+/g, ' ').trim();
-    const usuario = form.elements.usuario.value.trim().toLowerCase();
-    const passActual = form.elements.passActual.value;
-    const nuevaPass = form.elements.nuevaPass.value;
-    const confirmarPass = form.elements.confirmarPass.value;
-    const mostrar = (texto, error = false) => { estado.textContent = texto; estado.dataset.error = String(error); };
-    if (nombre.length < 2 || nombre.length > 120 || !usuario || !passActual) {
-      mostrar('Completa tu nombre, usuario y contraseña actual.', true); return false;
-    }
-    if (nuevaPass && nuevaPass.trim().length < 5) {
-      mostrar('La nueva contraseña debe tener al menos 5 caracteres.', true); return false;
-    }
-    if (nuevaPass !== confirmarPass) {
-      mostrar('La confirmación de la nueva contraseña no coincide.', true); return false;
-    }
-    const sesion = getSessionSegura();
-    form.dataset.guardando = 'true'; boton.disabled = true;
-    boton.textContent = 'Guardando…'; boton.setAttribute('aria-busy', 'true'); mostrar('Guardando los cambios…');
-    try {
-      const respuesta = await sincronizarCalifGoogleSheet('cambiar-credenciales-docente', {
-        areaKey, nombreDocente: nombre, passActual, nuevoUsuario: usuario, nuevaPass
-      });
-      if (respuesta.status !== 'success' || !respuesta.perfilActualizado || respuesta.nombreDocente !== nombre || !respuesta.cuentaKey) {
-        throw new Error('Actualiza la implementación de Apps Script para poder guardar el nombre del docente.');
-      }
-      if (getSessionSegura().role !== sesion.role || getSessionSegura().user !== respuesta.user) return false;
-      const actual = getSessionSegura();
-      lsSet('cea_session', {...actual, name: respuesta.nombreDocente, cuentaKey: respuesta.cuentaKey});
-      const docentes = lsGet('cea_docentes', {});
-      docentes[respuesta.cuentaKey] = respuesta.nombreDocente;
-      lsSet('cea_docentes', docentes);
-      const usuarios = lsGet('cea_usuarios_docentes', {});
-      usuarios[areaKey] = {...usuarios[areaKey], user: respuesta.user, pass: ''};
-      lsSet('cea_usuarios_docentes', usuarios);
-      document.querySelectorAll('[data-nombre-docente-actual]').forEach(el => { el.textContent = respuesta.nombreDocente; });
-      form.elements.passActual.value = ''; form.elements.nuevaPass.value = ''; form.elements.confirmarPass.value = '';
-      mostrar('Tu nombre y tus datos de acceso se guardaron correctamente.');
-      return true;
-    } catch (error) {
-      mostrar(error.message || 'No se pudieron guardar los cambios. Vuelve a intentar.', true);
-      return false;
-    } finally {
-      form.dataset.guardando = 'false'; boton.disabled = false;
-      boton.textContent = 'Guardar cambios'; boton.removeAttribute('aria-busy');
-    }
+    const form=e.currentTarget || e.target;
+    if(form.dataset.guardando==='true')return false;
+    const estado=form.querySelector('[role="status"]'),boton=form.querySelector('[type="submit"]');
+    const usuario=form.elements.usuario.value.trim().toLowerCase(),passActual=form.elements.passActual.value;
+    const nuevaPass=form.elements.nuevaPass.value,confirmarPass=form.elements.confirmarPass.value;
+    const mostrar=(texto,error=false)=>{estado.textContent=texto;estado.dataset.error=String(error);};
+    if(!usuario || !passActual){mostrar('Ingresa tu usuario y contraseña actual.',true);return false;}
+    if(nuevaPass && nuevaPass.trim().length<5){mostrar('La nueva contraseña debe tener al menos 5 caracteres.',true);return false;}
+    if(nuevaPass!==confirmarPass){mostrar('La confirmación de la nueva contraseña no coincide.',true);return false;}
+    form.dataset.guardando='true';boton.disabled=true;boton.textContent='Guardando…';boton.setAttribute('aria-busy','true');mostrar('Guardando los datos de acceso…');
+    try{
+      const respuesta=await sincronizarCalifGoogleSheet('cambiar-credenciales-docente',{areaKey,passActual,nuevoUsuario:usuario,nuevaPass});
+      if(respuesta.status!=='success' || !respuesta.token || respuesta.user!==usuario)throw new Error('No se confirmó el cambio. Vuelve a guardar.');
+      const usuarios=lsGet('cea_usuarios_docentes',{});usuarios[areaKey]={...usuarios[areaKey],user:respuesta.user,pass:''};lsSet('cea_usuarios_docentes',usuarios);
+      form.elements.passActual.value='';form.elements.nuevaPass.value='';form.elements.confirmarPass.value='';
+      mostrar('Datos de acceso guardados y confirmados.');return true;
+    }catch(error){mostrar(error.message || 'No se guardaron los datos de acceso.',true);return false;}
+    finally{form.dataset.guardando='false';boton.disabled=false;boton.textContent='Guardar datos de acceso';boton.removeAttribute('aria-busy');}
   }
 
 
@@ -4165,28 +4164,24 @@
   }
 ;
 
-    window.guardarPerfilEspecialidadDocente = async function(e, areaKey) {
-    if (e) e.preventDefault();
-    const nombre = document.getElementById('perfil-carrera-nombre')?.value || '';
-    const resumen = document.getElementById('perfil-carrera-resumen')?.value || '';
-
-    const areasTec = (typeof lsGet === 'function') ? lsGet('cea_areas_tec', (typeof AREAS_TEC_DEFAULT !== 'undefined' ? AREAS_TEC_DEFAULT : [])) : [];
-    const idx = areasTec.findIndex(a => a.key === areaKey);
-    if (idx >= 0) {
-      areasTec[idx].nombre = nombre;
-      areasTec[idx].resumen = resumen;
-      if (typeof lsSet === 'function') lsSet('cea_areas_tec', areasTec);
-      else localStorage.setItem('cea_areas_tec', JSON.stringify(areasTec));
-
-      if (typeof enviarGoogleSheet === 'function') {
-        await enviarGoogleSheet({
-          action: 'guardar-contenido-vivo',
-          key: 'areas_tec_json',
-          valor: JSON.stringify(areasTec)
-        });
-      }
-    }
-    mostrarToastCalif('Perfil de la especialidad actualizado correctamente.');
+  window.guardarPerfilEspecialidadDocente = async function(e, areaKey) {
+    e.preventDefault();
+    const form=e.currentTarget || e.target, boton=form.querySelector('[type="submit"]');
+    if(boton.disabled)return false;
+    let estado=form.querySelector('[role="status"]');
+    if(!estado){estado=document.createElement('p');estado.setAttribute('role','status');estado.setAttribute('aria-live','polite');form.append(estado);}
+    const nombre=form.querySelector('#perfil-carrera-nombre').value.trim(),resumen=form.querySelector('#perfil-carrera-resumen').value.trim();
+    const token=getSessionSegura().token,contenido=boton.innerHTML;
+    boton.disabled=true;boton.textContent='Guardando…';estado.textContent='Guardando el perfil…';
+    try{
+      const respuesta=await sincronizarCalifGoogleSheet('guardar-perfil-especialidad',{areaKey,nombre,resumen});
+      if(respuesta.status!=='success' || respuesta.perfil?.areaKey!==areaKey || respuesta.perfil.nombre!==nombre || respuesta.perfil.resumen!==resumen)throw new Error('No se confirmó el perfil. Actualiza la implementación de Apps Script y vuelve a guardar.');
+      if(getSessionSegura().token!==token)return false;
+      const perfiles=lsGet('cea_perfiles_especialidad',{});perfiles[areaKey]=respuesta.perfil;lsSet('cea_perfiles_especialidad',perfiles);
+      const areas=lsGet('cea_areas_tec',[]);lsSet('cea_areas_tec',areas.map(area=>area.key===areaKey?{...area,nombre,resumen}:area));
+      estado.textContent='Perfil guardado y confirmado.';return true;
+    }catch(error){estado.textContent=error.message || 'No se guardó el perfil. Vuelve a intentar.';return false;}
+    finally{boton.disabled=false;boton.innerHTML=contenido;}
   };
 
   window.procesarFotoEspecialidadDocente = function(event, areaKey) {
@@ -9490,7 +9485,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
   }
 
   function generarHTMLControlSubidaDirector(datos, esModoDirector) {
-    if (!datos) return '';
+    if (!datos || !esModoDirector) return '';
     const subidaKey = `SUBIDA-${datos.carreraKey || 'tec'}-${(datos.nivelNombre || 'nivel').replace(/\s+/g, '-')}-${datos.gestion}-${(datos.semestre || 'sem').replace(/\s+/g, '-')}-P${datos.paralelo}`.toUpperCase();
     const subidas = getControlSubidaNotas();
     const subidaActual = subidas[subidaKey] || { estado: 'PENDIENTE DE VERIFICACIÓN', fechaHora: '', usuarioDirector: '', hashNotas: '' };
@@ -9730,14 +9725,14 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
                 Puedes registrar y actualizar directamente las calificaciones de cada módulo. Los promedios se calculan y sincronizan en tiempo real con las actas oficiales.
               </p>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            ${esDirector ? `            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <button type="button" class="btn-calif btn-calif-secondary" style="padding:4px 10px;font-size:0.75rem" onclick="window.conmutarTodosChecksEstudiantes('${escapeHTML(cKey)}', '${escapeHTML(nNom)}', '${escapeHTML(g)}', '${escapeHTML(s)}', '${escapeHTML(p)}', true)">
                 Marcar Todos [SUBIDO]
               </button>
               <button type="button" class="btn-calif btn-calif-secondary" style="padding:4px 10px;font-size:0.75rem" onclick="window.conmutarTodosChecksEstudiantes('${escapeHTML(cKey)}', '${escapeHTML(nNom)}', '${escapeHTML(g)}', '${escapeHTML(s)}', '${escapeHTML(p)}', false)">
                 Desmarcar Todos
               </button>
-            </div>
+            </div>` : ''}
           </div>
 
           <table class="cen-digital-table calif-eval-table" style="width:100%;font-size:0.85rem">
@@ -9757,9 +9752,9 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
                 <th style="padding:8px 6px;text-align:center;width:95px" class="th-sub-cat">
                   ESTADO
                 </th>
-                <th style="padding:8px 6px;text-align:center;width:115px" class="th-sub-cat" title="Marque si el estudiante tiene sus notas subidas oficialmente">
+                ${esDirector ? `                <th style="padding:8px 6px;text-align:center;width:115px" class="th-sub-cat" title="Marque si el estudiante tiene sus notas subidas oficialmente">
                   NOTAS SUBIDAS
-                </th>
+                </th>` : ''}
               </tr>
             </thead>
             <tbody>
@@ -9798,17 +9793,17 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
                         ${resultadoCalif(est.promedio)}
                       </span>
                     </td>
-                    <td style="padding:6px;text-align:center">
+                    ${esDirector ? `                    <td style="padding:6px;text-align:center">
                       <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:0.75rem;font-weight:700">
                         <input type="checkbox" ${estaSubido ? 'checked' : ''} onchange="window.alCambiarSubidaEstudiante('${escapeHTML(cKey)}', '${escapeHTML(nNom)}', '${escapeHTML(g)}', '${escapeHTML(s)}', '${escapeHTML(p)}', '${escapeHTML(estKey)}', this.checked)">
                         <span style="color:${estaSubido ? 'var(--verde)' : '#64748b'}">${estaSubido ? 'SUBIDO' : 'PENDIENTE'}</span>
                       </label>
-                    </td>
+                    </td>` : ''}
                   </tr>
                 `;
               }).join('') : `
                 <tr>
-                  <td colspan="${datos.modulos.length + 5}" style="padding:32px 20px;text-align:center;color:#64748b;background:#f8fafc">
+                  <td colspan="${datos.modulos.length + (esDirector ? 5 : 4)}" style="padding:32px 20px;text-align:center;color:#64748b;background:#f8fafc">
                     <p style="margin:0 0 12px 0;font-size:0.95rem;font-weight:700;color:#334155">
                       No se registran participantes en este nivel y paralelo.
                     </p>

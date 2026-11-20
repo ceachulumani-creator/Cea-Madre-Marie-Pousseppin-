@@ -5186,6 +5186,9 @@ button.calif-guardar-destacado[aria-busy="true"] { animation: none; }
   .btn-calif-borrar-todo[aria-busy="true"]::before { animation: none; }
 }
 .calif-cuenta-docente { display: grid; gap: 16px; min-width: 0; }
+.calif-cuenta-secciones { display: grid; gap: 24px; min-width: 0; }
+.calif-cuenta-secciones form + form { border-top: 1px solid #cbd5e1; padding-top: 20px; }
+.calif-cuenta-secciones h4 { margin: 0; color: #14532d; }
 .calif-cuenta-campo { display: grid; gap: 6px; min-width: 0; }
 .calif-cuenta-campo label { font-weight: 700; font-size: .9rem; color: #334155; }
 .calif-cuenta-campo input { width: 100%; min-width: 0; box-sizing: border-box; min-height: 46px; font-size: 16px; }

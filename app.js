@@ -1106,6 +1106,7 @@ async function aplicarDatosGoogleSheets(data) {
     }
 
     // 3. Carreras Técnicas
+    if (data.perfilesEspecialidad) lsSet('cea_perfiles_especialidad', data.perfilesEspecialidad);
     if (data.carreras && Array.isArray(data.carreras) && data.carreras.length > 0) {
       const areasLocales = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
       const nuevasCarreras = data.carreras.map(carrSheet => {
@@ -2702,10 +2703,38 @@ function obtenerDocentesAsignadosAMateria(humKey) {
 window.obtenerDocentesAsignadosAMateria = obtenerDocentesAsignadosAMateria;
 
 let _timerAutoGuardarDocente = null;
+let revisionEdicionDocentes = 0;
+let docentesSinConfirmar = false;
+let guardadosDocentesEnCurso = 0;
+let guardandoDocentesManualmente = false;
+
+window.addEventListener('beforeunload', event => {
+  if (!docentesSinConfirmar && !guardadosDocentesEnCurso && !document.querySelector('.calif-nombre-docente[data-guardando="true"]')) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
+
+async function guardarPaqueteDocentesConfirmado(paquete, revision) {
+  guardadosDocentesEnCurso++;
+  try {
+    const respuesta = await enviarGoogleSheet({action:'guardar-docentes-completo', ...paquete});
+    if (respuesta?.status !== 'success' || !respuesta.docentesConfirmados) throw new Error('No se confirmó el guardado. Actualiza la implementación de Apps Script y vuelve a guardar.');
+    if (Object.entries(paquete.docentes).some(([key,nombre]) => respuesta.docentesConfirmados[key] !== String(nombre))) throw new Error('No se confirmaron todos los nombres. Vuelve a guardar.');
+    if (revision !== revisionEdicionDocentes) {
+      mostrarMsg('msg-docentes-unificados', 'Se guardó la versión enviada. Hay cambios nuevos pendientes de guardar.', 'info');
+      return false;
+    }
+    docentesSinConfirmar = false;
+    mostrarMsg('msg-docentes-unificados', 'Datos guardados y confirmados. Ya puedes salir o cerrar la página.', 'success');
+    return true;
+  } finally { guardadosDocentesEnCurso--; }
+}
 
 function autoGuardarCredencialDocente(inp) {
   const card = inp.closest('.docente-admin-card') || inp.closest('.fila-docente-unificado') || inp.closest('tr');
   if (!card) return;
+  docentesSinConfirmar = true;
+  const revision = ++revisionEdicionDocentes;
 
   let docKey = card.dataset.key;
   if (!docKey) {
@@ -2735,7 +2764,7 @@ function autoGuardarCredencialDocente(inp) {
 
   usuarios[docKey] = {
     user: userVal || defU.user || '',
-    pass: passVal || defU.pass || '',
+    pass: passVal,
     comision: esComision,
     asigKey: asigKey,
     area: areaTipo
@@ -2774,8 +2803,9 @@ function autoGuardarCredencialDocente(inp) {
   }
 
   // 2. Destello visual verde en el campo indicando auto-guardado
-  inp.style.borderColor = '#16a34a';
-  inp.style.boxShadow = '0 0 0 2px rgba(22, 163, 74, 0.25)';
+  inp.style.borderColor = '#d97706';
+  inp.style.boxShadow = '0 0 0 2px rgba(217, 119, 6, 0.25)';
+  mostrarMsg('msg-docentes-unificados', 'Cambios pendientes de confirmación.', 'info');
   setTimeout(() => {
     inp.style.borderColor = '';
     inp.style.boxShadow = '';
@@ -2786,9 +2816,7 @@ function autoGuardarCredencialDocente(inp) {
   _timerAutoGuardarDocente = setTimeout(async () => {
     try {
       mostrarMsg('msg-docentes-unificados', 'Guardando los cambios…', 'info');
-      const respuesta = await enviarGoogleSheet({action:'guardar-docentes-completo', docentes:dMap, carreras:areas, usuarios});
-      if (respuesta?.status !== 'success') throw new Error('No se pudo confirmar el guardado.');
-      mostrarMsg('msg-docentes-unificados', 'Cambios confirmados. Usa la contraseña que definiste para ingresar.', 'success');
+      await guardarPaqueteDocentesConfirmado({docentes:dMap, carreras:areas, usuarios}, revision);
     } catch (e) {
       mostrarMsg('msg-docentes-unificados', 'No se guardaron los cambios. ' + e.message, 'error');
     }
@@ -3395,12 +3423,16 @@ function actualizarNombreDocenteEnTodoElSistema(viejoNombre, nuevoNombre, asigKe
 }
 
 async function guardarDocentesUnificados() {
+  if (guardandoDocentesManualmente) return false;
+  clearTimeout(_timerAutoGuardarDocente);
   const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
   const elements = document.querySelectorAll('.docente-admin-card, .fila-docente-unificado, #tbody-docentes-unificados tr');
   if (!elements.length) {
     mostrarMsg('msg-docentes-unificados', 'No hay docentes para guardar.', 'error');
     return;
   }
+  docentesSinConfirmar = true;
+  const revision = ++revisionEdicionDocentes;
 
   const viejoDocentesMap = lsGet('cea_docentes', DOCENTES_DEFAULT);
   const viejoUsuariosMap = lsGet('cea_usuarios_docentes', {});
@@ -3435,7 +3467,7 @@ async function guardarDocentesUnificados() {
     const defPass = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[docKey]?.pass) || '';
     const defUser = (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' && USUARIOS_DOCENTES_DEFAULT[docKey]?.user) || ('profe.' + String(docKey).replace(/^(tec-|hum-|doc-)/, '').slice(-6));
     const prevPass = viejoUsuariosMap[docKey]?.pass || defPass;
-    const finalPass = passVal === credencialesDocentesActuales.get(docKey) ? '' : (passVal || prevPass || defPass);
+    const finalPass = passVal === credencialesDocentesActuales.get(docKey) ? '' : passVal;
 
     nuevoUsuariosMap[docKey] = {
       user: userVal || viejoUsuariosMap[docKey]?.user || '',
@@ -3466,18 +3498,22 @@ async function guardarDocentesUnificados() {
     cargarHorariosMatriz(turnoHorarioActual);
   }
 
-  mostrarMsg('msg-docentes-unificados', 'Guardando y sincronizando docentes en el sistema...', 'success');
+  mostrarMsg('msg-docentes-unificados', 'Guardando los datos. Espera la confirmación antes de cerrar la página.', 'info');
 
   // Enviar paquete completo en una sola transacción atómica a el sistema
+  guardandoDocentesManualmente = true;
+  const botonesGuardar = [...document.querySelectorAll('[onclick*="guardarDocentesUnificados"]')].map(boton => ({boton, html:boton.innerHTML}));
+  botonesGuardar.forEach(({boton}) => {boton.disabled=true;boton.textContent='Guardando…';boton.setAttribute('aria-busy','true');});
   try {
-    const respuesta = await enviarGoogleSheet({action:'guardar-docentes-completo', docentes:nuevoDocentesMap, carreras:areas, usuarios:nuevoUsuariosMap});
-    if (respuesta?.status !== 'success') throw new Error('No se pudo confirmar el guardado.');
-    await refrescarCredencialesDocentesDesdeServidor();
-    mostrarMsg('msg-docentes-unificados', 'Docentes y credenciales guardados correctamente.', 'success');
-    return true;
+    const confirmado = await guardarPaqueteDocentesConfirmado({docentes:nuevoDocentesMap, carreras:areas, usuarios:nuevoUsuariosMap}, revision);
+    if (confirmado) await refrescarCredencialesDocentesDesdeServidor();
+    return confirmado;
   } catch (error) {
     mostrarMsg('msg-docentes-unificados', 'No se guardaron los cambios. ' + error.message, 'error');
     return false;
+  } finally {
+    guardandoDocentesManualmente = false;
+    botonesGuardar.forEach(({boton,html}) => {boton.disabled=false;boton.innerHTML=html;boton.removeAttribute('aria-busy');});
   }
 }
 

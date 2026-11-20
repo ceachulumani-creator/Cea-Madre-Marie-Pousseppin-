@@ -812,6 +812,10 @@ function leerDatosCEA(auth) {
         docentes: docentesObj,
         docentesEliminados: [...docentesEliminadosCEA(ss)],
         carreras: carrerasList,
+        perfilesEspecialidad: Object.keys(textosObj).filter(key => key.startsWith('perfil_especialidad_')).reduce((perfiles,key) => {
+          try { const perfil=JSON.parse(textosObj[key]); if (perfil.areaKey) perfiles[perfil.areaKey]=perfil; } catch(error) {}
+          return perfiles;
+        }, {}),
         materiasHumanistica: materiasHumList,
         horarios: horariosObj,
         horariosMatriz: horariosMatrizObj,
@@ -3726,6 +3730,10 @@ function versionNotasCEA(ss, id) {
 function autorizarOperacionCEA(ss, data, auth) {
   const action = data.action;
   if (auth.r === 'director') return;
+  if (action === 'guardar-nombre-docente') {
+    exigirCEA(auth.r === 'docente' && String(data.areaKey) === auth.areaKey, 'Solo puedes corregir tu propio nombre.', 'PERMISO');
+    return;
+  }
   if (action === 'habilitar-gestion-academica') return;
   if (action === 'publicar-boletin-curso') {
     exigirCEA(data.areaKey && permisoAreaCEA(auth, data.areaKey, false), 'Solo puedes publicar las notas de tu propia carrera o área.', 'PERMISO');
@@ -3756,10 +3764,9 @@ function autorizarOperacionCEA(ss, data, auth) {
     if (data.registro) {
       exigirCEA(permisoAreaCEA(auth, data.registro.areaKey, false), 'No puedes trasladar registros a otra área.', 'PERMISO');
     }
-    exigirCEA(data.nuevoEstado !== 'PUBLICADO', 'La publicación corresponde a Dirección.', 'PERMISO');
     return;
   }
-  const scoped = {'guardar-malla': data.carreraKey, 'guardar-doc-niveles': data.carreraKey, 'guardar-foto-carrera': data.key || data.carreraKey, 'guardar-kardex': data.docenteId};
+  const scoped = {'guardar-perfil-especialidad': data.areaKey, 'guardar-malla': data.carreraKey, 'guardar-doc-niveles': data.carreraKey, 'guardar-foto-carrera': data.key || data.carreraKey, 'guardar-kardex': data.docenteId};
   if (Object.prototype.hasOwnProperty.call(scoped, action)) {
     exigirCEA(permisoAreaCEA(auth, scoped[action], false), 'Solo puedes modificar tu propia área.', 'PERMISO');
     return;
@@ -3827,6 +3834,13 @@ function doPost(e) {
     depurarDocentesEliminadosCEA(ss, data);
     if (data.action === 'login') return responseJSON(iniciarSesionCEA(ss, data));
     if (data.action === 'obtener-datos-privados') return leerDatosCEA(auth);
+    if (data.action === 'guardar-nombre-docente') return responseJSON(guardarNombreDocenteCEA(ss, data, auth));
+    if (data.action === 'guardar-perfil-especialidad') return responseJSON(guardarPerfilEspecialidadCEA(ss, data, auth));
+    if (data.action === 'cambiar-estado-calificaciones' && data.nuevoEstado === 'PUBLICADO') {
+      const fila = ss.getSheetByName('Calificaciones_Registros')?.getDataRange().getValues().slice(1).find(f => String(f[0]) === String(data.idRegistro));
+      exigirCEA(fila, 'No se encontró el registro que deseas publicar.');
+      return responseJSON(publicarBoletinCursoCEA(ss, {areaKey:fila[2],nivel:fila[4],gestion:String(fila[8]),semestre:fila[7],paralelo:fila[9] || 'A',idRegistro:String(fila[0])}, auth));
+    }
     if (data.action === 'obtenerInscripciones') return responseJSON({status: 'success', inscripciones: JSON.parse(leerDatosCEA(auth).getContent()).data.inscripciones});
     if (data.action === 'actualizar-matriculas') return responseJSON(actualizarMatriculasCEA(ss, data, auth));
     exigirCEA(!['guardar-registro-estudiantes', 'guardar-padron-afiliacion', 'guardar-papelera-estudiantes', 'guardar-todas-inscripciones'].includes(data.action), 'Actualiza la página antes de modificar la nómina.', 'VERSION');
@@ -3915,6 +3929,16 @@ function doPost(e) {
       sheet.getRange(sheet.getLastRow(), 16).setValue(result.id);
     }
     SpreadsheetApp.flush();
+    if (['guardar-docentes', 'guardar-docentes-completo'].includes(data.action)) {
+      const filas = ss.getSheetByName('Docentes').getDataRange().getValues().slice(1);
+      const confirmados = {};
+      Object.entries(data.docentes || {}).forEach(([codigo, nombre]) => {
+        const fila = filas.find(f => String(f[0]).trim().toLowerCase() === String(codigo).trim().toLowerCase());
+        exigirCEA(fila && String(fila[1]) === String(nombre), 'No se confirmó el nombre del docente. Conserva los cambios y vuelve a guardar.');
+        confirmados[codigo] = String(fila[1]);
+      });
+      result.docentesConfirmados = confirmados;
+    }
     if (data.action.includes('calificaciones') && (data.idRegistro || data.registro)) result.version = versionNotasCEA(ss, String(data.idRegistro || data.registro.id));
     if (Array.isArray(data.cambiosNotas) && data.action === 'guardar-calificaciones-registro') result.detalles = data.detalles;
     if (collection) result.collectionVersion = versionHojaCEA(ss, collection);
@@ -3949,6 +3973,65 @@ function escribirTablaCEA(ss, name, rows) {
   if (sheet.getMaxRows() < height) sheet.insertRowsAfter(sheet.getMaxRows(), height - sheet.getMaxRows());
   sheet.getRange(1, 1, height, width).setValues(matrix);
   return sheet;
+}
+
+function guardarPerfilEspecialidadCEA(ss, data, auth) {
+  const area = areaCanonicaCEA(data.areaKey);
+  exigirCEA(auth.r === 'director' || permisoAreaCEA(auth, area, false), 'Solo puedes editar tu propia especialidad.', 'PERMISO');
+  const nombre = String(data.nombre || '').trim(), resumen = String(data.resumen || '').trim();
+  exigirCEA(nombre && nombre.length <= 180 && resumen.length <= 10000, 'Escribe un nombre válido y una descripción de hasta 10000 caracteres.');
+  const textos = ss.getSheetByName('Director_y_Textos');
+  const anteriores = textos.getDataRange().getValues();
+  const nuevos = anteriores.map(f => f.slice());
+  const clave = 'perfil_especialidad_' + area;
+  const posicion = nuevos.findIndex(f => f[0] === clave);
+  const perfil = {areaKey:area,nombre,resumen};
+  if (posicion >= 0) nuevos[posicion][1] = JSON.stringify(perfil);
+  else nuevos.push([clave,JSON.stringify(perfil)]);
+  const carreras = ss.getSheetByName('Carreras_Tecnicas');
+  const filas = carreras ? carreras.getDataRange().getValues() : [];
+  const originales = filas.map(f => f.slice());
+  const indice = filas.findIndex((f,i) => i > 0 && areaCanonicaCEA(f[0]) === area);
+  exigirCEA(!area.startsWith('tec-') || indice > 0, 'No se encontró tu especialidad.');
+  if (indice > 0) { filas[indice][1] = nombre; filas[indice][4] = resumen; }
+  try {
+    escribirTablaCEA(ss, 'Director_y_Textos', nuevos);
+    if (indice > 0) escribirTablaCEA(ss, 'Carreras_Tecnicas', filas);
+    SpreadsheetApp.flush();
+    const guardado = textos.getDataRange().getValues().find(f => f[0] === clave);
+    exigirCEA(guardado && guardado[1] === JSON.stringify(perfil), 'No se confirmó el perfil de la especialidad.');
+    if (indice > 0) {
+      const confirmada = carreras.getDataRange().getValues().find(f => areaCanonicaCEA(f[0]) === area);
+      exigirCEA(confirmada && confirmada[1] === nombre && confirmada[4] === resumen, 'No se confirmó el perfil de la especialidad.');
+    }
+  } catch(error) {
+    escribirTablaCEA(ss, 'Director_y_Textos', anteriores);
+    if (indice > 0) escribirTablaCEA(ss, 'Carreras_Tecnicas', originales);
+    throw error;
+  }
+  return {status:'success',perfil};
+}
+
+function guardarNombreDocenteCEA(ss, data, auth) {
+  exigirCEA(auth.r === 'docente' && String(data.areaKey) === auth.areaKey, 'Solo puedes corregir tu propio nombre.', 'PERMISO');
+  const nombre = String(data.nombreDocente || '').replace(/\s+/g, ' ').trim();
+  exigirCEA(nombre.length >= 2 && nombre.length <= 120, 'Escribe tu nombre completo, entre 2 y 120 caracteres.');
+  const cuenta = auth.cuentaKey || auth.areaKey;
+  const hoja = ss.getSheetByName('Docentes');
+  exigirCEA(hoja, 'No se encontró el registro docente.');
+  const filas = hoja.getDataRange().getValues();
+  const indice = filas.findIndex((fila,i) => i > 0 && String(fila[0]).trim() === cuenta);
+  exigirCEA(indice > 0, 'No se encontró tu registro docente.');
+  const anterior = filas[indice][1];
+  try {
+    hoja.getRange(indice + 1, 2).setValue(nombre);
+    SpreadsheetApp.flush();
+    exigirCEA(String(hoja.getRange(indice + 1, 2).getValue()) === nombre, 'No se confirmó el nombre. Vuelve a guardar.');
+  } catch (error) {
+    hoja.getRange(indice + 1, 2).setValue(anterior);
+    throw error;
+  }
+  return {status:'success', perfilActualizado:true, nombreDocente:nombre, cuentaKey:cuenta};
 }
 
 function cambiarClaveCEA(ss, data, auth) {
