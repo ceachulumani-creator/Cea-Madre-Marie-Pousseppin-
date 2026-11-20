@@ -111,7 +111,7 @@
         }
         return result;
       } catch (error) {
-        if (error.code !== 'SESION' && !guardadoNotas && payload.action !== 'registrar-auditoria-calificaciones' && !readOnly && payload.action !== 'visita') {
+        if (error.code !== 'SESION' && !guardadoNotas && payload.action !== 'cambiar-credenciales-docente' && payload.action !== 'registrar-auditoria-calificaciones' && !readOnly && payload.action !== 'visita') {
           report(error, 'No se pudo confirmar el guardado. ');
           error.ceaReported = true;
         }

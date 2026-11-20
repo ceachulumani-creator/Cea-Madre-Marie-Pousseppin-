@@ -1916,7 +1916,7 @@
                   </h3>
                 </div>
                 <p style="margin:3px 0 0 0;font-size:0.83rem;color:var(--text-sec)">
-                  Docente: <strong>${escapeHTML(docInfo.name)}</strong> • Estado Académico: <strong style="color:var(--verde)">Activo</strong>
+                  Docente: <strong data-nombre-docente-actual>${escapeHTML(docInfo.name)}</strong> • Estado Académico: <strong style="color:var(--verde)">Activo</strong>
                 </p>
               </div>
             </div>
@@ -2374,48 +2374,12 @@
                 Usuario y Contraseña / Seguridad Institucional
               </h3>
               <p style="margin:4px 0 0 0;font-size:0.83rem;color:var(--text-sec)">
-                Gestione sus credenciales oficiales de acceso docente al sistema del CEA Madre Marie Poussepin.
+                Corrige tu nombre completo y administra tus datos de acceso al CEA Madre Marie Poussepin.
               </p>
             </div>
           </div>
 
-          <form onsubmit="window.ejecutarCambioCredencialesDocente(event, '${escapeHTML(docInfo.areaKey)}')">
-            <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:18px;margin-bottom:18px">
-              <div style="margin-bottom:14px">
-                <label style="display:block;font-size:0.82rem;font-weight:800;color:#334155;margin-bottom:4px">Usuario de Acceso Actual</label>
-                <input type="text" id="sec-nuevo-user" class="calif-filter-input" value="${escapeHTML(usuarioActual)}" required style="width:100%;font-weight:700" />
-                <small style="color:#64748b;font-size:0.75rem">Nombre de usuario con el que inicia sesión en la plataforma.</small>
-              </div>
-
-              <div style="margin-bottom:14px">
-                <label style="display:block;font-size:0.82rem;font-weight:800;color:#334155;margin-bottom:4px">Contraseña Actual *</label>
-                <input type="password" id="sec-pass-actual" class="calif-filter-input" placeholder="Ingrese su contraseña actual..." required style="width:100%" />
-              </div>
-
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-                <div>
-                  <label style="display:block;font-size:0.82rem;font-weight:800;color:#334155;margin-bottom:4px">Nueva Contraseña *</label>
-                  <input type="password" id="sec-nueva-pass" class="calif-filter-input" placeholder="Mínimo 5 caracteres" required style="width:100%" />
-                </div>
-                <div>
-                  <label style="display:block;font-size:0.82rem;font-weight:800;color:#334155;margin-bottom:4px">Confirmar Nueva Contraseña *</label>
-                  <input type="password" id="sec-nueva-pass-conf" class="calif-filter-input" placeholder="Repita la nueva contraseña" required style="width:100%" />
-                </div>
-              </div>
-
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-                <input type="checkbox" id="sec-toggle-ver-pass" onchange="const t=this.checked?'text':'password'; ['sec-pass-actual','sec-nueva-pass','sec-nueva-pass-conf'].forEach(id=>{ const el=document.getElementById(id); if(el) el.type=t; });" style="cursor:pointer" />
-                <label for="sec-toggle-ver-pass" style="font-size:0.80rem;color:#475569;cursor:pointer;font-weight:600">Mostrar contraseñas en texto claro</label>
-              </div>
-
-              <div id="sec-msg-error" style="display:none;background:#fee2e2;color:#b91c1c;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:700;margin-top:10px;border:1px solid #fca5a5"></div>
-            </div>
-
-            <button type="submit" class="btn-calif btn-calif-publish" style="width:100%;padding:12px;font-weight:800;font-size:0.90rem;display:flex;align-items:center;justify-content:center;gap:8px">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span>Guardar Cambios de Seguridad</span>
-            </button>
-          </form>
+                    ${formularioCuentaDocente(docInfo.areaKey, usuarioActual)}
         </div>
       `;
       return;
@@ -3083,113 +3047,103 @@
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               Mi Cuenta / Seguridad
             </h3>
-            <p style="margin:4px 0 0 0;font-size:0.80rem;color:var(--text-sec)">Administra tu usuario y contraseña de acceso al CEA.</p>
+            <p style="margin:4px 0 0 0;font-size:0.80rem;color:var(--text-sec)">Corrige tu nombre y administra tu usuario y contraseña de acceso al CEA.</p>
           </div>
           <button type="button" onclick="window.cerrarModalSeguridadDocente()" style="background:none;border:none;font-size:1.4rem;cursor:pointer">&times;</button>
         </div>
 
-        <form onsubmit="window.ejecutarCambioCredencialesDocente(event, '${escapeHTML(areaKey)}')">
-          <div class="form-group" style="margin-bottom:12px">
-            <label style="font-size:0.80rem;font-weight:700">Nombre de Usuario Actual</label>
-            <input type="text" class="calif-filter-input" value="${escapeHTML(usuarioActual)}" readonly style="background:#f1f5f9;color:#64748b" />
-          </div>
-
-          <div class="form-group" style="margin-bottom:12px">
-            <label style="font-size:0.80rem;font-weight:700">Nuevo Nombre de Usuario *</label>
-            <input type="text" id="sec-nuevo-user" class="calif-filter-input" required value="${escapeHTML(usuarioActual)}" placeholder="Ej: nuevo.usuario" />
-            <small style="color:var(--text-sec);font-size:0.75rem">Debe ser único y sin espacios.</small>
-          </div>
-
-          <div class="form-group" style="margin-bottom:12px">
-            <label style="font-size:0.80rem;font-weight:700">Contraseña Actual *</label>
-            <input type="password" id="sec-pass-actual" class="calif-filter-input" required placeholder="Ingresa tu contraseña actual" />
-          </div>
-
-          <div class="form-group" style="margin-bottom:12px">
-            <label style="font-size:0.80rem;font-weight:700">Nueva Contraseña *</label>
-            <input type="password" id="sec-nueva-pass" class="calif-filter-input" required placeholder="Mínimo 5 caracteres" />
-          </div>
-
-          <div class="form-group" style="margin-bottom:18px">
-            <label style="font-size:0.80rem;font-weight:700">Confirmar Nueva Contraseña *</label>
-            <input type="password" id="sec-nueva-pass-conf" class="calif-filter-input" required placeholder="Repite la nueva contraseña" />
-          </div>
-
-          <div id="sec-msg-error" style="display:none;color:#b91c1c;background:#fef2f2;padding:8px 12px;border-radius:6px;font-size:0.82rem;margin-bottom:12px"></div>
-
-          <div style="display:flex;justify-content:flex-end;gap:10px">
-            <button type="button" class="btn-calif btn-calif-secondary" onclick="window.cerrarModalSeguridadDocente()">Cancelar</button>
-            <button type="submit" class="btn-calif btn-calif-primary" id="btn-sec-submit">Guardar Cambios de Seguridad</button>
-          </div>
-        </form>
+                  ${formularioCuentaDocente(areaKey, usuarioActual, 'sec-modal')}
       </div>
     `;
 
     modal.style.display = 'flex';
   }
 
+  function formularioCuentaDocente(areaKey, usuarioActual, prefijo = 'sec') {
+    const sesion = getSessionSegura();
+    const nombre = sesion.name || lsGet('cea_docentes', {})[areaKey] || '';
+    return `<form class="calif-cuenta-docente" onsubmit="window.ejecutarCambioCredencialesDocente(event, '${escapeHTML(areaKey)}')">
+      <div class="calif-cuenta-campo">
+        <label for="${prefijo}-nombre-docente">Nombre completo del docente</label>
+        <input id="${prefijo}-nombre-docente" name="nombreDocente" class="calif-filter-input" type="text" value="${escapeHTML(nombre)}" autocomplete="name" minlength="2" maxlength="120" required aria-describedby="${prefijo}-nombre-ayuda">
+        <small id="${prefijo}-nombre-ayuda">Corrige aquí tus nombres y apellidos. Este es tu nombre como docente, distinto del usuario de acceso.</small>
+      </div>
+      <div class="calif-cuenta-campo">
+        <label for="${prefijo}-nuevo-user">Usuario de inicio de sesión</label>
+        <input id="${prefijo}-nuevo-user" name="usuario" class="calif-filter-input" type="text" value="${escapeHTML(sesion.user || usuarioActual)}" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      </div>
+      <div class="calif-cuenta-campo">
+        <label for="${prefijo}-pass-actual">Contraseña actual</label>
+        <input id="${prefijo}-pass-actual" name="passActual" class="calif-filter-input" type="password" autocomplete="current-password" required>
+        <small>Confirma tu contraseña actual para guardar los cambios.</small>
+      </div>
+      <div class="calif-cuenta-campo">
+        <label for="${prefijo}-nueva-pass">Nueva contraseña (opcional)</label>
+        <input id="${prefijo}-nueva-pass" name="nuevaPass" class="calif-filter-input" type="password" autocomplete="new-password" minlength="5">
+        <small>Déjala vacía si solo quieres corregir tu nombre o cambiar tu usuario.</small>
+      </div>
+      <div class="calif-cuenta-campo">
+        <label for="${prefijo}-nueva-pass-confirmar">Confirmar nueva contraseña</label>
+        <input id="${prefijo}-nueva-pass-confirmar" name="confirmarPass" class="calif-filter-input" type="password" autocomplete="new-password">
+      </div>
+      <p class="calif-cuenta-estado" role="status" aria-live="polite"></p>
+      <button type="submit" class="btn-calif btn-calif-primary">Guardar cambios</button>
+    </form>`;
+  }
+
   async function ejecutarCambioCredencialesDocente(e, areaKey) {
     e.preventDefault();
-    const msgEl = document.getElementById('sec-msg-error');
-    const nuevoUser = (document.getElementById('sec-nuevo-user')?.value || '').trim().toLowerCase();
-    const passActual = (document.getElementById('sec-pass-actual')?.value || '').trim();
-    const nuevaPass = (document.getElementById('sec-nueva-pass')?.value || '').trim();
-    const nuevaPassConf = (document.getElementById('sec-nueva-pass-conf')?.value || '').trim();
-
-    const mostrarErr = (txt) => {
-      if (msgEl) {
-        msgEl.style.display = 'block';
-        msgEl.textContent = txt;
-      } else {
-        alert(txt);
+    const form = e.currentTarget || e.target;
+    if (form.dataset.guardando === 'true') return false;
+    const estado = form.querySelector('[role="status"]');
+    const boton = form.querySelector('[type="submit"]');
+    const nombre = form.elements.nombreDocente.value.replace(/\s+/g, ' ').trim();
+    const usuario = form.elements.usuario.value.trim().toLowerCase();
+    const passActual = form.elements.passActual.value;
+    const nuevaPass = form.elements.nuevaPass.value;
+    const confirmarPass = form.elements.confirmarPass.value;
+    const mostrar = (texto, error = false) => { estado.textContent = texto; estado.dataset.error = String(error); };
+    if (nombre.length < 2 || nombre.length > 120 || !usuario || !passActual) {
+      mostrar('Completa tu nombre, usuario y contraseña actual.', true); return false;
+    }
+    if (nuevaPass && nuevaPass.trim().length < 5) {
+      mostrar('La nueva contraseña debe tener al menos 5 caracteres.', true); return false;
+    }
+    if (nuevaPass !== confirmarPass) {
+      mostrar('La confirmación de la nueva contraseña no coincide.', true); return false;
+    }
+    const sesion = getSessionSegura();
+    form.dataset.guardando = 'true'; boton.disabled = true;
+    boton.textContent = 'Guardando…'; boton.setAttribute('aria-busy', 'true'); mostrar('Guardando los cambios…');
+    try {
+      const respuesta = await sincronizarCalifGoogleSheet('cambiar-credenciales-docente', {
+        areaKey, nombreDocente: nombre, passActual, nuevoUsuario: usuario, nuevaPass
+      });
+      if (respuesta.status !== 'success' || !respuesta.perfilActualizado || respuesta.nombreDocente !== nombre || !respuesta.cuentaKey) {
+        throw new Error('Actualiza la implementación de Apps Script para poder guardar el nombre del docente.');
       }
-    };
-
-    if (!nuevoUser || !passActual || !nuevaPass) {
-      mostrarErr('Por favor completa todos los campos.');
-      return;
+      if (getSessionSegura().role !== sesion.role || getSessionSegura().user !== respuesta.user) return false;
+      const actual = getSessionSegura();
+      lsSet('cea_session', {...actual, name: respuesta.nombreDocente, cuentaKey: respuesta.cuentaKey});
+      const docentes = lsGet('cea_docentes', {});
+      docentes[respuesta.cuentaKey] = respuesta.nombreDocente;
+      lsSet('cea_docentes', docentes);
+      const usuarios = lsGet('cea_usuarios_docentes', {});
+      usuarios[areaKey] = {...usuarios[areaKey], user: respuesta.user, pass: ''};
+      lsSet('cea_usuarios_docentes', usuarios);
+      document.querySelectorAll('[data-nombre-docente-actual]').forEach(el => { el.textContent = respuesta.nombreDocente; });
+      form.elements.passActual.value = ''; form.elements.nuevaPass.value = ''; form.elements.confirmarPass.value = '';
+      mostrar('Tu nombre y tus datos de acceso se guardaron correctamente.');
+      return true;
+    } catch (error) {
+      mostrar(error.message || 'No se pudieron guardar los cambios. Vuelve a intentar.', true);
+      return false;
+    } finally {
+      form.dataset.guardando = 'false'; boton.disabled = false;
+      boton.textContent = 'Guardar cambios'; boton.removeAttribute('aria-busy');
     }
-
-    if (nuevaPass.length < 5) {
-      mostrarErr('La nueva contraseña debe tener al menos 5 caracteres.');
-      return;
-    }
-
-    if (nuevaPass !== nuevaPassConf) {
-      mostrarErr('La confirmación de la nueva contraseña no coincide.');
-      return;
-    }
-
-    const usuariosDoc = (typeof lsGet === 'function')
-      ? lsGet('cea_usuarios_docentes', (typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' ? USUARIOS_DOCENTES_DEFAULT : {}))
-      : {};
-
-    const uDoc = usuariosDoc[areaKey] || {};
-    const passRegistrada = uDoc.pass || '';
-
-    // Validar contraseña actual si está registrada localmente
-    if (passRegistrada && passActual !== passRegistrada) {
-      mostrarErr('La contraseña actual ingresada es incorrecta.');
-      return;
-    }
-
-    // Validar unicidad del nombre de usuario
-    for (const k in usuariosDoc) {
-      if (k !== areaKey && (usuariosDoc[k].user || '').toLowerCase() === nuevoUser) {
-        mostrarErr(`El nombre de usuario "${nuevoUser}" ya está en uso por otro docente.`);
-        return;
-      }
-    }
-
-    await sincronizarCalifGoogleSheet('cambiar-credenciales-docente', {
-      areaKey: areaKey, passActual: passActual, nuevoUsuario: nuevoUser, nuevaPass: nuevaPass
-    });
-    usuariosDoc[areaKey] = {user: nuevoUser, pass: '', comision: Boolean(uDoc.comision)};
-    lsSet('cea_usuarios_docentes', usuariosDoc);
-
-    document.getElementById('modal-docente-seguridad').style.display = 'none';
-    alert('Tus credenciales de acceso fueron actualizadas exitosamente.\n\nEn tu próximo inicio de sesión deberás ingresar con tu nuevo usuario y contraseña.');
   }
+
 
   // ─── 8. REORGANIZACIÓN COMPLETA DE LA MATRIZ DE SEGUIMIENTO DOCENTE (DIRECTOR) ───
   function renderMatrizSeguimientoDocente(container) {

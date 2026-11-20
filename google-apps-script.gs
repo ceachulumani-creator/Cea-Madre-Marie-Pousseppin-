@@ -3954,8 +3954,11 @@ function escribirTablaCEA(ss, name, rows) {
 function cambiarClaveCEA(ss, data, auth) {
   const director = data.action === 'guardar-credenciales-director';
   const user = String(director ? data.creds && data.creds.user : data.nuevoUsuario).trim().toLowerCase();
-  const password = String(director ? data.creds && data.creds.pass : data.nuevaPass).trim();
-  exigirCEA(user && password && user !== 'undefined' && password !== 'undefined', 'Ingresa el usuario y la contraseña nuevos.');
+  const password = String((director ? data.creds && data.creds.pass : data.nuevaPass) || '').trim();
+  exigirCEA(user && user !== 'undefined' && (!director || password), 'Ingresa el usuario y la contraseña nuevos.');
+  const cambiarNombre = !director && Object.prototype.hasOwnProperty.call(data, 'nombreDocente');
+  const nombre = cambiarNombre ? String(data.nombreDocente || '').replace(/\s+/g, ' ').trim() : '';
+  if (cambiarNombre) exigirCEA(nombre.length >= 2 && nombre.length <= 120, 'Escribe tu nombre completo, entre 2 y 120 caracteres.');
   const teachers = ss.getSheetByName('Usuarios_Docentes');
   const rows = teachers ? teachers.getDataRange().getValues() : [];
   const texts = ss.getSheetByName('Director_y_Textos');
@@ -3967,7 +3970,7 @@ function cambiarClaveCEA(ss, data, auth) {
   exigirCEA(director ? auth.r === 'director' : permisoAreaCEA(auth, area, false), 'No puedes cambiar esta cuenta.', 'PERMISO');
   exigirCEA(!rows.slice(1).some(row => usuarioCanonicoCEA(row[1]) === user && (director || String(row[0]) !== cuenta)), 'Ese nombre de usuario ya existe.');
   if (!director) exigirCEA(userIndex < 0 || usuarioCanonicoCEA(values[userIndex][1]) !== user, 'Ese nombre de usuario ya existe.');
-  const stored = codificarClaveCEA(password);
+  let stored = password ? codificarClaveCEA(password) : '';
   if (director) {
     exigirCEA(passIndex >= 0 && comprobarClaveCEA(data.passActual, values[passIndex][1]), 'La contraseña actual es incorrecta.');
     values[userIndex][1] = user;
@@ -3977,12 +3980,30 @@ function cambiarClaveCEA(ss, data, auth) {
     const index = rows.findIndex((row, i) => i > 0 && String(row[0]) === cuenta);
     exigirCEA(index > 0, 'La cuenta docente no existe.');
     exigirCEA(auth.r === 'director' || comprobarClaveCEA(data.passActual, rows[index][2]), 'La contraseña actual es incorrecta.');
+    const docentes = ss.getSheetByName('Docentes');
+    const nombres = docentes ? docentes.getDataRange().getValues() : [['Codigo', 'Nombre']];
+    const nombresAntes = nombres.map(fila => fila.slice());
+    const cuentasAntes = rows.map(fila => fila.slice());
+    stored = stored || rows[index][2];
     rows[index][1] = user;
     rows[index][2] = stored;
-    rows[index][5] = password;
-    escribirTablaCEA(ss, 'Usuarios_Docentes', rows);
+    if (password) rows[index][5] = password;
+    if (cambiarNombre) {
+      const posicion = nombres.findIndex((fila, i) => i > 0 && String(fila[0]).trim() === cuenta);
+      if (posicion > 0) nombres[posicion][1] = nombre;
+      else nombres.push([cuenta, nombre]);
+    }
+    try {
+      escribirTablaCEA(ss, 'Usuarios_Docentes', rows);
+      if (cambiarNombre) escribirTablaCEA(ss, 'Docentes', nombres);
+      SpreadsheetApp.flush();
+    } catch (error) {
+      escribirTablaCEA(ss, 'Usuarios_Docentes', cuentasAntes);
+      if (cambiarNombre) escribirTablaCEA(ss, 'Docentes', nombresAntes);
+      throw error;
+    }
   }
-  return {status: 'success', user: user, token: generarTokenSeguro(user, director ? 'director' : 'docente', area, hashCEA(stored), cuenta)};
+  return {status: 'success', user: user, ...(cambiarNombre ? {perfilActualizado: true, nombreDocente: nombre, cuentaKey: cuenta} : {}), token: generarTokenSeguro(user, director ? 'director' : 'docente', area, hashCEA(stored), cuenta)};
 }
 
 function estadoInscripcionCEA(fila) {

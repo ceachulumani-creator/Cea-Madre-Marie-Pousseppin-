@@ -8,6 +8,8 @@ Copia el contenido completo de `google-apps-script.gs` en el proyecto de Apps Sc
 
 ## Actualización completa
 
+El apartado docente **Usuario y contraseña** ahora incluye **Nombre completo del docente**. Para habilitar su guardado también debes actualizar la implementación de Apps Script con el archivo de este proyecto. El docente confirma su contraseña actual y puede dejar vacía la nueva contraseña cuando solo necesita corregir su nombre. Publica `calificaciones.js`, `calificaciones.css`, `cea-persistencia.js` e `index.html` actualizados.
+
 1. En Google Drive, crea una copia privada de la hoja oficial. Comprueba que la nómina y las notas estén en esa hoja.
 2. Abre la hoja oficial y entra en **Extensiones > Apps Script**. Sustituye el código anterior por el contenido completo de `google-apps-script.gs` y guarda.
 3. Selecciona la función **configurarSistemaCEA** y pulsa **Ejecutar**. Autoriza la ejecución con la cuenta propietaria. La función vincula el archivo oficial, agrega los identificadores de matrícula y conserva los registros existentes. Si la nómina oficial todavía está en Excel, impórtala desde Dirección después de publicar la nueva versión.
