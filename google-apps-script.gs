@@ -3833,6 +3833,9 @@ function autorizarOperacionCEA(ss, data, auth) {
     }
     return;
   }
+  // La comision tambien puede administrar los documentos institucionales de Inicio.
+  if (auth.comision && ['guardar-documentos-dinamicos', 'guardar-documentos', 'guardar-documentos-oficiales', 'guardar-drive'].includes(action)) return;
+  if (auth.comision && action === 'guardar-contenido-vivo' && data.key === 'documentos_oficiales_dinamicos_json') return;
   // La comisión conserva la gestión del horario institucional.
   if (auth.comision && ['guardar-horarios-matriz', 'guardar-gestor-config', 'guardar-turnos-dias-hum', 'guardar-turnos-dias-tec', 'guardar-sedes-lista', 'guardar-bth-carrera', 'guardar-bth-modulos', 'guardar-bth-filas', 'guardar-color-materia'].includes(action)) return;
   throw Object.assign(new Error('Esta operación requiere una cuenta de Dirección.'), {code: 'PERMISO'});

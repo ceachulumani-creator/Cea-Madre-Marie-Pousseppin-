@@ -1,5 +1,19 @@
 # Activar la actualización del CEA
 
+## Registro movil en tabla (73.93)
+
+Publica `index.html`, `calificaciones.js`, `criterios-evaluacion.js`, `panel-academico.js` y el nuevo `notas-movil.css`, conservando los otros archivos actuales. Este ajuste visual no requiere modificar ni volver a publicar Apps Script.
+
+En pantallas de hasta 900 px se muestra una tabla de estudiantes con numero y nombre fijos a la izquierda y nota final fija a la derecha. Las dimensiones se desplazan horizontalmente. En modo docente, Completo muestra los criterios y sus promedios; Resumen muestra los promedios por dimension. Sin criterios, Completo permite llenar las dimensiones y Resumen muestra los resultados y observaciones. Cambiar la vista no modifica ni descarta las notas pendientes. El guardado conserva el mismo registro y las mismas reglas de evaluacion. La vista de computadora y la impresion mantienen su formato anterior.
+
+## Paneles y permisos de documentos (73.92)
+
+Actualiza `google-apps-script.gs` y publica una **Nueva version** de la implementacion: Direccion y docentes de comision pueden administrar los documentos institucionales; visitantes y docentes sin comision no pueden modificarlos. Los horarios mantienen sus permisos anteriores.
+
+Publica los archivos actuales `index.html`, `app.js`, `calificaciones.js`, `criterios-evaluacion.js`, `calificaciones.css` y los nuevos `panel-academico.js` y `panel-academico.css`. Conserva los demas archivos del sitio. Cada apertura o recarga solicita nuevamente usuario y contrasena. Minimizar conserva la sesion actual, el registro y los cambios pendientes; Volver al panel retoma esa pantalla. Cerrar sesion elimina los controles de edicion y el acceso al panel. Una recarga requiere ingresar nuevamente.
+
+En el registro con criterios, las flechas mantienen la casilla visible a la derecha de las columnas fijas. Una barra de desplazamiento con botones permite mover la tabla con mouse. Cuando los nombres ocupan casi todo el ancho, las columnas de identidad se desplazan junto con la tabla para dejar acceso a las notas. Los paneles moviles usan el ancho disponible, controles tactiles y desplazamiento de pagina para ambos roles; no dependen de una resolucion fisica especifica del celular. No se requieren hojas nuevas ni importar nuevamente datos.
+
 ## Evaluación con criterios y promedios editables
 
 **Actualizacion 73.91:** para quitar definitivamente un criterio y sus calificaciones, actualiza `google-apps-script.gs` y publica una **Nueva version** de la implementacion. Publica tambien `criterios-evaluacion.js`, `calificaciones.js`, `calificaciones.css` e `index.html`; conserva los demas archivos actuales. Quitar muestra una confirmacion centrada y la eliminacion se realiza al pulsar Guardar. Se retiran las notas de ese criterio de las tablas vigentes, del historial y de la papelera. No se requieren hojas nuevas ni volver a importar estudiantes.

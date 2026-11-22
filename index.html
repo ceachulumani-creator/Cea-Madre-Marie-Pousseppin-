@@ -2,6 +2,10 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <script>
+    // Cada apertura o recarga requiere un acceso nuevo.
+    try { localStorage.removeItem('cea_session'); } catch (e) {}
+  </script>
   <meta name="google-site-verification" content="1JqQNEAjzW9o_S-gvQrZZAl0S0uw03xIMLpZIaV01Z0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
@@ -48,7 +52,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=2026.422" />
-  <link rel="stylesheet" href="calificaciones.css?v=73.91" />
+  <link rel="stylesheet" href="calificaciones.css?v=73.93" />
   <script>
     document.documentElement.classList.remove('dark', 'dark-mode');
     try {
@@ -9540,11 +9544,14 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="cea-cache.js?v=73.67"></script>
 <script src="cea-persistencia.js?v=73.88"></script>
-    <script src="calificaciones.js?v=73.91"></script>
-    <script src="criterios-evaluacion.js?v=73.91"></script>
+    <script src="calificaciones.js?v=73.93"></script>
+    <script src="criterios-evaluacion.js?v=73.93"></script>
 <script src="boletin-pdf.js?v=73.67"></script>
 <script src="consulta-calificaciones.js?v=73.73"></script>
-<script src="app.js?v=73.81"></script>
+<script src="app.js?v=73.93"></script>
+<link rel="stylesheet" href="panel-academico.css?v=73.93" />
+<link rel="stylesheet" href="notas-movil.css?v=73.93" />
+<script src="panel-academico.js?v=73.93"></script>
 <script>
 // Sobrescribir manejarFormInscripcion con respuesta instantánea y descarga de PDF garantizada
 /* ─── MODAL DE VALIDACIÓN DE DATOS FALTANTES (SOLO MÓVIL, AUTO-CIERRA EN 5s) ─── */
@@ -10231,14 +10238,8 @@ var DOCUMENTOS_DEFAULT_LIST = [
 
 function esSesionDirectorActiva() {
   const session = typeof lsGet === 'function' ? lsGet('cea_session', null) : null;
-  if (session && (session.role === 'director' || session.role === 'admin' || session.role === 'comision' || session.loggedIn === true || session.token)) {
-    return true;
-  }
-  const liveBar = document.getElementById('directorLiveBar');
-  if (liveBar && liveBar.style.display && liveBar.style.display !== 'none') return true;
-  const panelAdmin = document.getElementById('admin-panel') || document.getElementById('admin-content');
-  if (panelAdmin && panelAdmin.style.display && panelAdmin.style.display !== 'none') return true;
-  return false;
+  return Boolean(session?.token && (['director', 'admin'].includes(session.role) ||
+    (session.role === 'docente' && session.comision === true)));
 }
 
 function obtenerDocumentosDinamicos() {
@@ -10288,6 +10289,7 @@ function obtenerDocumentosDinamicos() {
 }
 
 function guardarDocumentosDinamicos(lista) {
+  if (!esSesionDirectorActiva()) return;
   const listaLimpia = (lista || []).filter(d => !d.esContacto).map((d, i) => ({
     ...d,
     id: d.id || d.key || ('doc-item-' + i),
@@ -10492,6 +10494,7 @@ function cerrarModalDocumentoDinamico() {
 }
 
 function guardarDocumentoDinamicoModal(e) {
+  if (!esSesionDirectorActiva()) {e?.preventDefault();return;}
   if (e && typeof e.preventDefault === 'function') e.preventDefault();
 
   const idInp = document.getElementById('modal-doc-id');

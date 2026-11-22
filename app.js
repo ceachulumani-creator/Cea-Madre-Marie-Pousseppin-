@@ -20914,6 +20914,8 @@ function estadoAccesoInstitucional(texto, error = false) {
 }
 
 function activarVistaPanelInstitucional(session, cargando = false) {
+  document.body.classList.remove('panel-academico-minimizado','panel-academico-inicio');
+  document.getElementById('panel-academico-retomar')?.remove();
   if (!session?.token || !['director', 'admin', 'docente'].includes(session.role)) return false;
   const docente = session.role === 'docente';
   const acceso = document.getElementById('admin-login');
@@ -21064,6 +21066,10 @@ async function restaurarSesion() {
 }
 
 function adminLogout() {
+  cerrarAlertaModal();
+  document.body.classList.remove('panel-academico-minimizado','panel-academico-inicio');
+  document.getElementById('panel-academico-retomar')?.remove();
+  const documentoAbierto=document.getElementById('modalEditarDocumentoDinamico');if(documentoAbierto)documentoAbierto.style.display='none';
   window.limpiarEdicionBoletin?.();
   mostrarClaveAcceso(false);
   credencialesDocentesActuales.clear();
@@ -23724,6 +23730,8 @@ function navegarDesdeMenuMovil(selector) {
 }
 
 function volverAlPanelDesdePublico() {
+  if (!getSessionToken()) return;
+  if (document.body.classList.contains('panel-academico-minimizado')) {window.restaurarPanelAcademico?.();return;}
   document.body.classList.remove('public-view-active');
   const session = typeof lsGet === 'function' ? lsGet('cea_session', null) : null;
   if (session && session.role === 'docente') {

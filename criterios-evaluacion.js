@@ -71,7 +71,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
       const dim=input.dataset.col;
       input.readOnly=!!(s.data.habilitado&&Object.prototype.hasOwnProperty.call(limites(s.registro.tipo),dim)&&!s.editables.has(dim));
     });
-    container?.querySelectorAll('.calif-mobile-fields input[data-campo]').forEach(input=>{
+    container?.querySelectorAll('.calif-mobile-grades input[data-campo]').forEach(input=>{
       const dim=input.dataset.campo;input.readOnly=!!(s.data.habilitado&&Object.prototype.hasOwnProperty.call(limites(s.registro.tipo),dim)&&!s.editables.has(dim));
     });
   }
@@ -91,7 +91,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
     return movil?html.replaceAll('criterios-opciones-obs-','criterios-movil-opciones-obs-'):html;
   }
   function refrescarFinales(s){
-    s.host.querySelectorAll('[data-numeral-detalle]').forEach(el=>{const d=s.detalles.find(f=>String(f.id)===el.dataset.numeralDetalle);if(d)el.textContent=numeral(s,d);});
+    s.host.querySelectorAll('[data-numeral-detalle]').forEach(el=>{const d=s.detalles.find(f=>String(f.id)===el.dataset.numeralDetalle);if(d){el.textContent=numeral(s,d);if(el.classList.contains('movil-nota-final'))el.dataset.estado=numeral(s,d)==='-'?'pendiente':Number(numeral(s,d))>=51?'aprobado':'postergado';}});
     s.host.querySelectorAll('[data-observacion-detalle]').forEach(el=>{const d=s.detalles.find(f=>String(f.id)===el.dataset.observacionDetalle);if(!d)return;const html=observacion(s,d,!!el.closest('.criterios-final-movil'));if(el.dataset.resultado!==html){el.innerHTML=html;el.dataset.resultado=html;}});
   }
   function ajustar(s,d,dim,v){
@@ -179,6 +179,46 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
     const cabecera=dim=>grupo(s,dim).map(c=>`<th class="criterio-cabecera-vertical" data-criterio-cabecera="${esc(c.id)}" tabindex="0" scope="col" title="Doble clic para editar. Mantén pulsado para mover: ${esc(c.titulo)}"><span class="criterio-titulo-ajustado" aria-label="${esc(c.titulo)}">${titulos.get(c.id).lineas.map(linea=>'<span>'+esc(linea)+'</span>').join(' ')}</span></th>`).join('')+`<th class="criterio-cabecera-vertical criterio-cabecera-promedio" scope="col" data-promedio-dimension="${dim}" tabindex="0" title="Doble clic para editar el promedio"><span class="criterio-titulo-vertical">PROMEDIO (${limites(s.registro.tipo)[dim]})</span></th>`;
     return `<div class="criterios-tabla-wrap calif-table-responsive"><table class="criterios-tabla criterios-registro" style="${esc(estilo)}" aria-label="Registro de evaluación con criterios"><colgroup><col style="width:44px">${anchos.map(a=>'<col style="width:'+a+'px">').join('')}${columnasNotas}<col style="width:80px"><col style="width:160px"></colgroup><thead><tr><th rowspan="3" class="criterios-identidad criterios-numero th-main-cat" scope="col">N°</th><th colspan="3" class="th-main-cat">NÓMINA DE PARTICIPANTES</th><th colspan="${columnasHetero}" class="th-main-cat">HETEROEVALUACIÓN (90 PUNTOS)</th><th colspan="${columnasAuto}" rowspan="2" class="th-main-cat criterios-autoevaluacion">AUTOEVALUACIÓN (10 PUNTOS)<button type="button" data-accion="nuevo" data-dimension="autoevaluacion" aria-label="Añadir criterio de Autoevaluación">+</button></th><th colspan="2" class="th-main-cat">CALIFICACIÓN FINAL</th></tr><tr>${campos.map((campo,i)=>`<th rowspan="2" class="criterios-identidad criterios-${campo} th-sub-cat" scope="col">${etiquetas[i]}</th>`).join('')}${hetero.map(dim=>`<th class="th-dimension" scope="colgroup" colspan="${grupo(s,dim).length+1}">${titulo(dim).toUpperCase()}<span class="calif-th-max">(${limites(s.registro.tipo)[dim]})</span><button type="button" data-accion="nuevo" data-dimension="${dim}" aria-label="Añadir criterio de ${titulo(dim)}">+</button></th>`).join('')}<th rowspan="2" class="th-sub-cat" scope="col">NUMERAL<br>(100)</th><th rowspan="2" class="th-sub-cat" scope="col">OBSERVACIÓN</th></tr><tr>${dimensiones.map(cabecera).join('')}</tr></thead><tbody>${s.detalles.map((d,i)=>`<tr data-fila-criterios="${esc(d.id)}" class="${s.filaActiva===String(d.id)?'criterio-fila-activa':''}"><td class="criterios-identidad criterios-numero">${i+1}</td>${campos.map(campo=>`<td class="criterios-identidad criterios-${campo}" title="${esc(d[campo]||'')}">${esc(d[campo]||'')}</td>`).join('')}${dimensiones.map(dim=>grupo(s,dim).map(c=>`<td class="criterio-nota-celda">${inputNota(s,d,c)}</td>`).join('')+`<td class="criterio-promedio" data-preview="${esc(key(d.id,dim))}">${resultado(s,d,dim)}</td>`).join('')}<td class="criterios-numeral" data-numeral-detalle="${esc(d.id)}">${esc(numeral(s,d))}</td><td class="criterios-observacion" data-observacion-detalle="${esc(d.id)}">${observacion(s,d)}</td></tr>`).join('')}</tbody></table></div>`;
   }
+  function tablaCriteriosMovil(s,dimensiones){
+    const resumen=s.vistaMovil==='resumen',cs=dim=>resumen?[]:grupo(s,dim);
+    const cantidad=dimensiones.reduce((n,dim)=>n+cs(dim).length+1,0),ancho=154+cantidad*38+144+40;
+    const botonVista=(id,t)=>'<button type="button" data-accion="vista-movil" data-vista="'+id+'" aria-pressed="'+((resumen?'resumen':'completo')===id)+'">'+t+'</button>';
+    return '<div class="movil-planilla-tools"><div class="movil-planilla-segmentos" role="group" aria-label="Vista del registro">'+botonVista('resumen','Resumen')+botonVista('completo','Completo')+'</div><span>Desliza las notas</span></div><div class="criterios-tabla-wrap movil-planilla-scroll" tabindex="0" aria-label="Notas de estudiantes; desliza horizontalmente"><table class="criterios-tabla criterios-registro movil-planilla" style="width:'+ancho+'px" aria-label="Registro móvil con criterios"><colgroup><col style="width:26px"><col style="width:128px">'+Array(cantidad).fill('<col style="width:38px">').join('')+'<col style="width:144px"><col style="width:40px"></colgroup><thead><tr><th rowspan="2" class="criterios-identidad movil-numero">N°</th><th rowspan="2" class="criterios-identidad movil-nombre">Estudiantes</th>'+dimensiones.map(dim=>'<th class="movil-grupo" colspan="'+(cs(dim).length+1)+'">'+titulo(dim)+' ('+limites(s.registro.tipo)[dim]+')<button type="button" data-accion="nuevo" data-dimension="'+dim+'" aria-label="Añadir criterio de '+titulo(dim)+'">+</button></th>').join('')+'<th rowspan="2" class="movil-observacion">Observación</th><th rowspan="2" class="movil-final"><span>Nota final</span></th></tr><tr>'+dimensiones.map(dim=>cs(dim).map(c=>'<th class="movil-criterio" data-criterio-cabecera="'+esc(c.id)+'" tabindex="0" title="'+esc(c.titulo)+'"><span>'+esc(c.titulo)+'</span></th>').join('')+'<th class="movil-promedio" data-promedio-dimension="'+dim+'" tabindex="0"><span>'+titulo(dim)+' ('+limites(s.registro.tipo)[dim]+')</span></th>').join('')+'</tr></thead><tbody>'+s.detalles.map((d,i)=>'<tr data-fila-criterios="'+esc(d.id)+'" class="'+(s.filaActiva===String(d.id)?'criterio-fila-activa':'')+'"><td class="criterios-identidad movil-numero">'+(i+1)+'</td><td class="criterios-identidad movil-nombre" title="'+esc(nombre(d))+'"><span>'+esc(nombre(d))+'</span></td>'+dimensiones.map(dim=>cs(dim).map(c=>'<td class="criterio-nota-celda">'+inputNota(s,d,c)+'</td>').join('')+'<td class="criterio-promedio movil-promedio" data-preview="'+esc(key(d.id,dim))+'">'+resultado(s,d,dim)+'</td>').join('')+'<td class="criterios-observacion movil-observacion" data-observacion-detalle="'+esc(d.id)+'">'+observacion(s,d)+'</td><td class="movil-final"><span class="movil-nota-final" data-numeral-detalle="'+esc(d.id)+'" data-estado="'+(numeral(s,d)==='-'?'pendiente':Number(numeral(s,d))>=51?'aprobado':'postergado')+'">'+esc(numeral(s,d))+'</span></td></tr>').join('')+'</tbody></table></div>';
+  }
+  function actualizarDesplazamiento(s){
+    const wrap=s.host.querySelector('.criterios-tabla-wrap'),barra=s.host.querySelector('.criterios-desplazamiento');if(!wrap||!barra)return;
+    const tabla=wrap.querySelector('table'),css=getComputedStyle(tabla);
+    const fijos=44+['paterno','materno','nombres'].reduce((n,c)=>n+(parseFloat(css.getPropertyValue('--criterios-'+c))||0),0);
+    wrap.classList.toggle('criterios-identidad-libre',wrap.clientWidth-fijos<100);
+    const max=Math.max(0,wrap.scrollWidth-wrap.clientWidth),rango=barra.querySelector('input');
+    barra.hidden=max<2;rango.max=max;rango.value=wrap.scrollLeft;
+    barra.querySelector('[data-desplazar="-1"]').disabled=wrap.scrollLeft<1;
+    barra.querySelector('[data-desplazar="1"]').disabled=wrap.scrollLeft>=max-1;
+  }
+  function asegurarCeldaVisible(s,input){
+    if(input.closest('.movil-planilla')){window.asegurarNotaMovil?.(input);return;}
+    const wrap=input.closest('.criterios-tabla-wrap');if(!wrap)return;
+    actualizarDesplazamiento(s);
+    const r=wrap.getBoundingClientRect(),celda=input.getBoundingClientRect();
+    const fila=input.closest('tr'),fijos=wrap.classList.contains('criterios-identidad-libre')?[]:[...fila.querySelectorAll('.criterios-identidad')];
+    const izquierda=Math.max(r.left,0,...fijos.map(el=>el.getBoundingClientRect().right))+5,derecha=Math.min(r.right,innerWidth)-6;
+    if(celda.left<izquierda)wrap.scrollLeft-=izquierda-celda.left;
+    else if(celda.right>derecha)wrap.scrollLeft+=celda.right-derecha;
+    actualizarDesplazamiento(s);
+  }
+  function prepararDesplazamiento(s){
+    s.observadorAncho?.disconnect();
+    const wrap=s.host.querySelector('.criterios-tabla-wrap');if(!wrap)return;
+    const barra=document.createElement('div');barra.className='criterios-desplazamiento';
+    barra.innerHTML='<span>Mover criterios</span><button type="button" data-desplazar="-1" aria-label="Desplazar criterios a la izquierda"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m14 6-6 6 6 6"/></svg></button><input type="range" min="0" step="1" value="0" aria-label="Desplazamiento horizontal de los criterios"><button type="button" data-desplazar="1" aria-label="Desplazar criterios a la derecha"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m10 6 6 6-6 6"/></svg></button>';
+    wrap.before(barra);
+    barra.querySelector('input').oninput=e=>{wrap.scrollLeft=Number(e.target.value);};
+    barra.querySelectorAll('button').forEach(b=>b.onclick=()=>{wrap.scrollLeft+=Number(b.dataset.desplazar)*Math.max(100,wrap.clientWidth*.4);actualizarDesplazamiento(s);});
+    wrap.addEventListener('scroll',()=>actualizarDesplazamiento(s),{passive:true});
+    wrap.addEventListener('wheel',e=>{if(e.shiftKey&&e.deltaY){e.preventDefault();wrap.scrollLeft+=e.deltaY;}},{passive:false});
+    s.observadorAncho?.disconnect();s.observadorAncho=new ResizeObserver(()=>actualizarDesplazamiento(s));s.observadorAncho.observe(wrap);
+    actualizarDesplazamiento(s);
+  }
   function capturarVista(s){
     const tabla=s.host.querySelector('.criterios-tabla-wrap'),padres=[];
     for(let el=s.host.parentElement;el;el=el.parentElement)padres.push({el,x:el.scrollLeft,y:el.scrollTop});
@@ -194,7 +234,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
     if(!s.host.isConnected)return;
     const vista=capturarVista(s),redibujo=s.redibujo=(s.redibujo||0)+1;
     s.host.closest('#docente-planilla-container')?.classList.toggle('calif-con-criterios',!!s.data.habilitado);
-    const movil=window.matchMedia('(max-width:700px)').matches;
+    const movil=window.matchMedia('(max-width:900px)').matches;
     const dimensiones=Object.keys(limites(s.registro.tipo));
     if(!dimensiones.includes(s.dimension))s.dimension=dimensiones[0];
     const d=s.detalles.find(d=>String(d.id)===s.alumno) || s.detalles[0];
@@ -207,10 +247,10 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
       <button type="button" data-accion="recargar">Recargar criterios guardados</button>
     </div><p data-estado-criterios role="status" aria-live="polite">${s.version!==s.confirmada?'Cambios pendientes de guardar.':'Preferencias cargadas. Activar esta opción no cambia las notas existentes.'}</p>
     ${s.data.habilitado?`<p class="criterios-ayuda">Añade criterios con +. Las notas oficiales se mantienen hasta completar los criterios y pulsar Guardar. La autoevaluación admite sus propios criterios y suma hasta 10 puntos a la calificación final.</p><button type="button" data-accion="copiar">Copiar criterios de otro módulo</button>
-    ${!movil ? tablaCriterios(s,dimensiones) : ''}<div class="criterios-movil"><label>Estudiante<select data-control="alumno">${s.detalles.map(d=>`<option value="${esc(d.id)}" ${String(d.id)===s.alumno?'selected':''}>${esc(nombre(d))}</option>`).join('')}</select></label><label>Dimensión<select data-control="dimension">${dimensiones.map(dim=>`<option value="${dim}" ${dim===s.dimension?'selected':''}>${titulo(dim)} (${limites(s.registro.tipo)[dim]})</option>`).join('')}</select></label><button type="button" data-accion="nuevo" data-dimension="${s.dimension}">+ Añadir criterio</button>${d?grupo(s,s.dimension).map(c=>`<div class="criterio-movil-fila"><label><span data-criterio-cabecera="${esc(c.id)}" tabindex="0" title="Doble toque para editar; mantén pulsado para mover">${esc(c.titulo)}</span> ${inputNota(s,d,c)}</label></div>`).join('')+`<div class="criterio-promedio" data-preview="${esc(key(d.id,s.dimension))}">${resultado(s,d,s.dimension)}</div><div class="criterios-final-movil"><strong>Calificación final · Numeral (100): <span data-numeral-detalle="${esc(d.id)}">${esc(numeral(s,d))}</span></strong><div class="criterios-observacion" data-observacion-detalle="${esc(d.id)}">${observacion(s,d,true)}</div></div>`:''}</div>
+    ${movil ? tablaCriteriosMovil(s,dimensiones) : tablaCriterios(s,dimensiones)}<div class="criterios-movil"><label>Estudiante<select data-control="alumno">${s.detalles.map(d=>`<option value="${esc(d.id)}" ${String(d.id)===s.alumno?'selected':''}>${esc(nombre(d))}</option>`).join('')}</select></label><label>Dimensión<select data-control="dimension">${dimensiones.map(dim=>`<option value="${dim}" ${dim===s.dimension?'selected':''}>${titulo(dim)} (${limites(s.registro.tipo)[dim]})</option>`).join('')}</select></label><button type="button" data-accion="nuevo" data-dimension="${s.dimension}">+ Añadir criterio</button>${d?grupo(s,s.dimension).map(c=>`<div class="criterio-movil-fila"><label><span data-criterio-cabecera="${esc(c.id)}" tabindex="0" title="Doble toque para editar; mantén pulsado para mover">${esc(c.titulo)}</span> ${inputNota(s,d,c)}</label></div>`).join('')+`<div class="criterio-promedio" data-preview="${esc(key(d.id,s.dimension))}">${resultado(s,d,s.dimension)}</div><div class="criterios-final-movil"><strong>Calificación final · Numeral (100): <span data-numeral-detalle="${esc(d.id)}">${esc(numeral(s,d))}</span></strong><div class="criterios-observacion" data-observacion-detalle="${esc(d.id)}">${observacion(s,d,true)}</div></div>`:''}</div>
     ${s.data.criterios.some(c=>!c.activo)?`<details><summary>Criterios archivados</summary>${s.data.criterios.filter(c=>!c.activo).map(c=>`<p>${esc(c.titulo)} · ${titulo(c.dimension)} <button type="button" data-accion="restaurar" data-id="${esc(c.id)}">Recuperar</button></p>`).join('')}</details>`:''}
     <p class="criterios-ayuda">Las dimensiones sin criterios se pueden completar en su casilla de promedio. Los promedios incompletos no reemplazan las notas oficiales. Heteroevaluación: 90 puntos; autoevaluación: 10 puntos; calificación final: 100 puntos.</p>`:''}`;
-    restaurarVista(s,vista);
+    prepararDesplazamiento(s);restaurarVista(s,vista);
     requestAnimationFrame(()=>{if(s.redibujo===redibujo)restaurarVista(s,vista);});
   }
   function refrescar(s) {
@@ -309,6 +349,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
     arrastreCriterios(s);
     const seleccionarFila=e=>{const fila=e.target.closest('.criterios-registro tbody tr');if(!fila)return;s.filaActiva=fila.dataset.filaCriterios;s.host.querySelectorAll('.criterio-fila-activa').forEach(el=>el.classList.remove('criterio-fila-activa'));fila.classList.add('criterio-fila-activa');};
     s.host.addEventListener('click',seleccionarFila);s.host.addEventListener('focusin',seleccionarFila);
+    s.host.addEventListener('focusin',e=>{if(e.target.matches('.criterio-nota,.criterio-promedio-input')){asegurarCeldaVisible(s,e.target);requestAnimationFrame(()=>{if(document.activeElement===e.target)asegurarCeldaVisible(s,e.target);});}});
     s.host.addEventListener('dblclick',e=>{
       const cab=e.target.closest('[data-criterio-cabecera]');if(cab){if(Date.now()<(s.ignorarDobleCriterio||0))return;const c=s.data.criterios.find(c=>c.id===cab.dataset.criterioCabecera);if(c)editar(s,c.dimension,c);return;}
       const celda=e.target.closest('[data-preview],[data-promedio-dimension]');if(!celda)return;
@@ -361,6 +402,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
     s.host.addEventListener('click',e=>{
       const btn=e.target.closest('[data-accion]');if(!btn)return;
       const accion=btn.dataset.accion,c=s.data.criterios.find(c=>c.id===btn.dataset.id);
+      if(accion==='vista-movil'){s.vistaMovil=btn.dataset.vista;dibujar(s);return;}
       if(accion==='recargar'){
         if(s.version!==s.confirmada&&!confirm('Se descartarán los cambios de criterios sin guardar para consultar la versión del servidor. ¿Continuar?'))return;
         api.invalidate([s.registro.id]);estados.delete(s.registro.id);void api.mount(s.host.closest('#docente-planilla-container'),s.registro,s.detalles,'docente');return;
@@ -380,7 +422,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
       if(e.target.matches('.criterio-promedio-input')&&['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Enter'].includes(e.key)){
         const inputs=[...s.host.querySelectorAll('.criterio-promedio-input:not([readonly])')].filter(i=>i.getClientRects().length);
         const vertical=['ArrowUp','ArrowDown','Enter'].includes(e.key),grupo=vertical?inputs.filter(i=>i.dataset.dimension===e.target.dataset.dimension):inputs;
-        const destino=grupo[grupo.indexOf(e.target)+(['ArrowLeft','ArrowUp'].includes(e.key)?-1:1)];e.preventDefault();if(destino){destino.focus();destino.select();}return;
+        const destino=grupo[grupo.indexOf(e.target)+(['ArrowLeft','ArrowUp'].includes(e.key)?-1:1)];e.preventDefault();if(destino){destino.focus({preventScroll:true});asegurarCeldaVisible(s,destino);destino.select();}return;
       }
       if(!e.target.matches('.criterio-nota')||!['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Enter'].includes(e.key))return;
       const inputs=[...s.host.querySelectorAll('.criterio-nota')].filter(i=>i.getClientRects().length);
@@ -391,7 +433,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
         if(!destino&&e.key==='Enter')destino=inputs[inputs.indexOf(e.target)+1];
       }else destino=inputs[inputs.indexOf(e.target)+(e.key==='ArrowLeft'?-1:1)];
       e.preventDefault();
-      if(destino){destino.focus();destino.select();}
+      if(destino){destino.focus({preventScroll:true});asegurarCeldaVisible(s,destino);destino.select();}
     });
   }
   const api = window.ceaCriterios = {
@@ -521,10 +563,11 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
     lock(id){const s=estados.get(id);if(s){s.editables.clear();bloquearPromedios(s);refrescar(s);}},
     pending(){return [...cargas.values()].some(c=>c.token===sesion().token&&c.intencion!=null&&c.host.isConnected&&c.host.getClientRects().length)||[...estados.values()].some(s=>s.token===sesion().token&&sesion().role==='docente'&&(s.version!==s.confirmada||(s.data.habilitado&&window.hayNotasRegistroPendientesCalif?.(s.registro.id)))&&s.host.isConnected&&s.host.getClientRects().length);},
     refresh(id,detalles){const s=estados.get(id);if(s){if(detalles)s.detalles=detalles;else if(window._registroActivo?.id===id&&window._detallesActivos)s.detalles=window._detallesActivos;refrescar(s);}},
-    clear(){for(const c of cargas.values())c.resolver({error:Error("La sesión cambió.")});cargas.clear();epocaCache++;precargados.clear();consultas.clear();document.querySelectorAll('.calif-con-criterios').forEach(el=>el.classList.remove('calif-con-criterios'));estados.clear();document.querySelectorAll('.criterios-dialog, .criterios-panel, .criterios-menu').forEach(d=>d.remove());}
+    clear(){for(const s of estados.values())s.observadorAncho?.disconnect();for(const c of cargas.values())c.resolver({error:Error("La sesión cambió.")});cargas.clear();epocaCache++;precargados.clear();consultas.clear();document.querySelectorAll('.calif-con-criterios').forEach(el=>el.classList.remove('calif-con-criterios'));estados.clear();document.querySelectorAll('.criterios-dialog, .criterios-panel, .criterios-menu').forEach(d=>d.remove());}
   };
   document.addEventListener('dblclick',e=>{const input=e.target.closest('.calif-input-nota');if(!input)return;const s=estados.get(window._registroActivo?.id);if(!s?.data.habilitado||!Object.prototype.hasOwnProperty.call(limites(s.registro.tipo),input.dataset.col))return;e.preventDefault();menuPromedio(s,input.dataset.col,e.clientX,e.clientY);});
   document.addEventListener('input',e=>{if(e.target.matches('.calif-input-nota'))setTimeout(()=>api.refresh(window._registroActivo?.id),0);});
   window.matchMedia('(max-width:700px)').addEventListener('change',()=>estados.forEach(s=>{if(s.host.isConnected)dibujar(s);}));
   window.addEventListener('beforeunload',event=>{if(api.pending()){event.preventDefault();event.returnValue='';}});
+  window.matchMedia?.('(max-width:900px)').addEventListener?.('change',()=>{for(const s of estados.values())if(s.host.isConnected)dibujar(s);});
 })();

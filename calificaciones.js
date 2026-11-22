@@ -5384,98 +5384,44 @@
   };
 
   function prepararEditorNotasMovil(tabla) {
-    if (!tabla) return;
-    const wrap = tabla.closest('.calif-table-responsive');
-    if (!wrap || wrap.previousElementSibling?.classList.contains('calif-mobile-grades')) return;
-    const rows = [...tabla.querySelectorAll('tbody tr')].filter(row => row.querySelector('.calif-input-nota'));
-    if (!rows.length) return;
-    const panel = document.createElement('section');
-    panel.className = 'calif-mobile-grades';
-    panel.innerHTML = `<button type="button" class="btn-calif btn-calif-secondary calif-mobile-toggle" aria-expanded="false">Llenar por estudiante</button><div class="calif-mobile-editor" hidden><label>Estudiante<select aria-label="Estudiante para llenar notas"></select></label><div class="calif-mobile-fields"></div><p class="calif-mobile-result" aria-live="polite"></p><div class="calif-mobile-students"><button type="button" class="btn-calif btn-calif-secondary" data-step="-1">Anterior</button><button type="button" class="btn-calif btn-calif-secondary" data-step="1">Siguiente estudiante</button></div><p>Los cambios se confirman con Guardar, en la barra superior.</p></div>`;
-    const select = panel.querySelector('select');
-    rows.forEach((row, idx) => {
-      const name = [...row.querySelectorAll('.td-text')].map(cell => cell.textContent.trim()).join(' ');
-      select.add(new Option((idx + 1) + '. ' + name, String(idx)));
-    });
-    const labels = {ser:'Ser', saber:'Saber', hacer:'Hacer', decidir:'Decidir', proceso:'Proceso', producto:'Producto', autoevaluacion:'Autoevaluación'};
-    const fields = panel.querySelector('.calif-mobile-fields');
-    const summary = panel.querySelector('.calif-mobile-result');
-    const updateSummary = () => {
-      const row = rows[Number(select.value)];
-      summary.textContent = 'Nota final: ' + row.querySelector('.calif-cell-total').textContent.trim() + ' · ' + (row.querySelector('.calif-badge-obs')?.textContent.trim() || '');
-    };
-    const render = () => {
-      const row = rows[Number(select.value)];
-      fields.replaceChildren();
-      [...row.querySelectorAll('.calif-input-nota')].forEach(original => {
-        const label = document.createElement('label');
-        label.textContent = (labels[original.dataset.col] || original.dataset.col) + ' / ' + original.max;
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.min = original.min;
-        input.max = original.max;
-        input.step = original.step;
-        input.inputMode = 'numeric';
-        input.enterKeyHint = 'next';
-        input.value = original.value;
-        input.placeholder = '–';
-        input.disabled = original.disabled;
-        input.readOnly = original.readOnly;
-        input.dataset.campo = original.dataset.col;
-        input.addEventListener('focus', () => input.select());
-        input.addEventListener('input', () => {
-          original.value = input.value;
-          original.dispatchEvent(new Event('input', {bubbles:true}));
-          input.value = original.value;
-          input.setAttribute('aria-invalid', String(original.classList.contains('nota-error')));
-          updateSummary();
-        });
-        input.addEventListener('keydown', event => {
-          if (event.key !== 'Enter') return;
-          event.preventDefault();
-          const inputs = [...fields.querySelectorAll('input:not(:disabled)')];
-          const next = inputs[inputs.indexOf(input) + 1];
-          if (next) next.focus();
-          else if (select.selectedIndex < rows.length - 1) { select.selectedIndex++; render(); fields.querySelector('input:not(:disabled)')?.focus(); }
-        });
-        label.appendChild(input);
-        fields.appendChild(label);
+    if(!tabla)return;
+    const wrap=tabla.closest('.calif-table-responsive');if(!wrap||wrap.previousElementSibling?.classList.contains('calif-mobile-grades'))return;
+    const rows=[...tabla.querySelectorAll('tbody tr')].filter(r=>r.querySelector('.calif-input-nota'));if(!rows.length)return;
+    const panel=document.createElement('section');panel.className='calif-mobile-grades';panel.dataset.vista='completo';
+    const labels={ser:'Ser',saber:'Saber',hacer:'Hacer',decidir:'Decidir',proceso:'Proceso',producto:'Producto',autoevaluacion:'Autoevaluación'};
+    const campos=[...rows[0].querySelectorAll('.calif-input-nota')].map(i=>({key:i.dataset.col,max:i.max}));
+    panel.innerHTML='<div class="movil-planilla-tools"><div class="movil-planilla-segmentos" role="group" aria-label="Vista del registro"><button type="button" data-vista="resumen" aria-pressed="false">Resumen</button><button type="button" data-vista="completo" aria-pressed="true">Completo</button></div><span>Desliza las notas</span></div><div class="movil-planilla-scroll" tabindex="0" aria-label="Registro móvil; desliza las notas"><table class="movil-planilla" aria-label="Registro de evaluación móvil"><thead><tr><th class="movil-numero">N°</th><th class="movil-nombre">Estudiantes</th>'+campos.map(c=>'<th class="movil-dimension"><span>'+labels[c.key]+' ('+c.max+')</span></th>').join('')+'<th class="movil-observacion">Observación</th><th class="movil-final"><span>Nota final</span></th></tr></thead><tbody></tbody></table></div>';
+    const tbody=panel.querySelector('tbody'),pares=[];
+    rows.forEach((row,idx)=>{
+      const nombre=[...row.querySelectorAll('.td-text')].map(c=>c.textContent.trim()).filter(Boolean).join(' '),tr=document.createElement('tr');tr.dataset.movilFila=idx;
+      tr.innerHTML='<td class="movil-numero">'+(idx+1)+'</td><td class="movil-nombre" title="'+escapeHTML(nombre)+'"><span>'+escapeHTML(nombre)+'</span></td>'+campos.map(c=>'<td class="movil-dimension"><input type="number" class="movil-nota" inputmode="numeric" enterkeyhint="next" step="1" min="0" max="'+c.max+'" data-campo="'+c.key+'" aria-label="'+escapeHTML(nombre+': '+labels[c.key])+ '" placeholder="–"></td>').join('')+'<td class="movil-observacion"></td><td class="movil-final"><span class="movil-nota-final"></span></td>';
+      const notas=[...tr.querySelectorAll('.movil-nota')];
+      notas.forEach(input=>{
+        const original=row.querySelector('.calif-input-nota[data-col="'+input.dataset.campo+'"]');pares.push({input,original});
+        input.value=original.value;input.disabled=original.disabled;input.readOnly=original.readOnly;input.onfocus=()=>input.select();
+        input.oninput=()=>{original.value=input.value;original.dispatchEvent(new Event('input',{bubbles:true}));input.value=original.value;input.setAttribute('aria-invalid',String(original.classList.contains('nota-error')));sincronizarFila(row,tr);};
       });
-      // La observación conserva el mismo control y las mismas reglas de la planilla.
-      const observation = row.querySelector('.calif-obs-trigger');
-      if (observation) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn-calif btn-calif-secondary';
-        button.textContent = 'Cambiar observación';
-        button.onclick = () => {
-          panel.querySelector('.calif-mobile-toggle').click();
-          observation.scrollIntoView({block:'center', inline:'center'});
-          observation.click();
-        };
-        fields.appendChild(button);
-      }
-      panel.querySelector('[data-step="-1"]').disabled = select.selectedIndex === 0;
-      panel.querySelector('[data-step="1"]').disabled = select.selectedIndex === rows.length - 1;
-      updateSummary();
-    };
-    select.onchange = render;
-    panel.querySelectorAll('[data-step]').forEach(button => { button.onclick = () => { select.selectedIndex += Number(button.dataset.step); render(); }; });
-    panel.querySelector('.calif-mobile-toggle').onclick = event => {
-      const open = event.currentTarget.getAttribute('aria-expanded') !== 'true';
-      event.currentTarget.setAttribute('aria-expanded', String(open));
-      event.currentTarget.textContent = open ? 'Volver a la tabla' : 'Llenar por estudiante';
-      panel.querySelector('.calif-mobile-editor').hidden = !open;
-      wrap.classList.toggle('calif-mobile-table-hidden', open);
-      if (open) render();
-    };
-    wrap.before(panel);
-    const observer = new MutationObserver(() => {
-      if (panel.querySelector('.calif-mobile-editor').hidden) return;
-      if (!panel.contains(document.activeElement)) render();
-      else updateSummary();
+      tbody.append(tr);
     });
-    observer.observe(tabla, {subtree:true, childList:true, characterData:true});
+    function sincronizarFila(row,tr){
+      const total=row.querySelector('.calif-cell-total')?.textContent.trim()||'–',circulo=tr.querySelector('.movil-nota-final');circulo.textContent=total;circulo.dataset.estado=!Number.isFinite(Number(total))?'pendiente':Number(total)>=51?'aprobado':'postergado';
+      const origen=row.querySelector('.calif-obs-trigger')?.parentElement||row.querySelector('.calif-badge-obs')?.parentElement;
+      const html=(origen?.innerHTML||'').replaceAll('calif-opciones-obs-','movil-calif-opciones-obs-'),destino=tr.querySelector('.movil-observacion');if(destino.dataset.html!==html){destino.innerHTML=html;destino.dataset.html=html;}
+    }
+    function sincronizar(){
+      if(!panel.isConnected){observador.disconnect();return;}
+      pares.forEach(({input,original})=>{if(document.activeElement!==input)input.value=original.value;input.disabled=original.disabled;input.readOnly=original.readOnly;});rows.forEach((row,idx)=>sincronizarFila(row,tbody.children[idx]));
+    }
+    function seleccionar(e){const tr=e.target.closest('tbody tr');if(!tr)return;tbody.querySelectorAll('.row-eval-active').forEach(r=>r.classList.remove('row-eval-active'));tr.classList.add('row-eval-active');if(e.target.matches('.movil-nota')){window.asegurarNotaMovil?.(e.target);requestAnimationFrame(()=>window.asegurarNotaMovil?.(e.target));}}
+    panel.addEventListener('focusin',seleccionar);panel.addEventListener('click',seleccionar);
+    panel.addEventListener('keydown',e=>{
+      if(!e.target.matches('.movil-nota')||!['ArrowRight','ArrowLeft','ArrowDown','ArrowUp','Enter'].includes(e.key))return;
+      const inputs=[...panel.querySelectorAll('.movil-nota:not(:disabled):not([readonly])')].filter(i=>i.getClientRects().length),vertical=['ArrowDown','ArrowUp','Enter'].includes(e.key),grupo=vertical?inputs.filter(i=>i.dataset.campo===e.target.dataset.campo):inputs;
+      const destino=grupo[grupo.indexOf(e.target)+(['ArrowLeft','ArrowUp'].includes(e.key)?-1:1)];e.preventDefault();if(destino){destino.focus({preventScroll:true});destino.select();window.asegurarNotaMovil?.(destino);}
+    });
+    panel.querySelectorAll('[data-vista]').forEach(btn=>btn.onclick=()=>{panel.dataset.vista=btn.dataset.vista;panel.querySelectorAll('[data-vista]').forEach(b=>b.setAttribute('aria-pressed',String(b===btn)));panel.querySelector('table').style.width=(338+(btn.dataset.vista==='completo'?campos.length*38:0))+'px';});
+    panel.querySelector('table').style.width=(338+campos.length*38)+'px';
+    wrap.before(panel);const observador=new MutationObserver(sincronizar);observador.observe(tabla,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['readonly','disabled']});sincronizar();
   }
 
   function inicializarNavegacionTeclado(tabla, scroller) {
@@ -6243,7 +6189,7 @@
       const retirar=()=>{setTimeout(()=>frame.remove(),0);};frame.contentWindow.addEventListener('afterprint',retirar,{once:true});
       frame.contentWindow.focus();frame.contentWindow.print();
     };
-    frame.srcdoc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Valoración del módulo</title><base href="'+escapar(document.baseURI)+'"><link rel="stylesheet" href="calificaciones-impresion.css?v=73.91"><style>@page{size:letter '+(horizontal?'landscape':'portrait')+';margin:8mm}html,body{margin:0;padding:0}</style></head><body>'+html+'</body></html>';
+    frame.srcdoc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Valoración del módulo</title><base href="'+escapar(document.baseURI)+'"><link rel="stylesheet" href="calificaciones-impresion.css?v=73.93"><style>@page{size:letter '+(horizontal?'landscape':'portrait')+';margin:8mm}html,body{margin:0;padding:0}</style></head><body>'+html+'</body></html>';
     document.body.append(frame);return frame;
   };
   function imprimirRegistroOficial(confirmado = false, borrador = false) {
@@ -6897,6 +6843,11 @@
       logout.onclick = () => { cerrarAcademicMobileDrawer(); adminLogout(); };
       body.appendChild(logout);
     }
+    const minimizar = document.createElement('button');
+    minimizar.type = 'button'; minimizar.className = 'academic-drawer-item';
+    minimizar.textContent = 'Minimizar panel';
+    minimizar.onclick = () => { cerrarAcademicMobileDrawer(); window.minimizarPanelAcademico?.(); };
+    body.appendChild(minimizar);
     drawer.querySelector('input').addEventListener('input', event => {
       const normalize = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
       const query = normalize(event.target.value.trim());
