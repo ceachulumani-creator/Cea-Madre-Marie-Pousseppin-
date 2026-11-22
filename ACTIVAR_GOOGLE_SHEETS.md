@@ -1,5 +1,17 @@
 # Activar la actualización del CEA
 
+## Evaluación con criterios y promedios editables
+
+**Actualizacion 73.91:** para quitar definitivamente un criterio y sus calificaciones, actualiza `google-apps-script.gs` y publica una **Nueva version** de la implementacion. Publica tambien `criterios-evaluacion.js`, `calificaciones.js`, `calificaciones.css` e `index.html`; conserva los demas archivos actuales. Quitar muestra una confirmacion centrada y la eliminacion se realiza al pulsar Guardar. Se retiran las notas de ese criterio de las tablas vigentes, del historial y de la papelera. No se requieren hojas nuevas ni volver a importar estudiantes.
+
+La tabla incluye Heteroevaluación (90 puntos), Autoevaluación (10 puntos) con criterios opcionales, y Calificación final con Numeral y Observación automáticos. Para habilitar criterios de autoevaluación debes actualizar tanto Apps Script como los archivos web; las notas anteriores se conservan.
+
+Actualiza el contenido completo de `google-apps-script.gs` y selecciona **Implementar > Gestionar implementaciones > Editar > Nueva versión > Implementar**. Publica también `criterios-evaluacion.js`, `calificaciones.js`, `calificaciones.css`, `calificaciones-impresion.css` e `index.html`. Para esta ampliación no hace falta volver a importar estudiantes ni ejecutar de nuevo la configuración inicial: las tablas de criterios se crean o amplían al guardar.
+
+En modo docente, activa **Evaluar con criterios** en Llenar notas. Todos los promedios empiezan bloqueados, tambien los de dimensiones sin criterios. Utiliza doble clic y **Editar promedio**, o doble toque en celular, para habilitar una dimensión. Se bloquean de nuevo al guardar o reabrir el registro. Los ajustes expresos de promedios y notas del boletín sincronizan los criterios activos y conservan su origen en el historial. Activar la opción no cambia notas anteriores.
+
+Con criterios se imprime en Carta horizontal; sin criterios, Carta vertical. Consulta `CRITERIOS_EVALUACION.md` para las escalas, almacenamiento y funcionamiento detallados.
+
 ## Si el boletín muestra «Dirección ha bloqueado este registro»
 
 La versión actual permite corregir y publicar las notas de la propia área aunque el registro tenga un bloqueo antiguo. Si aparece ese mensaje, la implementación que atiende a la web todavía ejecuta una versión anterior.
@@ -26,3 +38,9 @@ Los archivos de respaldo, las pruebas y las versiones anteriores de la página d
 En el editor de Apps Script, guarda el archivo actualizado y ejecuta una vez **organizarRespaldoNominaCEA**. La pestaña **Nomina_Respaldo** mostrará una fila por matrícula, con columnas para estudiante, carrera, nivel, paralelo, gestión y semestre. La columna que usa la recuperación queda oculta. Los semestres antiguos guardados como «Hoja 1», «Hoja 2» u otros nombres similares se muestran como **Por revisar**.
 
 Publica los archivos web actualizados para aplicar los cambios de navegación y de conteo en Dirección y Docente.
+
+Para los ajustes de impresion y edicion de criterios (paginacion por espacio disponible, resumen y sellos al final, doble clic y arrastre, filas resaltadas y ventanas centradas), publica criterios-evaluacion.js, calificaciones.js, calificaciones.css, calificaciones-impresion.css e index.html. Si ya actualizaste Apps Script para los criterios de autoevaluacion, estos ajustes no requieren otra version del servidor.
+
+Para la versión 73.82 (notas sin decimales), actualiza google-apps-script.gs y publica una Nueva versión de la implementación. Publica también calificaciones.js, criterios-evaluacion.js, calificaciones.css e index.html. El servidor redondea cada nota y promedio antes de sumar y guardar, con la misma regla de la web.
+
+Para la versión 73.88 (precarga de criterios), actualiza google-apps-script.gs y publica una Nueva versión de la implementación. Publica cea-persistencia.js, criterios-evaluacion.js, calificaciones.js, calificaciones.css, calificaciones-impresion.css e index.html. La precarga respeta la cuenta y la especialidad; solo contiene los criterios privados de la cuenta docente.

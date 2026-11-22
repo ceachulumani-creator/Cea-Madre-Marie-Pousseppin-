@@ -1,0 +1,58 @@
+/* Documento aislado: no incluye controles, diálogos ni estilos de la aplicación. */
+html,body{font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff}
+*{box-sizing:border-box}table{width:100%}thead{display:table-header-group}tr{break-inside:avoid}
+.criterios-impresion{width:100%;font-size:8pt}
+.criterios-print-pagina{break-after:page}.criterios-print-pagina:last-child{break-after:auto}
+.criterios-print-subtitulo{font-size:9pt;color:#063b17;margin:3mm 0 2mm;text-align:center}
+.criterios-print-pagina>table{table-layout:fixed;border-collapse:separate;border-spacing:1px;font-size:7.3pt;margin-bottom:6pt}
+.criterios-print-pagina>table th{border:.8pt solid #063b17;border-radius:6px;padding:2.5pt;color:#063b17;background:#f8fafc;font-weight:800;overflow-wrap:anywhere}
+.criterios-print-pagina>table td{border:.6pt solid #cbd5e1;border-radius:4px;padding:2.5pt;text-align:center;overflow-wrap:anywhere}
+.criterios-print-pagina>table td.nombre{text-align:left;font-weight:700}
+.criterios-print-pagina>table tbody tr:nth-child(even){background:#eaf2fa}
+.criterios-print-pagina>table th:last-child,.criterios-print-pagina>table td:last-child{background:#fef9c3;border-color:#ca8a04;font-weight:800}
+.criterios-print-pagina small{display:block;font-size:6.5pt}.criterios-print-pagina footer{text-align:right;font-size:7pt;margin-top:2mm}
+.criterios-print-leyenda{font-size:7.5pt;margin:2mm 0}
+.calif-print-container{max-width:100%}.calif-print-header,.calif-print-meta-grid,.calif-print-stats-box,.calif-print-signatures{break-inside:avoid}
+
+.calif-print-table td:nth-child(2){white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+
+.criterios-print-vertical{writing-mode:vertical-rl;transform:rotate(180deg);height:33mm;white-space:nowrap;display:block;margin:auto;font-size:7.5pt}
+.criterios-print-registro td,.criterios-print-registro th{padding:1.5pt!important;font-size:7.5pt}
+.criterios-print-dimension-vertical,.criterios-print-auto-vertical{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;display:block;margin:auto;font-size:7.5pt;height:18mm}
+.criterios-print-auto-vertical{height:25mm}
+.criterios-print-registro td.criterios-print-total{background:#fef08a!important;border-color:#ca8a04!important;font-weight:900}
+.criterios-print-registro td:last-child,.criterios-print-registro th:last-child{background:#f8fafc!important;border-color:#063b17!important}
+
+.criterios-print-registro th.criterios-print-criterio{color:#4b5563!important;border-color:#9ca3af!important;background:#f3f4f6!important}
+.criterios-print-registro th.criterios-print-criterio{position:relative;padding:.5pt!important}
+.criterios-print-nombre{position:absolute;left:50%;top:50%;width:120px;transform:translate(-50%,-50%) rotate(-90deg);font-size:7.5pt;font-weight:800;line-height:8pt;text-align:center}
+.criterios-print-nombre>span{display:block;white-space:nowrap}
+.criterios-print-registro .criterios-print-promedio{border:.8pt solid #063b17!important;color:#063b17;font-weight:800}
+.criterios-print-registro tr.criterios-print-par>td{background:#edf5ef}
+.criterios-print-registro tr.criterios-print-par>td.nombre{background:#e2eee5!important;border-left:2pt solid #789c83!important}
+.calif-print-table tbody tr:nth-child(even)>td:nth-child(2){background:#e2eee5!important;border-left:2pt solid #789c83!important}
+.calif-print-signatures{display:grid!important;grid-template-columns:1fr 1fr;align-items:start!important;column-gap:18mm;row-gap:0;grid-template-rows:20mm auto auto auto;margin-top:0!important;padding:0 8mm!important;break-inside:avoid}
+.calif-print-signature-box{display:contents;text-align:center}
+.calif-print-sello{width:100%;height:20mm;grid-row:1}
+.calif-print-nombre{border-top:1pt solid #111;padding:4pt 2pt 0;font-size:8pt;font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+.calif-print-cargo{font-size:7.2pt;font-weight:700;color:#475569;line-height:1.3}
+.criterios-print-cierre{break-inside:avoid;margin-top:4mm}
+
+html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+.calif-print-signature-box:first-child>*{grid-column:1}
+.calif-print-signature-box:last-child>*{grid-column:2}
+.calif-print-nombre{grid-row:2;text-align:center}
+.calif-print-cargo{grid-row:3;text-align:center;margin-top:1mm}
+.calif-print-detalle{grid-row:4;text-align:center;font-size:7.2pt;line-height:1.3;color:#475569;margin-top:1mm;overflow-wrap:anywhere}
+
+/* La tipografía de las filas conserva la paridad del número de estudiante. */
+.criterios-print-registro th.criterios-print-criterio,.criterios-print-nombre{font-weight:400}
+.criterios-print-registro tbody tr>td,.criterios-print-registro tbody tr>td *,.calif-print-table tbody tr:nth-child(odd)>td,.calif-print-table tbody tr:nth-child(odd)>td *{font-weight:400!important}
+.criterios-print-registro tbody tr.criterios-print-par>td,.criterios-print-registro tbody tr.criterios-print-par>td *,.calif-print-table tbody tr:nth-child(even)>td,.calif-print-table tbody tr:nth-child(even)>td *{font-weight:700!important}
+.criterios-print-pagina{position:relative;min-height:197.9mm;padding-bottom:6mm}
+.criterios-print-pagina footer{position:absolute;right:0;bottom:0;margin:0;color:#94a3b8;font-size:7pt;font-weight:400;text-align:right;line-height:4mm}
+.criterios-print-pagina footer strong{font-weight:700}
+/* Títulos condensados; la compresión de respaldo también funciona sin fuentes instaladas. */
+.criterios-print-nombre{font-family:"Arial Narrow","Liberation Sans Narrow","Roboto Condensed","DejaVu Sans Condensed",Arial,sans-serif;font-stretch:condensed;width:133.3333px;transform:translate(-50%,-50%) rotate(-90deg) scaleX(.9)}
+.criterios-print-registro[data-tipografia="normal"] .criterios-print-nombre{font-family:Arial,Helvetica,sans-serif;font-stretch:normal;width:120px;transform:translate(-50%,-50%) rotate(-90deg)}

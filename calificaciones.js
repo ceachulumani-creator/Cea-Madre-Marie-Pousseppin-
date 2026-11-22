@@ -918,6 +918,7 @@
         dets = [];
       }
     }
+    for(const d of dets)for(const campo of ['ser','saber','hacer','decidir','proceso','producto','autoevaluacion','notaFinal','numeral'])if(d[campo]!==''&&d[campo]!=null&&Number.isFinite(Number(d[campo])))d[campo]=Math.round(Number(d[campo]));
     return dets;
   }
 
@@ -1682,7 +1683,7 @@
     let final = 0;
     const num = (v) => {
       const parsed = parseFloat(v);
-      return isNaN(parsed) ? 0 : parsed;
+      return isNaN(parsed) ? 0 : Math.round(parsed);
     };
 
     if (tipo === 'tecnica') {
@@ -1706,6 +1707,8 @@
   }
 
   function calcularFilaEvaluacion(fila, tipo = 'tecnica') {
+    for(const campo of ['ser','saber','hacer','decidir','proceso','producto','autoevaluacion'])if(fila[campo]!==''&&fila[campo]!=null&&Number.isFinite(Number(fila[campo])))fila[campo]=Math.round(Number(fila[campo]));
+    if(tipo==='tecnica')fila.hacer=fila.proceso===''&&fila.producto===''?'':Number(fila.proceso||0)+Number(fila.producto||0);
     fila.notaFinal = sumarDimensionesCalif(fila, tipo);
     fila.observacion = observacionCalif(fila);
 
@@ -1738,7 +1741,7 @@
 
     const pctAprobacion = evaluados > 0 ? ((aprobados / evaluados) * 100).toFixed(1) + '%' : '0.0%';
     const pctReprobacion = evaluados > 0 ? ((reprobados / evaluados) * 100).toFixed(1) + '%' : '0.0%';
-    const promedio = evaluados > 0 ? (sumaNotas / evaluados).toFixed(1) : '0.0';
+    const promedio = evaluados > 0 ? (sumaNotas / evaluados).toFixed(0) : '0';
 
     return {
       totalInscritos,
@@ -4513,7 +4516,7 @@
 
         // Si hay una planilla de evaluación activa, reconciliar suavemente
         const activo = _registroActivo;
-        if (activo && !hayNotasPendientes(activo) && !guardadosEnCursoCalif.has(activo) && !document.activeElement?.matches('.calif-input-nota')) {
+        if (activo && !hayNotasPendientes(activo) && !guardadosEnCursoCalif.has(activo) && !document.activeElement?.matches('.calif-input-nota, .criterio-nota, .criterio-promedio-input')) {
           const session = lsGet('cea_session', {}) || {};
           const modo = session.role === 'director' || session.role === 'admin' ? 'director' : 'docente';
           const tabla = document.querySelector(modo === 'director' ? '#admin-planilla-container .calif-eval-table' : '#docente-planilla-container .calif-eval-table');
@@ -4596,6 +4599,7 @@
   }
 
   function renderPlanillaEvaluacion(registro, detalles, modo = 'docente', opts = {}) {
+    detalles.forEach(d=>{if(tieneDimensionesCalif(d,registro.tipo==='tecnica'))calcularFilaEvaluacion(d,registro.tipo);else if(d.notaFinal!==''&&d.notaFinal!=null)d.notaFinal=Math.round(Number(d.notaFinal));});
     const scrollHolder = modo === 'director'
       ? (document.getElementById('admin-stage-body') || document.getElementById('admin-main-stage'))
       : (document.getElementById('docente-main-stage') || document.getElementById('docente-stage-content'));
@@ -4898,6 +4902,7 @@
         ` : ''}
 
         <!-- TABLA PRINCIPAL DE NOTAS -->
+        ${modo === 'docente' && getSessionSegura().role === 'docente' ? (window.ceaCriterios?.initialHTML?.(registro) || '<section class="criterios-panel" data-criterios-inicial><div class="criterios-interruptores"><label><input type="checkbox" role="switch" data-control="habilitado"> Evaluar con criterios</label></div></section>') : ''}
         ${controlesPublicacionBoletin({...registro,carreraKey:registro.areaKey || registro.carreraAreaKey,nivelNombre:registro.nivel,modulos:[{codigo:registro.moduloCodigo}],mapaModulos:[{idRegistro:registro.id}]},'registro')}
         <div class="calif-table-responsive">
           <table class="calif-eval-table" id="tabla-eval-principal">
@@ -5011,6 +5016,7 @@
       </div>
     `;
 
+    void window.ceaCriterios?.mount(container, registro, detalles, modo, {preservarEdicion:!!opts.preserveScroll});
     inicializarNavegacionTeclado(container.querySelector('.calif-eval-table'), scrollHolder);
     if (opts && opts.preserveScroll && scrollHolder) {
       scrollHolder.scrollTop = prevScrollTop;
@@ -5068,6 +5074,8 @@
       </div>`;
   }
 
+  window.controlObservacionCriteriosCalif = (fila, idx) => controlObservacionCalif(fila, idx, true).replaceAll('calif-opciones-obs-', 'criterios-opciones-obs-');
+
   window.ubicarMenuObservacionCalif = (event, menu) => {
     if (event.newState !== 'open') return;
     const rect = menu.previousElementSibling.getBoundingClientRect();
@@ -5102,14 +5110,15 @@
     boton.closest('tr')?.classList.toggle('row-reprobado', fila.observacion === 'POSTERGADO');
     const celda = boton.closest('td');
     if (celda) {
-      celda.innerHTML = controlObservacionCalif(fila, idx, true);
+      celda.innerHTML = celda.classList.contains('criterios-observacion') ? window.controlObservacionCriteriosCalif(fila,idx).replaceAll('criterios-opciones-obs-',celda.closest('.criterios-final-movil')?'criterios-movil-opciones-obs-':'criterios-opciones-obs-') : controlObservacionCalif(fila, idx, true);
       celda.querySelector('.calif-obs-trigger')?.focus();
     }
     marcarNotasPendientes();
+    actualizarCeldasPlanillaCalif(_registroActivo,_detallesActivos);
   };
 
   function mostrarNotaCalif(valor, vacio = '-') {
-    return valor == null || String(valor).trim() === '' || Number(valor) === 0 ? vacio : valor;
+    return valor == null || String(valor).trim() === '' ? vacio : Number.isFinite(Number(valor)) ? Math.round(Number(valor)) : valor;
   }
 
   function mostrarHacerCalif(fila) {
@@ -5216,7 +5225,9 @@
     const val = String(input.value).trim();
     const maxVal = parseFloat(input.getAttribute('max')) || 100;
     const minVal = parseFloat(input.getAttribute('min')) || 0;
-    const num = parseFloat(val);
+    const ingresado = parseFloat(val);
+    const num = Number.isFinite(ingresado) && ingresado >= minVal && ingresado <= maxVal ? Math.round(ingresado) : ingresado;
+    if(val!==''&&Number.isFinite(num)&&num>=minVal&&num<=maxVal)input.value=num;
 
     const esInvalido = (val !== '' && (isNaN(num) || num < minVal || num > maxVal));
 
@@ -5242,7 +5253,7 @@
     }
 
     if (_detallesActivos && _detallesActivos[idx]) {
-      // Guardar valor exacto ingresado sin truncar ni enmascarar errores
+      // Guardar enteros; conservar la validación de valores fuera de rango.
       _detallesActivos[idx][campo] = val === '' ? '' : (isNaN(num) ? val : num);
       const tipo = _registroActivo ? _registroActivo.tipo : 'tecnica';
       calcularFilaEvaluacion(_detallesActivos[idx], tipo);
@@ -5271,6 +5282,7 @@
       cambios.set(JSON.stringify([detalle.id, campo]), {id: detalle.id, ci: detalle.ci, rude: detalle.rude, campo, valor: detalle[campo]});
       camposEditadosCalif.set(_registroActivo, cambios);
       marcarNotasPendientes();
+      if(!esInvalido)window.ceaCriterios?.dimensionEdit(_registroActivo.id,detalle,campo,detalle[campo]);
     }
   }
 
@@ -5289,6 +5301,8 @@
   function hayNotasPendientes(registro) {
     return cambiosPendientesCalif.has(registro) || guardadosEnCursoCalif.has(registro);
   }
+
+  window.hayNotasRegistroPendientesCalif = id => Boolean(_registroActivo && String(_registroActivo.id)===String(id) && hayNotasPendientes(_registroActivo));
 
   function actualizarAccionesSuperioresCalif() {
     for (const modo of ['admin', 'docente']) {
@@ -5364,6 +5378,10 @@
     cambiosPendientesCalif.set(registro, (cambiosPendientesCalif.get(registro) || 0) + 1);
     if (!guardadosEnCursoCalif.has(registro)) mostrarProgresoGuardadoCalif(registro, 'pendiente', 0);
   }
+  window.registrarCambioCriteriosCalif = function() {
+    recordarOriginalPlanillaCalif();
+    marcarNotasPendientes();
+  };
 
   function prepararEditorNotasMovil(tabla) {
     if (!tabla) return;
@@ -5408,6 +5426,7 @@
         input.addEventListener('input', () => {
           original.value = input.value;
           original.dispatchEvent(new Event('input', {bubbles:true}));
+          input.value = original.value;
           input.setAttribute('aria-invalid', String(original.classList.contains('nota-error')));
           updateSummary();
         });
@@ -5511,6 +5530,7 @@
     });
 
     tabla.addEventListener('click', (e) => {
+      const fila=e.target.closest('tbody tr');if(fila){tabla.querySelectorAll('tbody tr.row-eval-active').forEach(r=>r.classList.remove('row-eval-active'));fila.classList.add('row-eval-active');}
       if (e.target.closest('button, select, a, textarea')) return;
       const input = e.target.closest('input') || e.target.closest('tbody tr')?.querySelector('.calif-input-nota:not([disabled]):not([readonly])');
       if (input && input.classList.contains('calif-input-nota')) {
@@ -5683,7 +5703,7 @@
 
     const revision = cambiosPendientesCalif.get(registro) || 0;
     const campos = camposEditadosCalif.get(registro);
-    const cambios = soloNotas ? [...(campos?.values() || [])] : null;
+    const cambios = (soloNotas || window.ceaCriterios?.pending()) ? [...(campos?.values() || [])] : null;
     mostrarProgresoGuardadoCalif(registro, 'enviando', 0);
     const tarea = (async () => {
       try {
@@ -5748,6 +5768,7 @@
       const editable = Boolean(fila.querySelector('.calif-input-nota:not([disabled]):not([readonly])'));
       if (observacion && !observacion.contains(document.activeElement)) observacion.innerHTML = controlObservacionCalif(detalle, indice, editable);
     });
+    window.ceaCriterios?.refresh(registro.id, detalles);
   }
 
   async function persistirPlanillaCalificaciones(registro, detalles, esPlanillaActiva, cambios) {
@@ -5789,9 +5810,13 @@
       }
     }
 
+    await window.ceaCriterios?.awaitReady?.(registro.id);
+    const criteriosEvaluacion = window.ceaCriterios?.payload(registro, detalles, cambios);
     const respuesta = await sincronizarCalifGoogleSheet('guardar-calificaciones-registro', {
-      registro, detalles, ...(cambios ? {cambiosNotas: cambios} : {})
+      registro, detalles, ...(cambios ? {cambiosNotas: cambios} : {}), ...(criteriosEvaluacion ? {criteriosEvaluacion} : {})
     });
+    if (criteriosEvaluacion) window.ceaCriterios.confirm(registro.id, criteriosEvaluacion, respuesta);
+      window.ceaCriterios?.lock(registro.id);
     if (Array.isArray(respuesta.detalles)) detalles = respuesta.detalles;
 
     registro.fechaModificacion = new Date().toISOString();
@@ -5987,6 +6012,7 @@
     const esTecnica = registro.tipo === 'tecnica';
     const stats = calcularEstadisticasPlanilla(detalles);
     const directorNom = document.getElementById('display-director-nombre')?.textContent || 'José Luis Alanoca Mamani';
+    const centroNom = document.getElementById('header-cea-nombre')?.textContent.trim() || document.getElementById('footer-cea-nombre')?.textContent.trim() || 'CEA Madre Marie Poussepin';
 
     return `
       <div class="calif-print-container" style="font-family:Arial,Helvetica,sans-serif;color:#000000;background:#ffffff;padding:2mm;width:100%;box-sizing:border-box">
@@ -6055,8 +6081,9 @@
               ${esTecnica ? `
                 <th rowspan="2" style="width:36px;border:0.8pt solid #063b17;border-radius:0 0 0 5px;padding:2pt;text-align:center;background:#f8fafc;color:#063b17;font-weight:800">SER<br>(10)</th>
                 <th rowspan="2" style="width:36px;border:0.8pt solid #063b17;padding:2pt;text-align:center;background:#f8fafc;color:#063b17;font-weight:800">SABER<br>(30)</th>
-                <th colspan="2" style="border:0.8pt solid #063b17;padding:2pt;text-align:center;background:#f8fafc;color:#063b17;font-weight:800">HACER (40)</th>
                 <th rowspan="2" style="width:36px;border:0.8pt solid #063b17;border-radius:0 0 5px 0;padding:2pt;text-align:center;background:#f8fafc;color:#063b17;font-weight:800">DECIDIR<br>(10)</th>
+                <th colspan="2" style="border:0.8pt solid #063b17;padding:2pt;text-align:center;background:#f8fafc;color:#063b17;font-weight:800">HACER (40)</th>
+                
               ` : `
                 <th rowspan="2" style="width:36px;border:0.8pt solid #063b17;border-radius:0 0 0 5px;padding:2pt;text-align:center;background:#f8fafc;color:#063b17;font-weight:800">SER<br>(10)</th>
                 <th rowspan="2" style="width:36px;border:0.8pt solid #063b17;padding:2pt;text-align:center;background:#f8fafc;color:#063b17;font-weight:800">SABER<br>(40)</th>
@@ -6156,107 +6183,89 @@
         </div>
 
         <!-- DOS CASILLAS DE FIRMAS OFICIALES MINIMALISTAS: DOCENTE Y DIRECCIÓN -->
-        <div class="calif-print-signatures" style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:52pt;padding:0 35pt;page-break-inside:avoid">
-          <div class="calif-print-signature-box" style="text-align:center;width:240pt">
-            <div style="border-top:1.2pt solid #000;margin-bottom:4pt"></div>
-            <div style="font-size:8pt;font-weight:800;color:#000;text-transform:uppercase">${escapeHTML(registro.docente || 'Docente')}</div>
-            <div style="font-size:7.2pt;font-weight:700;color:#475569;letter-spacing:0.4px">DOCENTE DE ${escapeHTML((registro.carrera || registro.especialidad || (esTecnica ? 'Educación Técnica' : 'Humanística')).toUpperCase())} — FIRMA MAESTRO(A) EVALUADOR(A)</div>
-          </div>
-          <div class="calif-print-signature-box" style="text-align:center;width:240pt">
-            <div style="border-top:1.2pt solid #000;margin-bottom:4pt"></div>
-            <div style="font-size:8pt;font-weight:800;color:#000;text-transform:uppercase">${escapeHTML(directorNom)}</div>
-            <div style="font-size:7.2pt;font-weight:700;color:#475569;letter-spacing:0.4px">DIRECTOR/A — DIRECCIÓN CEA MADRE MARIE POUSSEPIN</div>
-          </div>
+        <div class="calif-print-signatures">
+          <div class="calif-print-signature-box"><div class="calif-print-sello"></div><div class="calif-print-nombre">${escapeHTML('Lic. '+String(registro.docente||'Docente').replace(/^(?:lic\.\s*|lic(?:enciado|enciada)?\s+)/i,''))}</div><div class="calif-print-cargo">DOCENTE</div><div class="calif-print-detalle">${escapeHTML((registro.carrera||registro.especialidad||(esTecnica?'Educación Técnica':'Humanística')).toUpperCase())}</div></div>
+          <div class="calif-print-signature-box"><div class="calif-print-sello"></div><div class="calif-print-nombre">${escapeHTML('Lic. '+String(directorNom).replace(/^(?:lic\.\s*|lic(?:enciado|enciada)?\s+)/i,''))}</div><div class="calif-print-cargo">DIRECTOR</div><div class="calif-print-detalle">${escapeHTML(centroNom)}</div></div>
         </div>
       </div>
     `;
   }
 
-  function imprimirRegistroOficial() {
+  window.mostrarDialogoAcademico = function(dialog,origen){
+    const ancla=origen || (Date.now()-(window._origenDialogoCEA?.fecha||0)<1200?window._origenDialogoCEA.elemento:null) || document.activeElement;
+    dialog.classList.add('cea-dialogo-institucional');
+    dialog.showModal();
+    if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&dialog.animate){
+      const destino=dialog.getBoundingClientRect(),r=ancla?.getBoundingClientRect?.();
+      const dx=r?r.left+r.width/2-destino.left-destino.width/2:0,dy=r?r.top+r.height/2-destino.top-destino.height/2:12;
+      dialog.animate([{opacity:0,transform:'translate('+dx+'px,'+dy+'px) scale(.3)'},{opacity:1,transform:'translate(0,0) scale(1)'}],{duration:210,easing:'cubic-bezier(.2,.8,.2,1)'});
+    }
+    return dialog;
+  };
+  ['pointerdown','click','dblclick'].forEach(tipo=>document.addEventListener(tipo,e=>{const elemento=e.target.closest?.('button,[data-criterio-cabecera]');if(elemento)window._origenDialogoCEA={elemento,fecha:Date.now()};},true));
+  window.paginarDocumentoCalif = function(doc,horizontal=true){
+    const raiz=doc.querySelector('.criterios-impresion');if(!raiz)return 0;
+    doc.body.style.width=(horizontal?263.4:199.9)+'mm';doc.body.style.maxWidth='none';
+    const medidor=doc.createElement('div');medidor.style.cssText='position:absolute;visibility:hidden;width:1mm;height:'+(horizontal?197.9:261.4)+'mm';doc.body.append(medidor);const altoMaximo=medidor.getBoundingClientRect().height;medidor.remove();
+    const originales=[...raiz.querySelectorAll(':scope > .criterios-print-pagina')];raiz.replaceChildren();
+    for(const original of originales){
+      const molde=original.cloneNode(true),tbody=molde.querySelector('.criterios-print-registro tbody');
+      if(!tbody){raiz.append(molde);continue;}
+      const filas=[...tbody.children];tbody.replaceChildren();
+      const crear=()=>{const pagina=molde.cloneNode(true);raiz.append(pagina);return pagina;};
+      let pagina=crear(),cuerpo=pagina.querySelector('tbody');
+      for(const fila of filas){
+        cuerpo.append(fila);
+        if(cuerpo.children.length>1&&pagina.getBoundingClientRect().height>altoMaximo){fila.remove();pagina=crear();cuerpo=pagina.querySelector('tbody');cuerpo.append(fila);}
+      }
+    }
+    const cierre=raiz.lastElementChild,bloqueCierre=cierre?.querySelector('.criterios-print-cierre'),anterior=cierre?.previousElementSibling;
+    if(bloqueCierre&&anterior){
+      const pieAnterior=anterior.querySelector('footer'),pieCierre=cierre.querySelector('footer');
+      anterior.insertBefore(bloqueCierre,pieAnterior);
+      if(anterior.getBoundingClientRect().height<=altoMaximo)cierre.remove();
+      else cierre.insertBefore(bloqueCierre,pieCierre);
+    }
+    const paginas=[...raiz.children];paginas.forEach((pagina,i)=>{const pie=pagina.querySelector('footer');if(pie)pie.innerHTML='Página <strong>'+(i+1)+'</strong> de <strong>'+paginas.length+'</strong>';});return paginas.length;
+  };
+  window.generarHTMLImpresionCalif = generarHTMLImpresion;
+  window.imprimirDocumentoCalif = function(html,horizontal){
+    document.querySelectorAll('iframe.calif-documento-impresion').forEach(f=>f.remove());
+    const frame=document.createElement('iframe');frame.className='calif-documento-impresion';frame.title='Valoración del módulo';frame.style.cssText='position:fixed;left:-12000px;top:0;width:1100px;height:800px;border:0';
+    const escapar=valor=>String(valor).replace(/[&"<>]/g,c=>({'&':'&amp;','"':'&quot;','<':'&lt;','>':'&gt;'}[c]));
+    frame.onload=async()=>{
+      const doc=frame.contentDocument;
+      if(!doc)return;
+      await Promise.race([Promise.all([...doc.images].map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.addEventListener('load',resolve,{once:true});img.addEventListener('error',resolve,{once:true});}))),new Promise(resolve=>setTimeout(resolve,3000))]);
+      if(doc.fonts?.ready)await doc.fonts.ready;
+      if(!frame.isConnected||!frame.contentWindow)return;
+      window.paginarDocumentoCalif(doc,horizontal);
+      const retirar=()=>{setTimeout(()=>frame.remove(),0);};frame.contentWindow.addEventListener('afterprint',retirar,{once:true});
+      frame.contentWindow.focus();frame.contentWindow.print();
+    };
+    frame.srcdoc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Valoración del módulo</title><base href="'+escapar(document.baseURI)+'"><link rel="stylesheet" href="calificaciones-impresion.css?v=73.91"><style>@page{size:letter '+(horizontal?'landscape':'portrait')+';margin:8mm}html,body{margin:0;padding:0}</style></head><body>'+html+'</body></html>';
+    document.body.append(frame);return frame;
+  };
+  function imprimirRegistroOficial(confirmado = false, borrador = false) {
     if (!_registroActivo || !_detallesActivos) {
       alert('No hay ninguna planilla seleccionada para imprimir.');
       return;
     }
 
-    let printArea = document.getElementById('calificaciones-print-area');
-    if (!printArea) {
-      printArea = document.createElement('div');
-      printArea.id = 'calificaciones-print-area';
-      document.body.appendChild(printArea);
+    if(!confirmado && (hayNotasPendientes(_registroActivo) || window.ceaCriterios?.pending())) {
+      const dialog=document.createElement('dialog');dialog.className='criterios-dialog';
+      dialog.innerHTML='<h3>Hay cambios sin guardar</h3><p>Puedes guardar e imprimir o imprimir los datos que estás viendo.</p><p role="status"></p><div><button type="button" data-cancelar>Cancelar</button><button type="button" data-borrador>Imprimir ahora</button><button type="button" data-guardar>Guardar e imprimir</button></div>';
+      document.body.append(dialog);dialog.onclose=()=>dialog.remove();dialog.querySelector('[data-cancelar]').onclick=()=>dialog.close();
+      dialog.querySelector('[data-borrador]').onclick=()=>{dialog.close();imprimirRegistroOficial(true,true);};
+      dialog.querySelector('[data-guardar]').onclick=async e=>{e.target.disabled=true;dialog.querySelector('[role="status"]').textContent='Guardando…';const ok=await guardarRegistroCalificaciones();if(ok){dialog.close();imprimirRegistroOficial(true);}else{e.target.disabled=false;dialog.querySelector('[role="status"]').textContent='No se pudo guardar. Revisa el registro antes de imprimir.';}};
+      window.mostrarDialogoAcademico(dialog);return;
     }
-
-    printArea.innerHTML = generarHTMLImpresion(_registroActivo, _detallesActivos);
-
-    // Inyectar regla @page para tamaño Carta en formato Vertical
-    let styleTag = document.getElementById('calif-print-page-style');
-    if (!styleTag) {
-      styleTag = document.createElement('style');
-      styleTag.id = 'calif-print-page-style';
-      if (document.head) document.head.appendChild(styleTag);
-      else if (document.body) document.body.appendChild(styleTag);
-    }
-    styleTag.textContent = '@page { size: letter portrait !important; margin: 8mm 8mm 8mm 8mm !important; }';
-
-    // AISLAMIENTO TOTAL
-    document.body.classList.remove('print-centralizador-mode');
-    document.body.classList.add('print-calificaciones-mode');
-
-    window.print();
-
-    // Limpieza post-impresión
-    let cleaned = false;
-    const limpiar = () => {
-      if (cleaned) return;
-      cleaned = true;
-      document.body.classList.remove('print-calificaciones-mode', 'print-centralizador-mode', 'print-afiliacion-reporte-mode');
-      if (styleTag && styleTag.parentNode) styleTag.parentNode.removeChild(styleTag);
-      if (printArea) {
-        printArea.style.display = 'none';
-        printArea.innerHTML = '';
-      }
-    };
-
-    if (typeof window.addEventListener === 'function') window.addEventListener('afterprint', limpiar, { once: true });
-    setTimeout(limpiar, 2000);
+    const criteriosImpresion=window.ceaCriterios?.print(_registroActivo,_detallesActivos);
+    window.imprimirDocumentoCalif(criteriosImpresion || generarHTMLImpresion(_registroActivo,_detallesActivos),!!criteriosImpresion);
   }
 
-  function descargarPDFOficial() {
-    if (!_registroActivo || !_detallesActivos) {
-      alert('No hay ninguna planilla seleccionada para exportar.');
-      return;
-    }
+  function descargarPDFOficial() { imprimirRegistroOficial(); }
 
-    if (typeof html2pdf === 'undefined') {
-      imprimirRegistroOficial();
-      return;
-    }
-
-    const tempDiv = document.createElement('div');
-    tempDiv.style.width = '297mm';
-    tempDiv.style.padding = '0';
-    tempDiv.innerHTML = generarHTMLImpresion(_registroActivo, _detallesActivos);
-    document.body.appendChild(tempDiv);
-
-    const filename = `Registro_Calificaciones_${_registroActivo.carrera}_${_registroActivo.moduloCodigo}_${_registroActivo.gestion}_P${_registroActivo.paralelo}.pdf`.replace(/\s+/g, '_');
-
-    const opt = {
-      margin: [5, 6, 5, 6],
-      filename: filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    };
-
-    html2pdf().set(opt).from(tempDiv).save().then(() => {
-      document.body.removeChild(tempDiv);
-    }).catch(err => {
-      console.warn('Error al generar PDF con html2pdf, recurriendo a impresión nativa:', err);
-      document.body.removeChild(tempDiv);
-      imprimirRegistroOficial();
-    });
-  }
-
-  // ─── 13. BOLETÍN CENTRALIZADOR DE CALIFICACIONES POR NIVEL ───
   function obtenerDatosCentralizadorNivel(carreraKey, nivelNombre, gestion = null, semestre = null, paralelo = null) {
     const g = String(gestion || _gestionActiva || '2026').trim();
     const s = String(semestre || _semestreActivo).trim();
@@ -6413,7 +6422,7 @@
 
     const pctAprob = totalEvaluados > 0 ? ((totalAprobados / totalEvaluados) * 100).toFixed(1) + '%' : '0.0%';
     const pctReprob = totalEvaluados > 0 ? ((totalReprobados / totalEvaluados) * 100).toFixed(1) + '%' : '0.0%';
-    const promedioGen = totalEvaluados > 0 ? (sumaPromedios / totalEvaluados).toFixed(1) : '0.0';
+    const promedioGen = totalEvaluados > 0 ? (sumaPromedios / totalEvaluados).toFixed(0) : '0';
 
     const advertencias = [];
     const modulosSinNotas = mapaModuloInfo.filter(m => !m.tieneNotas);
@@ -8670,6 +8679,7 @@
   let guardarBoletinDocentePorModulo = false;
   const registrosPreparadosBoletinCalif = new Set();
   window.limpiarEdicionBoletin = function() {
+    window.ceaCriterios?.clear();
     generacionSesionBoletin++;
     notasBoletinPendientes.clear();
     originalBoletinCalif = null;
@@ -8688,6 +8698,11 @@
   }
 
   function permitirSalirBoletin(continuar) {
+    if (window.ceaCriterios?.pending()) {
+      if (continuar) pedirSalidaEdicionCalif(continuar);
+      else mostrarProgresoGuardadoCalif(_registroActivo, 'pendiente', 0, 'Guarda los criterios antes de cambiar de planilla.');
+      return false;
+    }
     if (!notasBoletinPendientes.size && !guardandoNotasBoletin) return true;
     if (continuar) pedirSalidaEdicionCalif(continuar);
     if (!guardandoNotasBoletin) mostrarProgresoGuardadoCalif(null, 'pendiente', 0, 'Pulsa Guardar antes de salir del boletín.');
@@ -8697,11 +8712,12 @@
   let retomandoNavegacionCalif = false;
 
   function hayEdicionSinGuardarCalif() {
-    return notasBoletinPendientes.size > 0 || guardandoNotasBoletin ||
+    return Boolean(window.ceaCriterios?.pending()) || notasBoletinPendientes.size > 0 || guardandoNotasBoletin ||
       Boolean(_registroActivo && document.getElementById('tabla-eval-principal')?.getClientRects().length && hayNotasPendientes(_registroActivo));
   }
 
   function descartarEdicionCalif() {
+    if (_registroActivo) window.ceaCriterios?.discard(_registroActivo.id);
     if (_registroActivo && originalesPlanillaCalif.has(_registroActivo)) {
       const original = originalesPlanillaCalif.get(_registroActivo);
       Object.assign(_registroActivo, original.registro);
@@ -8761,7 +8777,7 @@
       }
     }));
     document.body.appendChild(dialogo);
-    dialogo.showModal();
+    window.mostrarDialogoAcademico(dialogo);
   }
 
   function interceptarSalidaEdicionCalif(event) {
@@ -9827,7 +9843,8 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
   // Sincronización en vivo cuando se edita una nota en el Centralizador Digital
   async function alEditarNotaDesdeCentralizador(cKey, nNom, g, s, p, estIndex, mIdx, nuevoValor, estKey, diferir = false) {
     if (diferir && !originalBoletinCalif) originalBoletinCalif = {registros:structuredClone(getRegistros()), detalles:structuredClone(getDetalles())};
-    const val = parseInt(nuevoValor, 10);
+    const numero = Number(nuevoValor);
+    const val = Number.isFinite(numero) && numero>=0 && numero<=100 ? Math.round(numero) : NaN;
     if (isNaN(val) || val < 0 || val > 100) {
       if (nuevoValor !== '') {
         alert('La calificación final del módulo debe estar entre 0 y 100 puntos.');
@@ -9838,6 +9855,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
     const datos = _centralizadorActivoDatos;
     if (!datos || !datos.estudiantes || !datos.estudiantes[estIndex]) return;
 
+    for(const id of ['cen-input-'+estIndex+'-'+mIdx,'rev-input-'+estIndex+'-'+mIdx]){const input=document.getElementById(id);if(input&&nuevoValor!=='')input.value=val;}
     // Actualizar en memoria activa
     datos.estudiantes[estIndex].notas[mIdx] = nuevoValor === '' ? null : val;
 
@@ -12688,7 +12706,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
         aceptar.disabled = cancelar.disabled = false;
       }
     };
-    dialogo.showModal();
+    window.mostrarDialogoAcademico(dialogo);
   };
 
 

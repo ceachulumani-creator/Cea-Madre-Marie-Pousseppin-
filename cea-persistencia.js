@@ -25,6 +25,7 @@
   }
 
   function clearPrivate() {
+    window.ceaCriterios?.clear();
     window.ceaCachePrivada?.clear();
     Object.keys(localStorage).filter(key => key.startsWith('cea_') && privateKey(key)).forEach(key => localStorage.removeItem(key));
     if (typeof window.cargarRespaldoNominaCEA === 'function') window.cargarRespaldoNominaCEA([]);
@@ -34,6 +35,7 @@
   }
 
   async function request(payload, timeout = 90000) {
+    const epocaCriterios=window.ceaCriterios?.epoch();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
@@ -54,6 +56,10 @@
         error.code = result.code;
         throw error;
       }
+      const token=payload.token || session?.token;
+      if(payload.action==='obtener-datos-privados')window.ceaCriterios?.preload(result.data?.criteriosEvaluaciones,token,epocaCriterios);
+      if(payload.action==='guardar-calificaciones-registro')window.ceaCriterios?.invalidate([payload.registro?.id].filter(Boolean));
+      if(payload.action==='guardar-boletin')window.ceaCriterios?.invalidate((payload.planillas||[]).map(p=>p.registro?.id).filter(Boolean));
       return result;
     } catch (error) {
       if (error.name === 'AbortError') throw Object.assign(new Error('La hoja no confirmó el guardado a tiempo. Vuelve a pulsar Guardar.'), {code: 'TIEMPO_AGOTADO'});

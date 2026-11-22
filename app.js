@@ -3013,7 +3013,7 @@ function abrirCredencialesDocentesPorDefecto() {
   dialogo.addEventListener('close', () => { lista = []; dialogo.remove(); });
   document.body.appendChild(dialogo);
   generar();
-  dialogo.showModal();
+  if(window.mostrarDialogoAcademico)window.mostrarDialogoAcademico(dialogo);else dialogo.showModal();
 }
 
 function cargarDocentesUnificados() {

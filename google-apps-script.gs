@@ -227,7 +227,7 @@ function obtenerSpreadsheetPrincipal() {
 /**
  * Petición GET: Devuelve todo el contenido del sitio web desde el Google Sheet
  */
-function leerDatosCEA(auth) {
+function leerDatosCEA(auth, precargarCriterios = false) {
   try {
     const ss = obtenerSpreadsheetPrincipal();
     if (!ss.getSheetByName("Director_y_Textos")) {
@@ -843,7 +843,7 @@ function leerDatosCEA(auth) {
         calificacionesDetalles: califDetallesList,
         controlSubidaCentralizadores: controlSubidaCentralizadoresObj,
         controlSubidaEstudiantes: controlSubidaEstudiantesObj
-      }, auth)
+      }, auth, precargarCriterios)
     });
 
   } catch (err) {
@@ -3621,7 +3621,7 @@ function clavePrivadaCEA(key) {
   return /contrasena|password|credencial|usuarios|session|token|kardex|inscrip|afiliacion|padron|registro_estudiantes|papelera|calif|subidas|auditoria|mensajes_contacto/i.test(key);
 }
 
-function filtrarDatosCEA(data, auth) {
+function filtrarDatosCEA(data, auth, precargarCriterios = false) {
   const texts = {};
   Object.keys(data.textos).forEach(key => {
     if (key === 'config_global_cea_json') {
@@ -3644,12 +3644,30 @@ function filtrarDatosCEA(data, auth) {
   data.registroEstudiantes = data.registroEstudiantes.filter(est => permisoAreaCEA(auth, est.areaKey, true));
   data.padronAfiliacion = data.registroEstudiantes;
   data.papeleraEstudiantes = data.papeleraEstudiantes.filter(est => permisoAreaCEA(auth, est.areaKey, true));
+  data.papeleraEstudiantes.forEach(est => {
+    if (!est.calificacionesPapelera?.criterios) return;
+    const cuenta=auth.cuentaKey || auth.areaKey;
+    est.calificacionesPapelera.criterios=Object.fromEntries(Object.entries(est.calificacionesPapelera.criterios).map(([nombre,filas])=>[nombre, auth.r === 'docente' ? filas.filter(f=>String(f[1])===cuenta) : []]));
+  });
   data.calificacionesRegistros = data.calificacionesRegistros.filter(reg => permisoAreaCEA(auth, reg.areaKey, false));
   const ids = new Set(data.calificacionesRegistros.map(reg => reg.id));
   data.calificacionesDetalles = data.calificacionesDetalles.filter(det => ids.has(det.idRegistro));
   const ss = obtenerSpreadsheetPrincipal();
   const versiones = versionesNotasCEA(ss);
   data.calificacionesRegistros.forEach(reg => { reg.version = versiones.get(String(reg.id)) || null; });
+  if (precargarCriterios && auth.r === 'docente') {
+    const cuenta = auth.cuentaKey || auth.areaKey, tablas = {};
+    for (const nombre of ['Criterios_Configuracion','Criterios_Definiciones','Criterios_Notas','Criterios_Resultados']) {
+      const porRegistro = tablas[nombre] = new Map();
+      for (const fila of ss.getSheetByName(nombre)?.getDataRange().getValues().slice(1) || []) {
+        const id = String(fila[0]);
+        if (String(fila[1]) !== cuenta || !ids.has(id)) continue;
+        if (!porRegistro.has(id)) porRegistro.set(id, []);
+        porRegistro.get(id).push(fila);
+      }
+    }
+    data.criteriosEvaluaciones = data.calificacionesRegistros.map(reg => leerCriteriosEvaluacionCEA(ss, reg.id, auth, tablas));
+  }
   data._revisions = revisionesCEA(ss);
   data.nominaRespaldo = leerRespaldoNominaCEA(ss).filter(est => permisoAreaCEA(auth, est.areaKey, true));
   if (auth.r === 'director') {
@@ -3729,6 +3747,19 @@ function versionNotasCEA(ss, id) {
 
 function autorizarOperacionCEA(ss, data, auth) {
   const action = data.action;
+  if (action === 'obtener-plantillas-criterios') {
+    exigirCEA(auth.r === 'docente', 'Las plantillas de criterios corresponden al docente.', 'PERMISO');
+    return;
+  }
+  if (action === 'obtener-criterios-evaluacion' || data.criteriosEvaluacion) {
+    exigirCEA(auth.r === 'docente', 'Los criterios individuales corresponden al modo docente.', 'PERMISO');
+    const registro = data.registro || {};
+    exigirCEA(registro.id && permisoAreaCEA(auth, registro.areaKey, false), 'Solo puedes gestionar criterios de tu especialidad.', 'PERMISO');
+    const fila = ss.getSheetByName('Calificaciones_Registros')?.getDataRange().getValues().slice(1).find(f => String(f[0]) === String(registro.id));
+    exigirCEA(!fila || permisoAreaCEA(auth, fila[2], false), 'El registro pertenece a otra especialidad.', 'PERMISO');
+    if (fila && data.criteriosEvaluacion) exigirCEA(String(fila[1]) === registro.tipo, 'El tipo de evaluacion no coincide con el registro oficial.');
+    if (action === 'obtener-criterios-evaluacion') return;
+  }
   if (auth.r === 'director') return;
   if (action === 'guardar-nombre-docente') {
     exigirCEA(auth.r === 'docente' && String(data.areaKey) === auth.areaKey, 'Solo puedes corregir tu propio nombre.', 'PERMISO');
@@ -3833,7 +3864,16 @@ function doPost(e) {
     if (auth) autorizarOperacionCEA(ss, data, auth);
     depurarDocentesEliminadosCEA(ss, data);
     if (data.action === 'login') return responseJSON(iniciarSesionCEA(ss, data));
-    if (data.action === 'obtener-datos-privados') return leerDatosCEA(auth);
+    if (data.action === 'obtener-datos-privados') return leerDatosCEA(auth, true);
+    if (data.action === 'obtener-criterios-evaluacion') return responseJSON({status:'success', criteriosEvaluacion:leerCriteriosEvaluacionCEA(ss, data.registro.id, auth)});
+    if (data.action === 'obtener-plantillas-criterios') {
+      const cuenta=auth.cuentaKey || auth.areaKey;
+      const registros=new Set(ss.getSheetByName('Calificaciones_Registros')?.getDataRange().getValues().slice(1).filter(f=>permisoAreaCEA(auth,f[2],false)).map(f=>String(f[0])) || []);
+      const plantillas=(ss.getSheetByName('Criterios_Configuracion')?.getDataRange().getValues().slice(1) || [])
+        .filter(f=>String(f[1])===cuenta && registros.has(String(f[0])))
+        .map(f=>({id:String(f[0]),areaKey:String(f[5]),gestion:String(f[6]),semestre:String(f[7]),nivel:String(f[8]),paralelo:String(f[9]),modulo:String(f[10])}));
+      return responseJSON({status:'success',plantillas});
+    }
     if (data.action === 'guardar-nombre-docente') return responseJSON(guardarNombreDocenteCEA(ss, data, auth));
     if (data.action === 'guardar-perfil-especialidad') return responseJSON(guardarPerfilEspecialidadCEA(ss, data, auth));
     if (data.action === 'cambiar-estado-calificaciones' && data.nuevoEstado === 'PUBLICADO') {
@@ -3858,7 +3898,15 @@ function doPost(e) {
     const operationId = String(data.requestId || '');
     const cache = CacheService.getScriptCache();
     const cacheKey = 'op_' + hashCEA([auth && auth.u, data.action, operationId]);
-    if (operationId && cache.get(cacheKey)) return responseJSON(JSON.parse(cache.get(cacheKey)));
+    if (operationId && cache.get(cacheKey)) {
+      const confirmado=JSON.parse(cache.get(cacheKey));
+      if (confirmado.criteriosGuardados) {
+        const datos=JSON.parse(leerDatosCEA(auth).getContent()).data;
+        return responseJSON({status:'success',version:versionNotasCEA(ss,confirmado.idRegistro),detalles:datos.calificacionesDetalles.filter(d=>String(d.idRegistro)===confirmado.idRegistro),criteriosEvaluacion:leerCriteriosEvaluacionCEA(ss,confirmado.idRegistro,auth)});
+      }
+      if(confirmado.boletinGuardado){const datos=JSON.parse(leerDatosCEA(auth).getContent()).data;return responseJSON({status:'success',confirmadas:confirmado.boletinGuardado.map(id=>({id,detalles:datos.calificacionesDetalles.filter(d=>String(d.idRegistro)===id)}))});}
+      return responseJSON(confirmado);
+    }
     const collection = CEA_COLECCIONES[data.action];
     if (data.action === 'cambiar-estado-calificaciones') exigirCEA(['BORRADOR', 'EN EDICION', 'FINALIZADO', 'PUBLICADO', 'ARCHIVADO'].includes(data.nuevoEstado), 'Estado inválido.');
     if (collection) exigirCEA(data.baseVersion === versionHojaCEA(ss, collection), 'Estos datos cambiaron en otra sesión. Recarga antes de guardar.', 'CONFLICTO');
@@ -3873,7 +3921,15 @@ function doPost(e) {
         prepararNotasCEA(ss, planilla, auth);
       }
     }
-    if (data.action === 'guardar-calificaciones-registro') prepararNotasCEA(ss, data, auth);
+    let criteriosPreparados = null;
+    if (data.action === 'guardar-calificaciones-registro') {
+      prepararNotasCEA(ss, data, auth);
+      if (data.criteriosEvaluacion) {
+        criteriosPreparados = prepararCriteriosEvaluacionCEA(ss, data, auth);
+        prepararNotasCEA(ss, data, auth);
+      }
+    }
+    const ajustesCriterios = guardarBoletin ? data.planillas.map(p=>({data:p,ajustes:sincronizarPromediosCriteriosCEA(ss,p,null,auth)})) : data.action === 'guardar-calificaciones-registro' ? [{data,ajustes:sincronizarPromediosCriteriosCEA(ss,data,criteriosPreparados,auth)}] : [];
     if (data.action === 'registrar-auditoria-calificaciones') {
       data.usuario = auth.u;
       data.rol = auth.r;
@@ -3890,8 +3946,9 @@ function doPost(e) {
     if (['pre-inscripcion', 'contacto'].includes(data.action)) exigirCEA(String(data.nombre || '').trim() && (data.action === 'contacto' ? String(data.mensaje || '').trim() : String(data.ci || '').trim()), 'Completa los campos obligatorios.');
     const readOnly = data.action.startsWith('obtener') || data.action.startsWith('consultar') || data.action === 'verificar-qr-inscripcion';
     hojasDeGuardado = guardarBoletin || data.action === 'guardar-calificaciones-registro'
-      ? ['Calificaciones_Registros', 'Calificaciones_Detalle']
+      ? ['Calificaciones_Registros', 'Calificaciones_Detalle'].concat(criteriosPreparados || ajustesCriterios.some(p=>p.ajustes.length) ? Object.keys(TABLAS_CRITERIOS_CEA) : [])
       : data.action === 'registrar-auditoria-calificaciones' ? ['Calificaciones_Auditoria'] : null;
+    if(criteriosPreparados?.eliminados?.length&&hojasDeGuardado)hojasDeGuardado.push('Papelera_Matriculas');
     if (!readOnly && data.action !== 'visita') {
       backups = ss.getSheets().filter(esHojaDeGuardado).map(sheet => {
         const range = sheet.getDataRange();
@@ -3908,12 +3965,19 @@ function doPost(e) {
         exigirCEA(respuesta.status === 'success', respuesta.message || 'No se pudo guardar una planilla del boletín.');
         confirmadas.push({id: planilla.registro.id, detalles: planilla.detalles, fechaModificacion: new Date().toISOString()});
       }
+      for(const p of ajustesCriterios)for(const ajuste of p.ajustes)persistirCriteriosEvaluacionCEA(ss,ajuste.preparado,p.data,ajuste.auth);
       SpreadsheetApp.flush();
+      if(operationId)cache.put(cacheKey,JSON.stringify({boletinGuardado:confirmadas.map(p=>String(p.id))}),21600);
       backups = null;
       return responseJSON({status: 'success', confirmadas});
     }
     const result = JSON.parse(procesarSolicitudCEA({postData: {contents: JSON.stringify(data)}}, auth).getContent());
     exigirCEA(result.status === 'success' || result.status === 'not_found', result.message || 'El servidor rechazó el guardado.');
+    if (criteriosPreparados) {
+      persistirCriteriosEvaluacionCEA(ss, criteriosPreparados, data, auth);
+      result.criteriosEvaluacion = leerCriteriosEvaluacionCEA(ss, data.registro.id, auth);
+    }
+    for(const p of ajustesCriterios)for(const ajuste of p.ajustes)persistirCriteriosEvaluacionCEA(ss,ajuste.preparado,p.data,ajuste.auth);
     if (result.inscripcion && CEA_ACCIONES_PUBLICAS.includes(data.action)) {
       ['fechaNacimiento', 'telefono', 'observaciones', 'detalleExcepcion', 'comunidad'].forEach(key => delete result.inscripcion[key]);
     }
@@ -3942,7 +4006,7 @@ function doPost(e) {
     if (data.action.includes('calificaciones') && (data.idRegistro || data.registro)) result.version = versionNotasCEA(ss, String(data.idRegistro || data.registro.id));
     if (Array.isArray(data.cambiosNotas) && data.action === 'guardar-calificaciones-registro') result.detalles = data.detalles;
     if (collection) result.collectionVersion = versionHojaCEA(ss, collection);
-    if (operationId && result.status === 'success') cache.put(cacheKey, JSON.stringify(result), 21600);
+    if (operationId && result.status === 'success') cache.put(cacheKey, JSON.stringify(criteriosPreparados ? {criteriosGuardados:true,idRegistro:String(data.registro.id)} : result), 21600);
     backups = null;
     return responseJSON(result);
   } catch (error) {
@@ -4344,6 +4408,8 @@ function recalcularDetalleLeidoCEA(detalle, tipo) {
   const tecnica = tipo === 'tecnica';
   const limites = tecnica ? {ser: 10, saber: 30, decidir: 10, proceso: 20, producto: 20, autoevaluacion: 10}
     : {ser: 10, saber: 40, decidir: 10, hacer: 30, autoevaluacion: 10};
+  for(const campo of Object.keys(limites))if(detalle[campo]!==''&&detalle[campo]!=null&&Number.isFinite(Number(detalle[campo])))detalle[campo]=Math.round(Number(detalle[campo]));
+  if(detalle.notaFinal!==''&&detalle.notaFinal!=null&&Number.isFinite(Number(detalle.notaFinal)))detalle.notaFinal=Math.round(Number(detalle.notaFinal));
   const tieneDimensiones = Object.keys(limites).some(campo => detalle[campo] !== '' && detalle[campo] != null);
   if (tieneDimensiones) {
     detalle.notaFinal = Math.round(Object.entries(limites).reduce((total, [campo, maximo]) => {
@@ -4393,7 +4459,13 @@ function prepararNotasCEA(ss, data, auth) {
   data.detalles.forEach(detail => {
     const fields = technical ? ['ser', 'saber', 'decidir', 'proceso', 'producto', 'autoevaluacion'] : ['ser', 'saber', 'decidir', 'hacer', 'autoevaluacion'];
     const hasNotes = fields.some(key => detail[key] !== '' && detail[key] != null);
-    fields.forEach(key => { if (detail[key] == null) detail[key] = ''; });
+    fields.forEach(key => {
+      if (detail[key] == null) detail[key] = '';
+      if (detail[key] === '') return;
+      const valor = Number(detail[key]);
+      exigirCEA(Number.isFinite(valor) && valor >= 0 && valor <= limitesCriteriosCEA(reg.tipo)[key], 'Hay calificaciones fuera del rango de su dimensión.');
+      detail[key] = Math.round(valor);
+    });
     if (technical) detail.hacer = detail.proceso === '' && detail.producto === '' ? '' : Number(detail.proceso || 0) + Number(detail.producto || 0);
     const total = fields.reduce((sum, key) => sum + Number(detail[key] || 0), 0);
     exigirCEA(Number.isFinite(total), 'Hay calificaciones inválidas.');
@@ -4409,6 +4481,225 @@ function prepararNotasCEA(ss, data, auth) {
       detail.observacion = !nota ? (hasNotes ? 'D' : 'ABANDONO') : nota >= 76 ? 'PROMOVIDO EXCELENTE' : nota >= 51 ? 'PROMOVIDO' : 'POSTERGADO';
     }
   });
+}
+
+// Criterios variables: una fila por criterio y una fila por calificacion.
+// No se agregan columnas variables a las planillas oficiales existentes.
+const TABLAS_CRITERIOS_CEA = {
+  Criterios_Configuracion: ['RegistroID','CuentaDocente','Habilitado','Sobre100','Revision','AreaKey','Gestion','Semestre','Nivel','Paralelo','Modulo','Tipo'],
+  Criterios_Definiciones: ['RegistroID','CuentaDocente','CriterioID','Dimension','Titulo','Orden','Activo'],
+  Criterios_Notas: ['RegistroID','CuentaDocente','CriterioID','DetalleID','Valor','Escala','Origen'],
+  Criterios_Resultados: ['RegistroID','CuentaDocente','DetalleID','Dimension','ValorAplicado'],
+  Criterios_Historial: ['RegistroID','CuentaDocente','Revision','Fecha','Tipo','CambioJSON']
+};
+
+function leerCriteriosEvaluacionCEA(ss, id, auth, tablas) {
+  exigirCEA(auth.r === 'docente', 'Los criterios individuales corresponden al docente.', 'PERMISO');
+  const cuenta = auth.cuentaKey || auth.areaKey;
+  const leer = nombre => tablas ? (tablas[nombre].get(String(id)) || []) : (ss.getSheetByName(nombre)?.getDataRange().getValues().slice(1).filter(f => String(f[0]) === String(id) && String(f[1]) === cuenta) || []);
+  const fila = leer('Criterios_Configuracion')[0];
+  const criterios=leer('Criterios_Definiciones').map(f => ({id:String(f[2]),dimension:String(f[3]),titulo:String(f[4]),orden:Number(f[5]),activo:f[6] !== false}));
+  const tipo=fila?.[11] || (String(fila?.[5] || auth.areaKey).startsWith('hum-') ? 'humanistica' : 'tecnica');
+  const escalas=limitesCriteriosCEA(tipo);
+  return {
+    registroId:String(id), eliminacionDefinitiva:true, habilitado:fila?.[2] === true, sobre100:fila?.[3] === true, revision:fila?.[4] || null,
+    criterios,
+    notas:leer('Criterios_Notas').map(f => {
+      const criterio=criterios.find(c=>c.id===String(f[2]));
+      const destino=fila?.[3] === true ? 100 : escalas[criterio?.dimension] || 100;
+      const origen=Number(f[5]) || destino;
+      return {criterioId:String(f[2]),detalleId:String(f[3]),valor:f[4] === '' ? '' : Math.round(Number(f[4])*destino/origen),origen:f[6] === 'automatico' ? 'automatico' : 'manual'};
+    }),
+    resultados:leer('Criterios_Resultados').map(f => ({detalleId:String(f[2]),dimension:String(f[3]),valor:f[4] === '' ? '' : Math.round(Number(f[4]))}))
+  };
+}
+
+function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
+  if(!cantidad)return [];
+  const unidad=1, tope=Math.round(escala);
+  const suma=Math.round(Math.max(0,Math.min(maximo,Math.round(Number(nota))))*escala/maximo*unidad*cantidad);
+  const base=Math.floor(suma/cantidad), resto=suma-base*cantidad;
+  const valores=Array.from({length:cantidad},(_,i)=>base+(i<resto?1:0));
+  let hash=0;for(const c of String(semilla || ''))hash=(hash*31+c.charCodeAt(0))>>>0;
+  for(let i=0;i<Math.floor(cantidad/2);i++){
+    const j=cantidad-1-i, margen=Math.min(valores[j],tope-valores[i]);
+    const amplitud=Math.min(margen,Math.round(tope*0.15));
+    const cambio=Math.round(amplitud*(i+1)/(Math.floor(cantidad/2)+1)*(0.5+(hash%6)/10));
+    valores[i]+=cambio;valores[j]-=cambio;
+  }
+  return valores.map(v=>v/unidad);
+}
+
+function limitesCriteriosCEA(tipo) {
+  return tipo === 'tecnica' ? {ser:10,saber:30,decidir:10,proceso:20,producto:20,autoevaluacion:10} : {ser:10,saber:40,hacer:30,decidir:10,autoevaluacion:10};
+}
+
+function prepararCriteriosEvaluacionCEA(ss, data, auth) {
+  exigirCEA(auth.r === 'docente', 'Solo el docente puede guardar sus criterios.', 'PERMISO');
+  const entrada = data.criteriosEvaluacion;
+  const anterior = leerCriteriosEvaluacionCEA(ss, data.registro.id, auth);
+  exigirCEA(['tecnica','humanistica'].includes(data.registro.tipo), 'Tipo de evaluacion invalido.');
+  exigirCEA(entrada.baseRevision === anterior.revision, 'Los criterios cambiaron en otra pestaña. Usa Recargar criterios guardados para revisar la version del servidor antes de guardar.', 'CRITERIOS_VERSION');
+  exigirCEA(typeof entrada.habilitado === 'boolean' && typeof entrada.sobre100 === 'boolean' && Array.isArray(entrada.criterios) && Array.isArray(entrada.notas) && Array.isArray(entrada.aplicar), 'Configuracion de criterios invalida.');
+  const limites = limitesCriteriosCEA(data.registro.tipo);
+  exigirCEA(entrada.criterios.length <= 1000 && entrada.notas.length <= 100000, 'Divide la evaluacion en menos criterios por modulo.');
+  exigirCEA(entrada.eliminados == null || Array.isArray(entrada.eliminados), 'La lista de criterios eliminados no es válida.');
+  const eliminados = new Set((entrada.eliminados || []).map(String));
+  exigirCEA(eliminados.size <= 1000 && [...eliminados].every(id => anterior.criterios.some(c => c.id === id)), 'Solo puedes eliminar criterios existentes de este registro.', 'PERMISO');
+  const ids = new Set(), criterios = entrada.criterios.map((c,i) => {
+    const id=String(c.id || ''), titulo=String(c.titulo || '').trim();
+    exigirCEA(id && id.length <= 160 && !ids.has(id) && !eliminados.has(id) && Object.prototype.hasOwnProperty.call(limites,c.dimension) && titulo && titulo.length <= 180, 'Hay un criterio repetido o invalido.');
+    ids.add(id);
+    return {id,dimension:c.dimension,titulo,orden:i,activo:c.activo !== false};
+  });
+  // Las omisiones de clientes anteriores se archivan; la eliminacion explicita retira definicion y notas.
+  for (const c of anterior.criterios) if (!ids.has(c.id) && !eliminados.has(c.id)) criterios.push({...c,activo:false});
+  const porCriterio = new Map(criterios.map(c => [c.id,c]));
+  const detalles = new Map(data.detalles.map(d => [String(d.id),d]));
+  const claves = new Set();
+  const notas = entrada.notas.map(n => {
+    const criterio=porCriterio.get(String(n.criterioId)),detalleId=String(n.detalleId),clave=JSON.stringify([detalleId,String(n.criterioId)]);
+    exigirCEA(criterio && detalles.has(detalleId) && !claves.has(clave), 'La nota del criterio no corresponde a esta nomina.');
+    claves.add(clave);
+    const valor=n.valor === '' || n.valor == null ? '' : Number(n.valor);
+    exigirCEA(valor === '' || (Number.isFinite(valor) && valor >= 0 && valor <= (entrada.sobre100 ? 100 : limites[criterio.dimension])), 'Una nota excede el maximo del criterio.');
+    return {criterioId:criterio.id,detalleId,valor:valor === '' ? '' : Math.round(valor),origen:n.origen === 'automatico' ? 'automatico' : 'manual'};
+  });
+  const valores = new Map(notas.map(n => [JSON.stringify([n.detalleId,n.criterioId]),n.valor]));
+  const dimensionesEliminadas = new Set(anterior.criterios.filter(c => eliminados.has(c.id)).map(c => c.dimension));
+  const resultados = anterior.resultados.filter(r => !dimensionesEliminadas.has(r.dimension)).map(r => ({...r})), aplicados = new Set();
+  exigirCEA(!entrada.aplicar.length || entrada.habilitado, 'Activa los criterios para aplicar sus promedios.');
+  data.cambiosNotas = Array.isArray(data.cambiosNotas) ? data.cambiosNotas : [];
+  for (const aplicacion of entrada.aplicar) {
+    const detalle=detalles.get(String(aplicacion.detalleId)),dimension=aplicacion.dimension;
+    const clave=JSON.stringify([String(aplicacion.detalleId),dimension]);
+    exigirCEA(detalle && Object.prototype.hasOwnProperty.call(limites,dimension) && !aplicados.has(clave), 'Resultado de criterios invalido.');
+    aplicados.add(clave);
+    const grupo=criterios.filter(c => c.activo && c.dimension === dimension);
+    const ns=grupo.map(c => valores.get(JSON.stringify([String(detalle.id),c.id])));
+    exigirCEA(grupo.length && ns.every(n => n !== '' && n != null), 'Completa todos los criterios de la dimension antes de aplicar el promedio.');
+    const actual=detalle[dimension] == null ? '' : detalle[dimension];
+    exigirCEA(String(actual) === String(aplicacion.baseValor == null ? '' : aplicacion.baseValor), 'La nota oficial cambio mientras evaluabas. Recarga y revisa el ajuste manual.', 'CRITERIOS_AJUSTE');
+    const media=ns.reduce((s,n) => s+n,0)/ns.length;
+    const valor=Math.round(entrada.sobre100 ? media * limites[dimension]/100 : media);
+    data.cambiosNotas = data.cambiosNotas.filter(c => !(String(c.id) === String(detalle.id) && c.campo === dimension));
+    data.cambiosNotas.push({id:detalle.id,ci:detalle.ci,rude:detalle.rude,campo:dimension,valor});
+    const indice=resultados.findIndex(r => r.detalleId === String(detalle.id) && r.dimension === dimension);
+    const resultado={detalleId:String(detalle.id),dimension,valor};
+    if(indice>=0)resultados[indice]=resultado;else resultados.push(resultado);
+  }
+  return {anterior,eliminados:[...eliminados],habilitado:entrada.habilitado,sobre100:entrada.sobre100,criterios,notas,resultados,revision:Utilities.getUuid()};
+}
+
+function sincronizarPromediosCriteriosCEA(ss, data, preparado, auth) {
+  const limites=limitesCriteriosCEA(data.registro.tipo);
+  const aplicadas=new Set((data.criteriosEvaluacion?.aplicar || []).map(a=>JSON.stringify([String(a.detalleId),a.dimension])));
+  const oficiales=ss.getSheetByName('Calificaciones_Detalle')?.getDataRange().getValues().slice(1) || [];
+  const columnas={ser:8,saber:9,decidir:10,proceso:11,producto:12,hacer:13,autoevaluacion:14};
+  const explicitos=Array.isArray(data.cambiosNotas)?data.cambiosNotas:data.detalles.flatMap(d=>{const anterior=oficiales.find(f=>String(f[0])===String(d.id)&&String(f[1])===String(data.registro.id));return anterior?Object.keys(limites).filter(c=>String(anterior[columnas[c]]??'')!==String(d[c]??'')).map(c=>({id:d.id,campo:c})):[];});
+  const cambios=explicitos.filter(c=>Object.prototype.hasOwnProperty.call(limites,c.campo)&&!aplicadas.has(JSON.stringify([String(c.id),c.campo])));
+  const salidas=[];
+  if(!cambios.length)return salidas;
+  const configuraciones=ss.getSheetByName('Criterios_Configuracion')?.getDataRange().getValues().slice(1).filter(f=>String(f[0])===String(data.registro.id)&&f[2]===true) || [];
+  const cuentaActual=String(auth.cuentaKey || auth.areaKey);
+  if(preparado && !configuraciones.some(f=>String(f[1])===cuentaActual))configuraciones.push([data.registro.id,cuentaActual]);
+  for(const fila of configuraciones){
+    const cuenta=String(fila[1]),identidad={...auth,r:'docente',cuentaKey:cuenta,areaKey:data.registro.areaKey};
+    const propio=preparado&&cuenta===cuentaActual;
+    const anterior=propio ? preparado.anterior : leerCriteriosEvaluacionCEA(ss,data.registro.id,identidad);
+    const p=propio ? preparado : {...structuredCloneCriteriosCEA(anterior),anterior,revision:Utilities.getUuid()};
+    if(!p.habilitado)continue;
+    let actualizado=false;
+    for(const cambio of cambios){
+      const detalle=data.detalles.find(d=>String(d.id)===String(cambio.id));if(!detalle)continue;
+      const dimension=cambio.campo, grupo=p.criterios.filter(c=>c.activo&&c.dimension===dimension);
+      if(!grupo.length)continue;
+      const objetivo=detalle[dimension], escala=p.sobre100?100:limites[dimension];
+      const valores=objetivo===''||objetivo==null ? grupo.map(()=> '') : distribuirCriteriosCEA(objetivo,limites[dimension],escala,grupo.length,String(detalle.id)+dimension);
+      grupo.forEach((c,i)=>{
+        const n={criterioId:c.id,detalleId:String(detalle.id),valor:valores[i],origen:'automatico'};
+        const pos=p.notas.findIndex(a=>a.detalleId===n.detalleId&&a.criterioId===n.criterioId);
+        if(pos<0)p.notas.push(n);else p.notas[pos]=n;
+      });
+      const resultado={detalleId:String(detalle.id),dimension,valor:objetivo};
+      const pos=p.resultados.findIndex(r=>r.detalleId===resultado.detalleId&&r.dimension===dimension);
+      if(pos<0)p.resultados.push(resultado);else p.resultados[pos]=resultado;
+      actualizado=true;
+    }
+    if(actualizado&&!propio)salidas.push({preparado:p,auth:identidad});
+  }
+  return salidas;
+}
+function structuredCloneCriteriosCEA(v){return JSON.parse(JSON.stringify(v));}
+
+function eliminarRespaldosCriteriosCEA(ss,registroId,cuenta,ids){
+  const eliminados=new Set(ids || []);if(!eliminados.size)return;
+  const coincide=f=>String(f[0])===registroId&&String(f[1])===cuenta;
+  const notaEliminada=f=>{if(f[4]!=='NOTA')return false;try{return eliminados.has(String(JSON.parse(f[5]).criterioId));}catch(error){return false;}};
+  const historial=ss.getSheetByName('Criterios_Historial');
+  if(historial){const filas=historial.getDataRange().getValues();const conservar=filas.filter((f,i)=>i===0||!coincide(f)||!notaEliminada(f));if(conservar.length!==filas.length)escribirTablaCEA(ss,'Criterios_Historial',conservar);}
+  const papelera=ss.getSheetByName('Papelera_Matriculas');
+  if(papelera){
+    const filas=papelera.getDataRange().getValues();let cambio=false;
+    for(let i=1;i<filas.length;i++){
+      if(!filas[i][0]||!filas[i][1])continue;
+      const estudiante=JSON.parse(String(filas[i][1])),tablas=estudiante.calificacionesPapelera?.criterios;if(!tablas)continue;
+      let modificado=false;
+      for(const nombre of ['Criterios_Definiciones','Criterios_Notas','Criterios_Historial']){
+        if(!Array.isArray(tablas[nombre]))continue;
+        const anteriores=tablas[nombre];tablas[nombre]=anteriores.filter(f=>!coincide(f)||!(nombre==='Criterios_Historial'?notaEliminada(f):eliminados.has(String(f[2]))));
+        if(tablas[nombre].length!==anteriores.length)modificado=true;
+      }
+      if(modificado){filas[i][1]=JSON.stringify(estudiante);cambio=true;}
+    }
+    if(cambio)escribirTablaCEA(ss,'Papelera_Matriculas',filas);
+  }
+}
+
+function persistirCriteriosEvaluacionCEA(ss, preparado, data, auth) {
+  const id=String(data.registro.id),cuenta=auth.cuentaKey || auth.areaKey,revision=preparado.revision;
+  const guardar=(nombre,filas) => {
+    const hoja=ss.getSheetByName(nombre) || ss.insertSheet(nombre),cabecera=TABLAS_CRITERIOS_CEA[nombre],ancho=cabecera.length;
+    if(hoja.getMaxColumns()<ancho)hoja.insertColumnsAfter(hoja.getMaxColumns(),ancho-hoja.getMaxColumns());
+    const actuales=hoja.getLastRow()?hoja.getDataRange().getValues():[];
+    if(JSON.stringify(actuales[0]?.slice(0,ancho))!==JSON.stringify(cabecera))hoja.getRange(1,1,1,ancho).setValues([cabecera]);
+    const posiciones=actuales.slice(1).map((f,i)=>({f,pos:i+2})).filter(({f})=>String(f[0])===id&&String(f[1])===cuenta).map(({pos})=>pos);
+    const nuevas=filas.map(f=>[id,cuenta].concat(f)), cambios=[];
+    for(let i=0;i<posiciones.length;i++)cambios.push({pos:posiciones[i],fila:nuevas[i] || Array(ancho).fill('')});
+    const final=hoja.getLastRow()+1;
+    for(let i=posiciones.length;i<nuevas.length;i++)cambios.push({pos:final+i-posiciones.length,fila:nuevas[i]});
+    cambios.sort((a,b)=>a.pos-b.pos);
+    for(let i=0;i<cambios.length;){
+      const inicio=i++;
+      while(i<cambios.length&&cambios[i].pos===cambios[inicio].pos+i-inicio)i++;
+      const posicion=cambios[inicio].pos, cantidad=i-inicio;
+      if(posicion+cantidad-1>hoja.getMaxRows())hoja.insertRowsAfter(hoja.getMaxRows(),posicion+cantidad-1-hoja.getMaxRows());
+      hoja.getRange(posicion,1,cantidad,ancho).setValues(cambios.slice(inicio,i).map(c=>c.fila));
+    }
+  };
+  guardar('Criterios_Configuracion',[[preparado.habilitado,preparado.sobre100,revision,data.registro.areaKey,data.registro.gestion,data.registro.semestre,data.registro.nivel,data.registro.paralelo,data.registro.modulo,data.registro.tipo]]);
+  guardar('Criterios_Definiciones',preparado.criterios.map(c=>[c.id,c.dimension,c.titulo,c.orden,c.activo]));
+  const escalaDe=n=>preparado.sobre100 ? 100 : limitesCriteriosCEA(data.registro.tipo)[preparado.criterios.find(c=>c.id===n.criterioId).dimension];
+  guardar('Criterios_Notas',preparado.notas.map(n=>[n.criterioId,n.detalleId,n.valor,escalaDe(n),n.origen || 'manual']));
+  guardar('Criterios_Resultados',preparado.resultados.map(r=>[r.detalleId,r.dimension,r.valor]));
+  eliminarRespaldosCriteriosCEA(ss,id,cuenta,preparado.eliminados);
+  const historial=ss.getSheetByName('Criterios_Historial') || ss.insertSheet('Criterios_Historial');
+  if(!historial.getLastRow())historial.appendRow(TABLAS_CRITERIOS_CEA.Criterios_Historial);
+  const eventos=[];
+  const registrar=(tipo,cambio)=>eventos.push([id,cuenta,revision,new Date().toISOString(),tipo,JSON.stringify(cambio)]);
+  registrar('CONFIGURACION',{habilitado:preparado.habilitado,sobre100:preparado.sobre100});
+  for(const criterioId of preparado.eliminados || [])registrar('CRITERIO_ELIMINADO',{criterioId});
+  for(const c of preparado.criterios)if(JSON.stringify(c)!==JSON.stringify(preparado.anterior.criterios.find(a=>a.id===c.id)))registrar('CRITERIO',c);
+  const anteriores=new Map(preparado.anterior.notas.map(n=>[JSON.stringify([n.detalleId,n.criterioId]),n.valor]));
+  for(const n of preparado.notas)if(anteriores.get(JSON.stringify([n.detalleId,n.criterioId]))!==n.valor || preparado.anterior.notas.find(a=>a.detalleId===n.detalleId&&a.criterioId===n.criterioId)?.origen!==n.origen)registrar('NOTA',{...n,escala:escalaDe(n)});
+  if(eventos.length){
+    const inicio=historial.getLastRow()+1;
+    if(inicio+eventos.length-1>historial.getMaxRows())historial.insertRowsAfter(historial.getMaxRows(),inicio+eventos.length-1-historial.getMaxRows());
+    historial.getRange(inicio,1,eventos.length,6).setValues(eventos);
+  }
+  SpreadsheetApp.flush();
+  const confirmado=leerCriteriosEvaluacionCEA(ss,id,auth);
+  exigirCEA(confirmado.revision===revision && hashCEA(confirmado.criterios)===hashCEA(preparado.criterios) && hashCEA(confirmado.notas)===hashCEA(preparado.notas), 'No se confirmo el guardado de todos los criterios.');
 }
 
 function configurarSistemaCEA() {
@@ -4585,6 +4876,24 @@ function prepararBorradoNotasMatriculaCEA(ss, eliminadas, matriculas) {
     registrosEliminados.push(id);
     rangos.push(registros.getRange(indice + 2, 1, 1, registros.getLastColumn()));
   });
+  respaldo.criterios = {};
+  const registrosBorrados = new Set(registrosEliminados);
+  Object.keys(TABLAS_CRITERIOS_CEA).forEach(nombre => {
+    const tabla = ss.getSheetByName(nombre);
+    if (!tabla) return;
+    tabla.getDataRange().getValues().slice(1).forEach((fila,indice) => {
+      let coincide = registrosBorrados.has(String(fila[0]));
+      if (nombre === 'Criterios_Notas') coincide = coincide || idsBorrados.has(String(fila[3]));
+      if (nombre === 'Criterios_Resultados') coincide = coincide || idsBorrados.has(String(fila[2]));
+      if (nombre === 'Criterios_Historial' && fila[4] === 'NOTA') {
+        try { coincide = coincide || idsBorrados.has(String(JSON.parse(fila[5]).detalleId)); } catch(error) {}
+      }
+      if (!coincide) return;
+      if (!respaldo.criterios[nombre]) respaldo.criterios[nombre] = [];
+      respaldo.criterios[nombre].push(fila);
+      rangos.push(tabla.getRange(indice + 2,1,1,tabla.getLastColumn()));
+    });
+  });
   return {ids, rangos, registrosEliminados, respaldo};
 }
 
@@ -4743,6 +5052,22 @@ function actualizarMatriculasCEA(ss, data, auth) {
       const rango = hoja.getRange(posicion, 1, nuevas.length, ancho);
       applied.push(respaldoRangoMatriculaCEA(rango));
       rango.setValues(nuevas.map(fila => Array.from({length: ancho}, (_, indice) => fila[indice] ?? '')));
+    }
+    for (const nombre of Object.keys(TABLAS_CRITERIOS_CEA)) {
+      const recuperar = restauradas.flatMap(item => item.criterios?.[nombre] || []);
+      if (!recuperar.length) continue;
+      const hoja = ss.getSheetByName(nombre) || ss.insertSheet(nombre);
+      if (!hoja.getLastRow()) hoja.appendRow(TABLAS_CRITERIOS_CEA[nombre]);
+      const anchosClave={Criterios_Configuracion:2,Criterios_Definiciones:3,Criterios_Notas:4,Criterios_Resultados:4};
+      const claveFila=f=>JSON.stringify(anchosClave[nombre] ? f.slice(0,anchosClave[nombre]) : f);
+      const existentes = new Set(hoja.getDataRange().getValues().slice(1).map(claveFila));
+      const nuevas = recuperar.filter(f => {const clave=claveFila(f);if(existentes.has(clave))return false;existentes.add(clave);return true;});
+      if (!nuevas.length) continue;
+      const ancho=TABLAS_CRITERIOS_CEA[nombre].length, posicion=hoja.getLastRow()+1;
+      if (posicion+nuevas.length-1>hoja.getMaxRows()) hoja.insertRowsAfter(hoja.getMaxRows(),posicion+nuevas.length-1-hoja.getMaxRows());
+      const rango=hoja.getRange(posicion,1,nuevas.length,ancho);
+      applied.push(respaldoRangoMatriculaCEA(rango));
+      rango.setValues(nuevas.map(f=>Array.from({length:ancho},(_,i)=>f[i]??'')));
     }
     guardarPapeleraMatriculasCEA(ss, Array.from(byId.values()));
     SpreadsheetApp.flush();
