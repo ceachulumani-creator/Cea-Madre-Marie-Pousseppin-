@@ -50,6 +50,11 @@
     const izquierda=Math.max(r.left,fila.querySelector('.movil-nombre')?.getBoundingClientRect().right||r.left)+3;
     const derecha=Math.min(r.right,innerWidth,fila.querySelector('.movil-final')?.getBoundingClientRect().left||r.right)-3;
     if(c.left<izquierda)wrap.scrollLeft-=izquierda-c.left;else if(c.right>derecha)wrap.scrollLeft+=c.right-derecha;
+    const cabecera=wrap.querySelector('thead')?.getBoundingClientRect().height||0;
+    const pie=document.querySelector('.notas-movil-pie')?.getBoundingClientRect().top||innerHeight;
+    const abajo=Math.min(r.bottom,pie)-5,arriba=r.top+cabecera+3;
+    if(c.bottom>abajo)wrap.scrollTop+=c.bottom-abajo;
+    else if(c.top<arriba&&wrap.clientHeight-cabecera>=c.height)wrap.scrollTop-=arriba-c.top;
   };
 
   function instalar() {

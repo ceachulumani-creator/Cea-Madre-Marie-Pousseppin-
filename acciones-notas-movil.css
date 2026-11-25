@@ -1,0 +1,96 @@
+@media screen and (max-width:900px){
+  .notas-movil-pie[popover]{inset:auto 0 0;margin:0;width:100%;max-width:none;max-height:none;overflow:visible;color:#274633}
+  .notas-movil-pie{z-index:2147483000!important;isolation:isolate;transform:none!important}
+  .notas-movil-pie::backdrop{display:none}
+  .notas-movil-selectores:has([data-movil-selector=modulo]){grid-template-columns:minmax(0,1.35fr) minmax(0,.85fr) minmax(0,1.1fr)}
+  .notas-movil-pdf-progreso{border-top:5px solid #14532d}
+  body.movil-grados-activos #admin-panel #admin-planilla-container>.calif-card,
+  body.movil-grados-activos #docente-panel #docente-planilla-container>.calif-card{padding:0!important;border:0!important;border-radius:0!important;transition:none!important}
+  body.movil-grados-activos #admin-panel #admin-stage-topbar,
+  body.movil-grados-activos #docente-panel #docente-stage-topbar{padding:4px 6px!important;gap:3px!important}
+  body.movil-grados-activos :is(#admin-stage-body,#docente-stage-content){padding-left:0!important;padding-right:0!important;padding-top:0!important}
+  body.movil-grados-activos :is(#admin-stage-topbar,#docente-stage-topbar){padding:4px 6px!important;gap:3px!important}
+  body.movil-grados-activos #docente-stage-topbar>div:first-child>div,
+  body.movil-grados-activos .stage-topbar-title-area>div{display:none!important}
+  body.movil-grados-activos :is(.calif-mobile-grades,.criterios-panel,.criterios-tabla-wrap,.movil-planilla-scroll){margin-left:0!important;margin-right:0!important;border-radius:0!important;padding-left:0!important;padding-right:0!important;width:100%!important;box-sizing:border-box}
+  body.movil-grados-activos .movil-planilla-scroll{max-height:max(220px,calc(100dvh - var(--notas-movil-header,130px) - var(--notas-movil-pie,70px) - 32px))!important}
+  .notas-movil-pdf-listo [data-archivo]{overflow-wrap:anywhere;font-size:12px;color:#506758}
+  .notas-movil-pdf-listo a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 14px;border-radius:8px;background:#14532d;color:white;text-decoration:none;font-weight:700;box-sizing:border-box}
+  .notas-movil-ribbon{width:100%;order:5;display:grid;gap:6px;color:white}
+  .notas-movil-titulo{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;color:#d7efde}
+  .notas-movil-titulo button{display:grid;place-items:center;min-height:34px!important;width:38px;border:1px solid #ffffff50;border-radius:8px;background:#ffffff18;color:#fff;padding:5px}
+  .notas-movil-selectores{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:6px}
+  .notas-movil-selectores label{display:grid;gap:2px;font-size:10px;font-weight:650;min-width:0}
+  :is(#admin-stage-topbar,#docente-stage-topbar) .notas-movil-selectores select{width:100%!important;min-width:0!important;min-height:36px!important;height:36px;padding:4px 6px!important;font-size:13px!important;border:1px solid #b5d5c0;border-radius:8px;background:#f5fbf7;color:#123d23;font-weight:700}
+  .notas-movil-criterios label{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;min-height:30px;cursor:pointer}
+  .notas-movil-criterios input{width:34px;height:20px;min-height:20px!important;appearance:none;border:1px solid #b2c9ba;border-radius:14px;background:#718e7b;position:relative;padding:0!important;flex-shrink:0}
+  .notas-movil-criterios input::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .16s ease}
+  .notas-movil-criterios input:checked{background:#eab308;border-color:#eab308}
+  .notas-movil-criterios input:checked::after{transform:translateX(14px)}
+  body.movil-grados-activos :is(#admin-stage-topbar,#docente-stage-topbar)>.calif-acciones-barra-superior,
+  body.movil-grados-activos #docente-stage-topbar>div:nth-child(2):not(.panel-ventana-controles):not(.notas-movil-ribbon){display:none!important}
+  body.movil-grados-activos :is(#admin-planilla-container,#docente-planilla-container) :is(.calif-sheet-header-banner,.calif-actions-bar,.calif-sheet-paralelos-bar,.calif-course-switch,.calif-modulo-tabs-bar-wrap,.calif-sheet-meta-grid,.calif-meta-grid,.calif-sheet-footer-summary,.boletin-publicacion,.calif-sheet-info-grid){display:none!important}
+  body.movil-grados-activos :is(#admin-planilla-container,#docente-planilla-container) :is(button.btn-calif-importar-web,button.btn-calif-subir-excel,button[onclick*=importarEstudiantes],button[onclick*=SubirNominaExcel]){display:none!important}
+  body.movil-grados-activos .notas-movil-origen{display:none!important}
+  body.movil-grados-activos .admin-calificaciones-view>div:first-child{display:none!important}
+  body.movil-grados-activos :is(#admin-planilla-container,#docente-planilla-container){margin-top:0!important}
+  body.movil-grados-activos :is(#admin-planilla-container,#docente-planilla-container)>.calif-card,
+  body.movil-grados-activos :is(.cen-digital-viewer,.revision-notas,.notas-movil-tabla-contenedor){padding:0!important;border:0!important;box-shadow:none!important;min-width:0!important;max-width:100%!important}
+  body.movil-grados-activos .criterios-panel>.criterios-interruptores,
+  body.movil-grados-activos .criterios-panel>:is(.criterios-ayuda,[data-estado-criterios],button[data-accion=copiar]){display:none!important}
+  body.movil-grados-activos :is(#admin-stage-body,#docente-stage-content){padding-bottom:calc(var(--notas-movil-pie,90px) + 20px + env(safe-area-inset-bottom))!important;scroll-padding-bottom:var(--notas-movil-pie,90px)}
+  body.movil-grados-activos .movil-planilla-scroll{max-height:max(220px,calc(100dvh - var(--notas-movil-header,170px) - var(--notas-movil-pie,90px) - 70px))!important;scroll-padding-bottom:12px;padding-bottom:6px;box-sizing:border-box}
+  .boletin-tabla-origen-movil{display:none!important}
+  .boletin-tabla-movil{margin-top:0}
+  .boletin-tabla-movil .movil-subido{width:76px!important;text-align:center;font-size:11px!important;white-space:normal}
+  .boletin-tabla-movil .movil-subido label{display:grid;justify-items:center;gap:2px}
+  .boletin-tabla-movil .movil-centralizador-nota{width:100%!important;min-width:0!important;height:44px;min-height:44px;padding:0!important;border:1px solid #c6d8cd;border-radius:8px;background:#f8fbf9;color:#14532d;font-size:17px!important;font-weight:650;text-align:center;box-sizing:border-box;appearance:textfield}
+  .boletin-tabla-movil tbody td.movil-dimension{font-size:17px!important;font-weight:700;color:#14532d}
+  .notas-movil-pie{position:fixed;z-index:450;bottom:0;left:0;right:0;display:grid;gap:4px;padding:8px max(12px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));border-top:1px solid #c9d9ce;background:#f4f8f5f5;backdrop-filter:blur(8px);box-shadow:0 -4px 18px #123b211a;color:#274633}
+  .notas-movil-pie>div{display:flex;justify-content:flex-end;gap:8px}
+  .notas-movil-pie button{min-height:44px;flex:1;border-radius:10px;border:1px solid #b3c9bb;background:#fff;color:#14532d;font:750 14px/1.2 sans-serif;padding:10px 14px;cursor:pointer}
+  .notas-movil-pie [data-movil-guardar]{background:#facc15;color:#3e3200;border-color:#eab308;animation:notas-movil-aviso 2.4s ease-in-out infinite}
+  .notas-movil-pie[data-pendiente=true]{background:#fff8def5;border-color:#eab308}
+  .notas-movil-pie button[hidden]{display:none!important}
+  .notas-movil-pie button:disabled{opacity:.65;animation:none;cursor:wait}
+  .notas-movil-pie [role=status]{margin:0;font-size:11px;line-height:1.3;text-align:center;max-height:36px;overflow:auto}
+  .notas-movil-pie [role=status]:empty{display:none}
+  .notas-movil-menu{width:min(430px,calc(100vw - 24px));box-sizing:border-box;border:1px solid #bad4c2;border-top:5px solid #14532d;border-radius:18px;padding:16px;max-height:85dvh;overflow:auto;background:#f7faf8;color:#193d28}
+  .notas-movil-menu::backdrop{background:#06201280;backdrop-filter:blur(3px)}
+  .notas-menu-titulo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .notas-menu-titulo h3{margin:0;font-size:17px}
+  .notas-menu-titulo button{margin:0;width:36px;min-height:36px;border:0;border-radius:8px;background:#e6efe9;color:#14532d;font-size:22px}
+  .notas-menu-selectores{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding-bottom:12px;border-bottom:1px solid #d2e0d7}
+  .notas-menu-selectores label{display:grid;gap:4px;font-size:12px;font-weight:700}
+  .notas-menu-selectores :is(select,input:not([type=checkbox])){width:100%;min-height:42px;box-sizing:border-box;padding:8px;border:1px solid #bdd3c5;border-radius:8px;font-size:16px;background:#fff;color:#193d28}
+  .notas-menu-selectores input[type=checkbox]{width:22px;height:22px;accent-color:#166534}
+  .notas-menu-acciones{display:grid;gap:7px;padding-top:12px}
+  .notas-menu-acciones button{width:100%;min-height:43px;text-align:left;padding:10px 12px;border:1px solid #c9dbd0;border-radius:9px;background:#fff;color:#14532d;font-size:13px;font-weight:650;cursor:pointer}
+  .notas-menu-acciones button:disabled{opacity:.45}
+  .notas-movil-menu details{margin-top:12px;font-size:12px}
+  #academic-mobile-drawer .academic-drawer-panel{background:#063b17!important;color:#fff!important;border-left:1px solid #247342}
+  #academic-mobile-drawer :is(.academic-drawer-header,.academic-drawer-body){background:#063b17!important;color:#fff!important}
+  #academic-mobile-drawer :is(.academic-drawer-title,.academic-drawer-subtitle,.academic-drawer-group-title,.academic-mobile-search){color:#d2efdb!important}
+  #academic-mobile-drawer .academic-drawer-group-title{color:#facc15!important;border-color:#ffffff20!important}
+  #academic-mobile-drawer .academic-drawer-item{color:#fff!important;background:transparent!important;border-color:#ffffff20!important}
+  #academic-mobile-drawer .academic-drawer-item:is(:hover,[aria-current=page]){background:#ffffff18!important;color:#fde047!important}
+  #academic-mobile-drawer .academic-drawer-close{background:#ffffff18!important;color:#fff!important;border:1px solid #ffffff40}
+  #academic-mobile-drawer .academic-mobile-search input{background:#eff8f2!important;color:#163c25;border:1px solid #81b294}
+  @keyframes notas-movil-aviso{50%{box-shadow:0 0 0 3px #facc1533}}
+}
+@media screen and (max-width:900px) and (max-height:550px){
+  body.movil-grados-activos :is(#admin-stage-topbar,#docente-stage-topbar)>:first-child p{display:none!important}
+  body.movil-grados-activos .notas-movil-ribbon{gap:3px}
+  body.movil-grados-activos .notas-movil-titulo{font-size:10px}
+}
+@media(min-width:901px){.notas-movil-ribbon,.notas-movil-pie,.boletin-tabla-movil{display:none!important}}
+@media(prefers-reduced-motion:reduce){.notas-movil-pie [data-movil-guardar]{animation:none}.notas-movil-criterios input::after{transition:none}}
+@media print{.notas-movil-ribbon,.notas-movil-pie,.notas-movil-menu,.boletin-tabla-movil{display:none!important}}
+@media screen and (max-width:900px){
+  body.movil-grados-activos.movil-grados-activos.movil-grados-activos :is(#admin-stage-body,#admin-stage-content,#docente-stage-content){padding-left:0!important;padding-right:0!important;padding-top:0!important}
+  body.movil-grados-activos.movil-grados-activos.movil-grados-activos :is(#admin-planilla-container,#docente-planilla-container)>.calif-card{padding:0!important;border:0!important;border-radius:0!important}
+  body.movil-grados-activos.movil-grados-activos.movil-grados-activos :is(#admin-stage-topbar,#docente-stage-topbar){padding:4px 6px!important;gap:3px!important}
+  body.movil-grados-activos.movil-grados-activos.movil-grados-activos :is(#admin,#admin>.container,#admin-panel,#docente-panel,.admin-calificaciones-view){padding-left:0!important;padding-right:0!important;margin-left:0!important;margin-right:0!important;width:100%!important;box-sizing:border-box}
+  body.movil-grados-activos .movil-planilla-scroll{max-height:max(220px,calc(100dvh - var(--notas-movil-header,130px) - var(--notas-movil-pie,70px) - 32px))!important}
+  body.movil-grados-activos .movil-planilla-tools{margin:3px 0!important}
+}

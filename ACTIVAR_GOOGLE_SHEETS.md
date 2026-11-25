@@ -1,5 +1,13 @@
 # Activar la actualización del CEA
 
+## Acciones de notas en celular (73.94)
+
+Publica `index.html`, `calificaciones.js`, `panel-academico.js` y los nuevos `acciones-notas-movil.js` y `acciones-notas-movil.css`, junto con los demas archivos web actuales. Este ajuste no requiere cambiar Apps Script ni las tablas de datos.
+
+El registro y los boletines moviles mantienen Nivel y Paralelo en la franja verde. El registro docente conserva visible Evaluar con criterios. El segundo menu de hamburguesa reune modulos, gestion, semestre, publicar, vaciar nomina, boletines, acciones y las opciones de impresion. Las opciones de importar estudiantes y subir Excel permanecen en Afiliacion; se ocultan al llenar notas en celular.
+
+La barra inferior muestra Guardar PDF y permite descargar el documento academico, conservando la orientacion del registro. Guardar aparece en amarillo cuando existen cambios pendientes y se oculta despues de confirmar la escritura. El boletin de Direccion movil tambien conserva los cambios hasta pulsar Guardar; el escritorio mantiene su funcionamiento. Se reserva espacio al final para que la barra no cubra al ultimo estudiante. El menu general movil usa el verde institucional en ambos roles.
+
 ## Registro movil en tabla (73.93)
 
 Publica `index.html`, `calificaciones.js`, `criterios-evaluacion.js`, `panel-academico.js` y el nuevo `notas-movil.css`, conservando los otros archivos actuales. Este ajuste visual no requiere modificar ni volver a publicar Apps Script.

@@ -18064,3 +18064,20 @@ html.dark .btn-copiar-cred:hover {
   pointer-events: none !important;
   overflow: hidden !important;
 }
+/* Alineación exclusiva del formulario: no modifica los documentos impresos. */
+@media screen {
+  #form-kardex-docente .form-group{min-width:0;display:flex;flex-direction:column;justify-content:flex-start;margin:0}
+  #form-kardex-docente .form-group>label{height:40px;min-height:40px;flex:0 0 40px;box-sizing:border-box;display:flex;align-items:flex-end;line-height:1.2;margin:0 0 6px;padding:0}
+  #form-kardex-docente .form-group>:is(input:not([type=checkbox]),select){box-sizing:border-box;width:100%;min-width:0;height:42px;min-height:42px;margin-top:0}
+}
+@media screen and (max-width:900px){
+  #form-kardex-docente :is(.kardex-grid-4,.kardex-grid-5,.kardex-grid-custom-filiacion,.kardex-grid-custom-planillas){grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px}
+  #form-kardex-docente .kardex-grid-custom-filiacion>.form-group{max-width:none!important;min-width:0!important}
+  #form-kardex-docente .form-group>:is(input,select){font-size:16px}
+  #docente-documentos-list-container{width:100%;min-width:0}
+  #docente-documentos-list-container .doc-item-row{padding:12px!important;border-radius:12px!important;box-sizing:border-box;width:100%}
+  #docente-documentos-list-container .doc-item-row>div:first-child{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important}
+  #docente-documentos-list-container .doc-item-row>div:first-child>div{min-width:0!important;width:100%;padding-top:0!important}
+  #docente-documentos-list-container .doc-item-row :is(input,button){min-height:44px;font-size:16px!important;box-sizing:border-box;max-width:100%}
+  #docente-documentos-list-container .doc-item-row label{font-size:12px!important}
+}
