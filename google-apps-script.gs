@@ -76,54 +76,23 @@ function verificarRateLimit(clave, maxPeticiones, ventanaSegundos) {
 }
 
 function sincronizarUsuariosDocentesSheet(ss, usuariosObj) {
-  if (!usuariosObj || typeof usuariosObj !== 'object') return;
-  let sheetU = ss.getSheetByName("Usuarios_Docentes") || ss.insertSheet("Usuarios_Docentes");
-  let dataU = [];
-  if (sheetU.getLastRow() === 0) {
-    sheetU.appendRow(["AreaKey", "Usuario", "Contrasena", "Comision"]);
-    aplicarEstiloEncabezado(sheetU, 4);
-  } else {
-    dataU = sheetU.getDataRange().getDisplayValues();
+  if(!usuariosObj||typeof usuariosObj!=='object')return;
+  const sheet=ss.getSheetByName('Usuarios_Docentes');
+  const rows=sheet&&sheet.getLastRow()?sheet.getDataRange().getDisplayValues():[['AreaKey','Usuario','Contrasena','Comision','Asignacion','Clave_Docente']];
+  rows[0][4]='Asignacion';rows[0][5]='Clave_Docente';
+  const indices=new Map(rows.slice(1).map((r,i)=>[String(r[0]).trim(),i+1]));
+  for(const key of Object.keys(usuariosObj)){
+    const item=usuariosObj[key];if(!item)continue;
+    const index=indices.get(key),prev=index==null?[]:rows[index],fila=prev.slice();
+    const clave=String(item.pass||'').trim(),usuario=String(item.user||'').trim();
+    fila[0]=key;fila[1]=usuario||prev[1]||'';
+    fila[2]=clave?(clave.startsWith('cea$')?clave:codificarClaveCEA(clave)):(prev[2]||'');
+    fila[3]=(item.comision===true||/^(SI|TRUE)$/i.test(String(item.comision)))?'SI':'NO';
+    fila[4]=String(item.asigKey||prev[4]||key).trim();
+    fila[5]=clave&&!clave.startsWith('cea$')?clave:(prev[5]||'');
+    if(index==null){indices.set(key,rows.length);rows.push(fila);}else rows[index]=fila;
   }
-  sheetU.getRange(1, 5).setValue('Asignacion');
-  sheetU.getRange(1, 6).setValue('Clave_Docente');
-
-  const mapaExistente = {};
-  for (let i = 1; i < dataU.length; i++) {
-    const k = String(dataU[i][0] || '').trim();
-    if (k) {
-      mapaExistente[k] = {
-        row: i + 1,
-        user: String(dataU[i][1] || '').trim(),
-        pass: String(dataU[i][2] || '').trim(),
-        comision: String(dataU[i][3] || '').trim()
-      };
-    }
-  }
-
-  for (let key in usuariosObj) {
-    const item = usuariosObj[key];
-    if (!item) continue;
-    const newUser = String(item.user || '').trim();
-    let newPass = String(item.pass || '').trim();
-    const claveEntrega = newPass && !newPass.startsWith('cea$') ? newPass : '';
-    if (newPass && !newPass.startsWith('cea$')) newPass = codificarClaveCEA(newPass);
-    // Si viene vacía la contraseña en el formulario, preservar la contraseña actual de la hoja
-    if (!newPass && mapaExistente[key] && mapaExistente[key].pass) {
-      newPass = mapaExistente[key].pass;
-    }
-    const comVal = (item.comision === true || String(item.comision).toUpperCase() === 'SI' || String(item.comision) === 'true') ? 'SI' : 'NO';
-
-    if (mapaExistente[key]) {
-      if (newUser) sheetU.getRange(mapaExistente[key].row, 2).setValue(newUser);
-      if (String(item.pass || '').trim()) sheetU.getRange(mapaExistente[key].row, 3).setValue(newPass);
-      if (claveEntrega) sheetU.getRange(mapaExistente[key].row, 6).setNumberFormat('@').setValue(claveEntrega);
-      sheetU.getRange(mapaExistente[key].row, 4).setValue(comVal);
-      if (item.asigKey) sheetU.getRange(mapaExistente[key].row, 5).setValue(String(item.asigKey).trim());
-    } else {
-      sheetU.appendRow([key, newUser, newPass, comVal, String(item.asigKey || key).trim(), claveEntrega]);
-    }
-  }
+  escribirTablaCEA(ss,'Usuarios_Docentes',rows);
 }
 
 function claveVisibleDocenteCEA(row) {
@@ -208,7 +177,8 @@ function eliminarDocentePersistenteCEA(ss, codigo) {
   const papelera = ss.getSheetByName('Docentes_Eliminados') || ss.insertSheet('Docentes_Eliminados');
   if (!papelera.getLastRow()) papelera.appendRow(['Codigo', 'Fecha']);
   codigos.forEach(codigo => { if (!docentesEliminadosCEA(ss).has(codigo)) papelera.appendRow([codigo, new Date().toISOString()]); });
-  return {status:'success', codigo:key, docentesEliminados:[...docentesEliminadosCEA(ss)]};
+  exigirCEA(!sheetD?.getDataRange().getValues().slice(1).some(r=>String(r[0]).trim()===key)&&!sheetU?.getDataRange().getValues().slice(1).some(r=>String(r[0]).trim()===key),'No se confirmó la eliminación del docente.');
+  return {status:'success',codigo:key,areaKey:area,docenteReemplazo:reemplazo,docentesEliminados:[...docentesEliminadosCEA(ss)]};
 }
 
 // ─── RESOLUCIÓN RESILIENTE DE HOJA DE CÁLCULO PRINCIPAL ───
@@ -428,7 +398,7 @@ function leerDatosCEA(auth, precargarCriterios = false) {
         if (carreraKey && nivel) {
           if (!mallasObj[carreraKey]) mallasObj[carreraKey] = {};
           if (!mallasObj[carreraKey][nivel]) mallasObj[carreraKey][nivel] = [];
-          mallasObj[carreraKey][nivel].push([modulo, materia]);
+          mallasObj[carreraKey][nivel].push([modulo,materia,Number(dataMallas[i][4])||null]);
         }
       }
     }
@@ -702,15 +672,19 @@ function leerDatosCEA(auth, precargarCriterios = false) {
           let crit = [];
           try { crit = JSON.parse(dCR[i][14] || '[]'); } catch(eC) {}
           if (String(dCR[i][1]) === 'humanistica') crit = criteriosHumanisticaCEA();
-          const moduloOficial = moduloPlanillaSistemasCEA(dCR[i][2], dCR[i][4], idR, dCR[i][5]);
+          const numeroFijo=posicionFilaModuloCEA(dCR[i],dCR[0]);
+          const nivelesMalla=mallasObj[dCR[i][2]]||{},mallaActual=Object.entries(nivelesMalla).find(([n])=>nivelNotasCEA(n)===nivelNotasCEA(dCR[i][4]))?.[1]||[];
+          const etiqueta=mallaActual.find(m=>Number(m[2])===numeroFijo);
+          const moduloOficial=etiqueta||moduloPlanillaSistemasCEA(dCR[i][2],dCR[i][4],idR,dCR[i][5]);
           califRegistrosList.push({
             id: idR,
             tipo: String(dCR[i][1] || 'tecnica'),
             areaKey: String(dCR[i][2] || ''),
             carrera: String(dCR[i][3] || ''),
             nivel: String(dCR[i][1] || 'tecnica') === 'humanistica' ? nivelHumanisticoOficialCEA(dCR[i][4]) : String(dCR[i][4] || ''),
-            modulo: moduloOficial ? moduloOficial.join(': ') : String(dCR[i][5] || ''),
-            moduloCodigo: moduloOficial ? moduloOficial[0] : String(dCR[i][5] || ''),
+            modulo: moduloOficial ? moduloOficial.slice(0,2).join(': ') : String(dCR[i][5] || ''),
+            moduloNumero:numeroFijo,
+            moduloCodigo:moduloOficial?moduloOficial[0]:String(dCR[i][dCR[0].indexOf('ModuloCodigoFijo')]||String(dCR[i][5]||'').split(':')[0]),
             docente: String(dCR[i][6] || ''),
             semestre: String(dCR[i][7] || '1er Semestre'),
             gestion: String(dCR[i][8] || '2026'),
@@ -1113,82 +1087,30 @@ function procesarSolicitudCEA(e, auth) {
     }
 
     else if (action === "guardar-docentes" || action === "guardar-docentes-completo") {
-      const lock = null;
-
-      try {
-        let sheetDocentes = ss.getSheetByName("Docentes") || ss.insertSheet("Docentes");
-        if (sheetDocentes.getLastRow() === 0) {
-          sheetDocentes.appendRow(["Codigo", "Nombre", "Materia_Carrera", "Area"]);
-        }
-        if (postData.docentes) {
-          const data = sheetDocentes.getDataRange().getValues();
-          const docentesMap = postData.docentes;
-          for (let codigo in docentesMap) {
-            const nuevoNombre = docentesMap[codigo] !== undefined ? String(docentesMap[codigo]) : "";
-            let encontrado = false;
-            for (let i = 1; i < data.length; i++) {
-              if (String(data[i][0]).trim().toLowerCase() === String(codigo).trim().toLowerCase()) {
-                sheetDocentes.getRange(i + 1, 2).setValue(nuevoNombre);
-                encontrado = true;
-                break;
-              }
-            }
-            if (!encontrado) {
-              sheetDocentes.appendRow([codigo, nuevoNombre, "", ""]);
-            }
-          }
-
-          // Sincronizar también con la pestaña Materias_Humanistica
-          let sheetMaterias = ss.getSheetByName("Materias_Humanistica");
-          if (sheetMaterias) {
-            const dataMat = sheetMaterias.getDataRange().getValues();
-            const mapHum = {
-              'hum-cn': 'ciencias naturales',
-              'hum-mat': 'matemática',
-              'hum-cs': 'ciencias sociales',
-              'hum-len': 'lenguaje'
-            };
-            for (let hKey in mapHum) {
-              if (docentesMap[hKey] !== undefined) {
-                const nom = String(docentesMap[hKey] || '');
-                const searchSub = mapHum[hKey];
-                for (let m = 1; m < dataMat.length; m++) {
-                  if (String(dataMat[m][0]).toLowerCase().indexOf(searchSub) !== -1) {
-                    sheetMaterias.getRange(m + 1, 2).setValue(nom);
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        // Si vienen carreras en el mismo envío, sincronizarlas
-        if (postData.carreras && Array.isArray(postData.carreras)) {
-          let sheetCarreras = ss.getSheetByName("Carreras_Tecnicas") || ss.insertSheet("Carreras_Tecnicas");
-          sheetCarreras.clearContents();
-          sheetCarreras.appendRow(["Codigo", "Nombre", "DocenteCodigo", "Color", "Resumen", "Foto"]);
-          postData.carreras.forEach(carr => {
-            let cFoto = String(carr.foto || "").trim();
-            if (cFoto && cFoto.indexOf("data:") === 0) {
-              try {
-                cFoto = guardarMediaEnDrive(cFoto, "Foto_" + (carr.key || "tec"));
-              } catch(eFoto) {}
-            }
-            sheetCarreras.appendRow([carr.key || "tec-gen", carr.nombre || "", carr.docente || carr.key || "", carr.color || "#1a6b2e", carr.resumen || "", cFoto]);
-          });
-        }
-
-        // Si vienen usuarios docentes en el mismo envío, guardarlos preservando contraseñas
-        if (postData.usuarios && typeof postData.usuarios === 'object') {
-          sincronizarUsuariosDocentesSheet(ss, postData.usuarios);
-        }
-
-        return responseJSON({ status: "success", message: "Docentes, asignaciones y credenciales actualizados en el sistema institucional." });
-      } finally {
-        if (lock) {
-          try { lock.releaseLock(); } catch(eRL) {}
-        }
+      const sheet=ss.getSheetByName('Docentes');
+      const rows=sheet&&sheet.getLastRow()?sheet.getDataRange().getValues():[['Codigo','Nombre','Materia_Carrera','Area']];
+      const indices=new Map(rows.slice(1).map((r,i)=>[String(r[0]).trim().toLowerCase(),i+1]));
+      for(const codigo of Object.keys(postData.docentes||{})){
+        const nombre=String(postData.docentes[codigo]??''),index=indices.get(codigo.trim().toLowerCase());
+        const cuenta=postData.usuarios?.[codigo];
+        if(index==null){indices.set(codigo.trim().toLowerCase(),rows.length);rows.push([codigo,nombre,cuenta?.asigKey||'',cuenta?.area||'']);}
+        else{rows[index][1]=nombre;if(cuenta?.asigKey)rows[index][2]=cuenta.asigKey;if(cuenta?.area)rows[index][3]=cuenta.area;}
       }
+      escribirTablaCEA(ss,'Docentes',rows);
+      const materias=ss.getSheetByName('Materias_Humanistica');
+      if(materias){const filas=materias.getDataRange().getValues(),mapa={'hum-cn':'ciencias naturales','hum-mat':'matemática','hum-cs':'ciencias sociales','hum-len':'lenguaje'};let cambio=false;
+        for(const key of Object.keys(mapa))if(postData.docentes?.[key]!==undefined)for(let i=1;i<filas.length;i++)if(String(filas[i][0]).toLowerCase().includes(mapa[key])&&String(filas[i][1])!==String(postData.docentes[key])){filas[i][1]=String(postData.docentes[key]);cambio=true;}
+        if(cambio)escribirTablaCEA(ss,'Materias_Humanistica',filas);
+      }
+      if(Array.isArray(postData.carreras)){
+        const filas=[['Codigo','Nombre','DocenteCodigo','Color','Resumen','Foto']];
+        for(const carr of postData.carreras){let foto=String(carr.foto||'').trim();if(foto.startsWith('data:'))foto=guardarMediaEnDrive(foto,'Foto_'+(carr.key||'tec'));filas.push([carr.key||'tec-gen',carr.nombre||'',carr.docente||carr.key||'',carr.color||'#1a6b2e',carr.resumen||'',foto]);}
+        escribirTablaCEA(ss,'Carreras_Tecnicas',filas);
+      }else if(Array.isArray(postData.carrerasDocentes)){
+        const carreras=ss.getSheetByName('Carreras_Tecnicas');if(carreras){const filas=carreras.getDataRange().getValues(),mapa=new Map(postData.carrerasDocentes.map(c=>[String(c.key),String(c.docente||'')]));let cambio=false;for(let i=1;i<filas.length;i++)if(mapa.has(String(filas[i][0]))&&String(filas[i][2])!==mapa.get(String(filas[i][0]))){filas[i][2]=mapa.get(String(filas[i][0]));cambio=true;}if(cambio)escribirTablaCEA(ss,'Carreras_Tecnicas',filas);}
+      }
+      if(postData.usuarios)sincronizarUsuariosDocentesSheet(ss,postData.usuarios);
+      return responseJSON({status:'success'});
     }
 
     else if (action === "guardar-carreras") {
@@ -1844,6 +1766,7 @@ function procesarSolicitudCEA(e, auth) {
 
     else if (action === "guardar-malla") {
       const carreraKey = String(postData.carreraKey || '').trim();
+      fijarIdentidadModulosCEA(ss,carreraKey);
       if (postData.moduloHumanistico) {
         const modulo = postData.moduloHumanistico;
         const nivel = nivelHumanisticoOficialCEA(modulo.nivel);
@@ -1862,7 +1785,7 @@ function procesarSolicitudCEA(e, auth) {
         escribirTablaCEA(ss, 'Mallas_Curriculares', conservar.concat([[carreraKey, nivel, codigo, nombre]]));
         const registros = ss.getSheetByName('Calificaciones_Registros');
         if (registros) registros.getDataRange().getValues().slice(1).forEach((fila, indice) => {
-          const numeroGuardado = /-HUM[A-Z0-9]*M2-\d{4}-S[12]-P/i.test(String(fila[0])) ? 2 : 1;
+          const numeroGuardado = posicionFilaModuloCEA(fila,registros.getDataRange().getValues()[0]);
           if (String(fila[2]) === carreraKey && nivelNotasCEA(fila[4]) === nivelNotasCEA(nivel) && numeroGuardado === numero && String(fila[8]).trim() === gestionModulo && /2|segundo/i.test(fila[7]) === /2|segundo/i.test(semestreModulo)) {
             registros.getRange(indice + 2, 6).setValue(nombre + ' - ' + nivel);
           }
@@ -1873,12 +1796,14 @@ function procesarSolicitudCEA(e, auth) {
         const hoja = ss.getSheetByName('Mallas_Curriculares');
         const filas = hoja && hoja.getLastRow() ? hoja.getDataRange().getValues() : [['CarreraKey', 'Nivel', 'Modulo', 'Materia']];
         const conservar = filas.filter((fila, indice) => indice === 0 || String(fila[0]) !== carreraKey);
-        const modulos = postData.malla.flatMap(nivel => (areaCanonicaCEA(carreraKey) === 'tec-sis'
-          ? mallaSistemasCEA(nivel.modulos || [], nivel.nivel) : (nivel.modulos || [])).map(modulo =>
-          [carreraKey, nivel.nivel, modulo[0], modulo[1]]
-        ));
+        const modulos=postData.malla.flatMap(nivel=>{
+          const catalogo=catalogoModuloFijoCEA(ss,carreraKey,nivel.nivel,'tecnica');
+          return (nivel.modulos||[]).map((modulo,i)=>[carreraKey,nivel.nivel,catalogo[i]?.codigo||modulo[0],String(modulo[1]||''),i+1]);
+        });
+        if(!conservar[0].includes('ModuloNumero'))conservar[0][4]='ModuloNumero';
         escribirTablaCEA(ss, 'Mallas_Curriculares', conservar.concat(modulos));
-        return responseJSON({status: 'success', message: 'Malla curricular actualizada.'});
+        actualizarEtiquetasMallaCEA(ss,carreraKey);
+        return responseJSON({status:'success',message:'Malla curricular actualizada.',carreraKey,mallaConfirmada:conservar.concat(modulos).slice(1).filter(f=>String(f[0])===carreraKey).map(f=>({nivel:f[1],codigo:f[2],nombre:f[3],numero:Number(f[4])||null}))});
       }
     }
 
@@ -2475,8 +2400,9 @@ function procesarSolicitudCEA(e, auth) {
       const carreraReg = reg.carrera || (filaRegEnc > 0 ? String(dataReg[filaRegEnc - 1][3] || "") : "");
       const nivelReg = reg.nivel || (filaRegEnc > 0 ? String(dataReg[filaRegEnc - 1][4] || "") : "");
       const moduloRecibido = reg.modulo || (filaRegEnc > 0 ? String(dataReg[filaRegEnc - 1][5] || "") : "");
-      const moduloOficial = moduloPlanillaSistemasCEA(areaKeyReg, nivelReg, idReg, moduloRecibido, reg.moduloCodigo);
-      const moduloReg = moduloOficial ? moduloOficial.join(': ') : moduloRecibido;
+      const mallaGuardada=ss.getSheetByName('Mallas_Curriculares')?.getDataRange().getValues().slice(1).find(f=>areaCanonicaCEA(f[0])===areaCanonicaCEA(areaKeyReg)&&nivelNotasCEA(f[1])===nivelNotasCEA(nivelReg)&&Number(f[4])===Number(reg.moduloNumero));
+      const moduloOficial=mallaGuardada?[mallaGuardada[2],mallaGuardada[3]]:moduloPlanillaSistemasCEA(areaKeyReg,nivelReg,idReg,moduloRecibido,reg.moduloCodigo);
+      const moduloReg = moduloOficial ? moduloOficial.slice(0,2).join(': ') : moduloRecibido;
       const docenteReg = reg.docente || (filaRegEnc > 0 ? String(dataReg[filaRegEnc - 1][6] || "") : "");
       const semestreReg = reg.semestre || (filaRegEnc > 0 ? String(dataReg[filaRegEnc - 1][7] || "Segundo Semestre") : "Segundo Semestre");
       const gestionReg = reg.gestion || (filaRegEnc > 0 ? String(dataReg[filaRegEnc - 1][8] || "2026") : "2026");
@@ -2513,6 +2439,9 @@ function procesarSolicitudCEA(e, auth) {
         sheetReg.appendRow(valoresReg);
       }
 
+      const filasIdentidad=sheetReg.getDataRange().getValues(),camposIdentidad=columnasModuloCEA(filasIdentidad);
+      const filaIdentidad=filasIdentidad.find(f=>String(f[0])===String(idReg));
+      if(filaIdentidad&&reg.moduloNumero){filaIdentidad[camposIdentidad.numero]=Number(reg.moduloNumero);filaIdentidad[camposIdentidad.codigo]=String(reg.moduloCodigo||moduloReg.split(':')[0]);escribirTablaCEA(ss,'Calificaciones_Registros',filasIdentidad);}
       // Guardar o actualizar detalles (estudiantes)
       let sheetDet = ss.getSheetByName("Calificaciones_Detalle") || ss.insertSheet("Calificaciones_Detalle");
       if (sheetDet.getLastRow() === 0) {
@@ -3032,6 +2961,7 @@ function procesarSolicitudCEA(e, auth) {
             carrera: String(fila[3]),
             nivel: String(fila[4]),
             modulo: String(fila[5]),
+            moduloNumero:posicionFilaModuloCEA(fila,dataReg[0]),
             docente: String(fila[6]),
             semestre: String(fila[7]),
             gestion: String(fila[8]),
@@ -3797,6 +3727,11 @@ function autorizarOperacionCEA(ss, data, auth) {
     }
     return;
   }
+  if(['obtener-traslado-notas','trasladar-notas-modulo'].includes(action)){
+    const fila=ss.getSheetByName('Calificaciones_Registros')?.getDataRange().getValues().slice(1).find(f=>String(f[0])===String(data.idRegistro));
+    exigirCEA(fila,'No se encontró el registro de origen en el servidor. Guarda las notas de ese módulo y vuelve a intentar.','REGISTRO_NO_GUARDADO');
+    exigirCEA(permisoAreaCEA(auth,fila[2],false),'Solo puedes trasladar notas de tu especialidad.','PERMISO');return;
+  }
   const scoped = {'guardar-perfil-especialidad': data.areaKey, 'guardar-malla': data.carreraKey, 'guardar-doc-niveles': data.carreraKey, 'guardar-foto-carrera': data.key || data.carreraKey, 'guardar-kardex': data.docenteId};
   if (Object.prototype.hasOwnProperty.call(scoped, action)) {
     exigirCEA(permisoAreaCEA(auth, scoped[action], false), 'Solo puedes modificar tu propia área.', 'PERMISO');
@@ -3805,6 +3740,7 @@ function autorizarOperacionCEA(ss, data, auth) {
   if (action === 'guardar-docentes' || action === 'guardar-docentes-completo') {
     data.docentes = {[auth.areaKey]: data.docentes && data.docentes[auth.areaKey]};
     delete data.carreras;
+    delete data.carrerasDocentes;
     delete data.usuarios;
     return;
   }
@@ -3948,8 +3884,10 @@ function doPost(e) {
     }
     if (['pre-inscripcion', 'contacto'].includes(data.action)) exigirCEA(String(data.nombre || '').trim() && (data.action === 'contacto' ? String(data.mensaje || '').trim() : String(data.ci || '').trim()), 'Completa los campos obligatorios.');
     const readOnly = data.action.startsWith('obtener') || data.action.startsWith('consultar') || data.action === 'verificar-qr-inscripcion';
-    hojasDeGuardado = guardarBoletin || data.action === 'guardar-calificaciones-registro'
+    hojasDeGuardado = data.action==='trasladar-notas-modulo'?['Calificaciones_Registros','Calificaciones_Detalle','Traslados_Notas'].concat(Object.keys(TABLAS_CRITERIOS_CEA)) : guardarBoletin || data.action === 'guardar-calificaciones-registro'
       ? ['Calificaciones_Registros', 'Calificaciones_Detalle'].concat(criteriosPreparados || ajustesCriterios.some(p=>p.ajustes.length) ? Object.keys(TABLAS_CRITERIOS_CEA) : [])
+      : ['guardar-docentes','guardar-docentes-completo','eliminar-docente'].includes(data.action)?['Docentes','Usuarios_Docentes','Carreras_Tecnicas','Materias_Humanistica','Director_y_Textos','Docentes_Eliminados']
+      : data.action==='guardar-malla'?['Mallas_Curriculares','Calificaciones_Registros']
       : data.action === 'registrar-auditoria-calificaciones' ? ['Calificaciones_Auditoria'] : null;
     if(criteriosPreparados?.eliminados?.length&&hojasDeGuardado)hojasDeGuardado.push('Papelera_Matriculas');
     if (!readOnly && data.action !== 'visita') {
@@ -3974,7 +3912,7 @@ function doPost(e) {
       backups = null;
       return responseJSON({status: 'success', confirmadas});
     }
-    const result = JSON.parse(procesarSolicitudCEA({postData: {contents: JSON.stringify(data)}}, auth).getContent());
+    const result=data.action==='obtener-traslado-notas'?prepararTrasladoNotasCEA(ss,data,auth).vista:data.action==='trasladar-notas-modulo'?trasladarNotasModuloCEA(ss,data,auth):JSON.parse(procesarSolicitudCEA({postData:{contents:JSON.stringify(data)}},auth).getContent());
     exigirCEA(result.status === 'success' || result.status === 'not_found', result.message || 'El servidor rechazó el guardado.');
     if (criteriosPreparados) {
       persistirCriteriosEvaluacionCEA(ss, criteriosPreparados, data, auth);
@@ -4005,6 +3943,10 @@ function doPost(e) {
         confirmados[codigo] = String(fila[1]);
       });
       result.docentesConfirmados = confirmados;
+      const filasUsuarios=ss.getSheetByName('Usuarios_Docentes')?.getDataRange().getValues().slice(1)||[];
+      result.usuariosConfirmados={};
+      for(const codigo of Object.keys(data.usuarios||{})){const fila=filasUsuarios.find(r=>String(r[0]).trim()===codigo),item=data.usuarios[codigo];exigirCEA(fila&&(!item.user||String(fila[1])===String(item.user))&&(!item.asigKey||String(fila[4])===String(item.asigKey)),'No se confirmó la asignación o el usuario del docente.');result.usuariosConfirmados[codigo]={user:String(fila[1]),asigKey:String(fila[4]||codigo),comision:/^(SI|TRUE)$/i.test(String(fila[3])),pass:''};}
+
     }
     if (data.action.includes('calificaciones') && (data.idRegistro || data.registro)) result.version = versionNotasCEA(ss, String(data.idRegistro || data.registro.id));
     if (Array.isArray(data.cambiosNotas) && data.action === 'guardar-calificaciones-registro') result.detalles = data.detalles;
@@ -4360,7 +4302,7 @@ function catalogoConsultaNotasCEA(registro, filas) {
   const tecnica = registro.tipo !== 'humanistica';
   const propias = filas.filter(fila => areaCanonicaCEA(fila[0]) === areaCanonicaCEA(registro.areaKey) && nivelNotasCEA(fila[1]) === nivelNotasCEA(registro.nivel))
     .sort((a,b) => registro.tipo === 'humanistica' ? Number(/-M2$/i.test(a[2])) - Number(/-M2$/i.test(b[2])) : numeroModuloSistemasCEA(a[2]) - numeroModuloSistemasCEA(b[2]));
-  let modulos = propias.map(fila => [String(fila[2] || ''), String(fila[3] || '')]);
+  let modulos = propias.map(fila => [String(fila[2]||''),String(fila[3]||''),Number(fila[4])||null]);
   if (tecnica && areaCanonicaCEA(registro.areaKey) === 'tec-sis') modulos = mallaSistemasCEA(modulos, registro.nivel);
   return Array.from({length:tecnica ? 5 : 2}, (_, indice) => ({
     codigo: modulos[indice]?.[0] || (tecnica ? 'Módulo ' + (indice + 1) : registro.areaKey + (indice ? '-M2' : '')),
@@ -4369,6 +4311,7 @@ function catalogoConsultaNotasCEA(registro, filas) {
 }
 
 function posicionConsultaNotasCEA(registro) {
+  if(Number(registro.moduloNumero)>=1&&Number(registro.moduloNumero)<=(registro.tipo==='humanistica'?2:5))return Number(registro.moduloNumero);
   const normalizar = valor => String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const claveId = String(registro.id || '').match(/-(?:m[oó]?dulo|mod)([ivx]+|\d+)-\d{4}-s[12]-p/i)?.[1];
   if (registro.tipo === 'humanistica') {
@@ -4398,7 +4341,7 @@ function mallaSistemasCEA(modulos, nivel) {
   if (!oficial) return modulos;
   return oficial.map(([codigo, nombre], indice) => {
     const encontrado = modulos.find(([clave]) => numeroModuloSistemasCEA(clave) === numeroModuloSistemasCEA(codigo));
-    return [codigo, indice === 2 || indice === 3 ? nombre : (encontrado?.[1] || nombre)];
+    return Number(encontrado?.[2])?[codigo,encontrado[1],Number(encontrado[2])]:[codigo,indice===2||indice===3?nombre:(encontrado?.[1]||nombre)];
   });
 }
 
@@ -4429,7 +4372,18 @@ function recalcularDetalleLeidoCEA(detalle, tipo) {
 }
 
 function prepararNotasCEA(ss, data, auth) {
-  const reg = data.registro || {};
+  const reg=data.registro||{};
+  const existentes=ss.getSheetByName('Calificaciones_Registros')?.getDataRange().getValues()||[];
+  const anterior=existentes.slice(1).find(f=>String(f[0])===String(reg.id));
+  const numeroAnterior=anterior?posicionFilaModuloCEA(anterior,existentes[0]):null;
+  if(anterior){
+    exigirCEA(areaCanonicaCEA(reg.areaKey)===areaCanonicaCEA(anterior[2])&&nivelNotasCEA(reg.nivel)===nivelNotasCEA(anterior[4])&&String(reg.gestion)===String(anterior[8])&&/2|segundo/i.test(reg.semestre)===/2|segundo/i.test(anterior[7])&&String(reg.paralelo||'A')===String(anterior[9]||'A'),'Para trasladar notas usa Cambiar notas de módulo.','NOMINA');
+    const codigoPedido=numeroModuloSistemasCEA(reg.moduloCodigo)||numeroModuloSistemasCEA(String(reg.modulo||'').split(':')[0]);
+    const numeroPedido=Number(reg.moduloNumero)||(reg.tipo==='humanistica'?(String(reg.moduloCodigo||'').endsWith('-M2')?2:1):codigoPedido?((codigoPedido-1)%5)+1:0);
+    if(numeroAnterior&&numeroPedido)exigirCEA(numeroPedido===numeroAnterior,'Este registro fue trasladado. Recarga las notas antes de guardar.','IDENTIDAD_MODULO');
+    if(numeroAnterior&&reg.moduloNumero)exigirCEA(Number(reg.moduloNumero)===numeroAnterior,'Este módulo cambió de ubicación. Recarga las notas antes de editar.','IDENTIDAD_MODULO');
+  }
+  reg.moduloNumero=numeroAnterior||Number(reg.moduloNumero)||posicionFilaModuloCEA([reg.id,reg.tipo,reg.areaKey,reg.carrera,reg.nivel,reg.modulo],[]);
   exigirCEA(reg.id && reg.areaKey && reg.nivel && reg.gestion && reg.semestre && reg.paralelo, 'Faltan datos del curso de la planilla.');
   exigirCEA(Array.isArray(data.detalles), 'Falta la lista de calificaciones.');
   const matriculasVigentes = leerMatriculasCEA(ss);
@@ -5153,4 +5107,99 @@ function migrarPapeleraCEA(ss) {
   });
   guardarMatriculasCEA(ss, list);
   props.setProperty('CEA_PAPELERA_MIGRADA', '2');
+}
+
+
+// El número de módulo identifica la planilla; su nombre es solo una etiqueta editable.
+function posicionFilaModuloCEA(fila,cabecera) {
+  const fijo=Number(fila[cabecera.indexOf('ModuloNumero')]);
+  if(Number.isInteger(fijo)&&fijo>=1&&fijo<=(fila[1]==='humanistica'?2:5))return fijo;
+  const id=String(fila[0]||'');
+  if(fila[1]==='humanistica')return /-HUM[A-Z0-9]*M2-\d{4}-S[12]-P/i.test(id)||/-M2$/i.test(String(fila[cabecera.indexOf('ModuloCodigoFijo')]||''))?2:1;
+  const clave=id.match(/-(?:m[oó]?dulo|mod)([ivx]+|\d+)-\d{4}-s[12]-p/i)?.[1];
+  const numero=numeroModuloSistemasCEA(clave)||numeroModuloSistemasCEA(fila[cabecera.indexOf('ModuloCodigoFijo')])||numeroModuloSistemasCEA(String(fila[5]||'').split(':')[0]);
+  return numero?((numero-1)%5)+1:null;
+}
+function columnasModuloCEA(filas){
+  for(const nombre of ['ModuloNumero','ModuloCodigoFijo'])if(!filas[0].includes(nombre))filas[0].push(nombre);
+  return {numero:filas[0].indexOf('ModuloNumero'),codigo:filas[0].indexOf('ModuloCodigoFijo')};
+}
+function catalogoModuloFijoCEA(ss,area,nivel,tipo){
+  const filas=ss.getSheetByName('Mallas_Curriculares')?.getDataRange().getValues().slice(1)||[];
+  const propias=filas.filter(f=>areaCanonicaCEA(f[0])===areaCanonicaCEA(area)&&nivelNotasCEA(f[1])===nivelNotasCEA(nivel));
+  const inicial=tipo==='humanistica'?0:({basico:0,auxiliar:5,medio1:10,medio2:15}[nivelNotasCEA(nivel)]||0);
+  const romanos=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+  return Array.from({length:tipo==='humanistica'?2:5},(_,i)=>{const fila=propias.find(f=>Number(f[4])===i+1)||propias.find(f=>tipo==='humanistica'?(/-M2$/i.test(String(f[2]))?2:1)===i+1:((numeroModuloSistemasCEA(f[2])-1)%5)+1===i+1);return {numero:i+1,codigo:tipo==='humanistica'?area+(i?'-M2':''):'Módulo '+romanos[inicial+i],nombre:String(fila?.[3]||'Módulo '+(i+1))};});
+}
+function fijarIdentidadModulosCEA(ss,area,ids){
+  const sheet=ss.getSheetByName('Calificaciones_Registros');if(!sheet||sheet.getLastRow()<2)return;
+  const filas=sheet.getDataRange().getValues(),campos=columnasModuloCEA(filas);
+  for(const fila of filas.slice(1)){
+    if(areaCanonicaCEA(fila[2])!==areaCanonicaCEA(area)||(ids&&!ids.has(String(fila[0]))))continue;
+    let numero=posicionFilaModuloCEA(fila,filas[0]);
+    const catalogo=catalogoModuloFijoCEA(ss,fila[2],fila[4],fila[1]);
+    if(!numero){const nombre=String(fila[5]||'').replace(/^[^:]+:\s*/, '').trim();const candidatos=catalogo.filter(m=>m.nombre===nombre);if(candidatos.length===1)numero=candidatos[0].numero;}
+    exigirCEA(numero,'Hay una planilla antigua sin número de módulo verificable. No se cambió la malla ni las notas. Revisa su identificación antes de continuar.','MODULO_AMBIGUO');
+    fila[campos.numero]=numero;fila[campos.codigo]=catalogo[numero-1].codigo;
+  }
+  escribirTablaCEA(ss,'Calificaciones_Registros',filas);
+}
+function actualizarEtiquetasMallaCEA(ss,area){
+  const sheet=ss.getSheetByName('Calificaciones_Registros');if(!sheet||sheet.getLastRow()<2)return;
+  const filas=sheet.getDataRange().getValues(),campos=columnasModuloCEA(filas),cache=new Map();
+  for(const fila of filas.slice(1))if(areaCanonicaCEA(fila[2])===areaCanonicaCEA(area)){
+    const numero=posicionFilaModuloCEA(fila,filas[0]),key=String(fila[4]);if(!cache.has(key))cache.set(key,catalogoModuloFijoCEA(ss,area,fila[4],fila[1]));const modulo=cache.get(key)[numero-1];
+    if(modulo){fila[5]=modulo.codigo+': '+modulo.nombre;fila[campos.codigo]=modulo.codigo;fila[campos.numero]=numero;}
+  }
+  escribirTablaCEA(ss,'Calificaciones_Registros',filas);
+}
+
+
+function prepararTrasladoNotasCEA(ss,data,auth){
+  const filas=ss.getSheetByName('Calificaciones_Registros')?.getDataRange().getValues()||[],origen=filas.slice(1).find(r=>String(r[0])===String(data.idRegistro));
+  exigirCEA(origen,'No se encontró el registro de origen en el servidor. Guarda las notas de ese módulo y vuelve a intentar.','REGISTRO_NO_GUARDADO');
+  exigirCEA(auth.r==='director'||permisoAreaCEA(auth,origen[2],false),'Solo puedes trasladar notas de tu especialidad.','PERMISO');
+  const destino=data.destino||{},numero=Number(destino.moduloNumero),tipo=String(origen[1]),nivel=String(destino.nivel||origen[4]),paralelo=String(destino.paralelo||origen[9]||'A').trim().toUpperCase();
+  exigirCEA(Number.isInteger(numero)&&numero>=1&&numero<=(tipo==='humanistica'?2:5)&&paralelo.length<=12&&paralelo.length>0,'Selecciona un módulo y paralelo válidos.');
+  exigirCEA((tipo==='humanistica'?['basico','auxiliar','aplicados','complementarios','especializados']:['basico','auxiliar','medio1','medio2']).includes(nivelNotasCEA(nivel)),'Selecciona un nivel válido.');
+  const numeroOrigen=posicionFilaModuloCEA(origen,filas[0]);exigirCEA(numeroOrigen,'No se puede identificar el módulo de origen sin ambigüedad.');
+  exigirCEA(!(nivelNotasCEA(nivel)===nivelNotasCEA(origen[4])&&paralelo===String(origen[9]||'A').toUpperCase()&&numero===numeroOrigen),'Selecciona un módulo de destino diferente.');
+  const candidatos=filas.slice(1).filter(r=>areaCanonicaCEA(r[2])===areaCanonicaCEA(origen[2])&&nivelNotasCEA(r[4])===nivelNotasCEA(nivel)&&String(r[8])===String(origen[8])&&/2|segundo/i.test(r[7])===/2|segundo/i.test(origen[7])&&String(r[9]||'A').toUpperCase()===paralelo&&posicionFilaModuloCEA(r,filas[0])===numero);
+  exigirCEA(candidatos.length<=1,'Hay más de una planilla en el destino. Revisa los registros antes de trasladar.','MODULO_AMBIGUO');
+  const destinoFila=candidatos[0]||null,detalles=ss.getSheetByName('Calificaciones_Detalle')?.getDataRange().getValues()||[],sourceD=detalles.slice(1).filter(d=>String(d[1])===String(origen[0])),destD=destinoFila?detalles.slice(1).filter(d=>String(d[1])===String(destinoFila[0])):[];
+  const evaluado=d=>d.slice(8,15).some(v=>v!==''&&v!=null)||Number(d[15])>0||d[19]===true;
+  exigirCEA(sourceD.some(evaluado),'El módulo de origen no tiene notas guardadas.');
+  const moviendoNivel=nivelNotasCEA(nivel)!==nivelNotasCEA(origen[4])||paralelo!==String(origen[9]||'A').toUpperCase();
+  const matriculas=moviendoNivel?leerMatriculasCEA(ss):[];
+  function curso(n,p){return matriculas.filter(e=>e.estadoMatricula!=='ELIMINADO'&&String(e.gestion)===String(origen[8])&&/2|segundo/i.test(e.semestre)===/2|segundo/i.test(origen[7])&&nivelNotasCEA(e.nivel)===nivelNotasCEA(n)&&String(e.paralelo||'A').toUpperCase()===p&&(areaCanonicaCEA(e.areaKey)===areaCanonicaCEA(origen[2])||(tipo==='humanistica'&&areaCanonicaCEA(e.areaKey)==='hum-humanistica')));}
+  function enlazar(ds,estudiantes){const mapa=new Map();for(const d of ds){const ci=String(d[6]||'').trim().toUpperCase(),rude=String(d[7]||'').trim().toUpperCase(),nombre=[d[3],d[4],d[5]].filter(Boolean).join(' ').replace(/\s+/g,' ').trim().toUpperCase();const encontrados=estudiantes.filter(e=>ci?String(e.ci||'').trim().toUpperCase()===ci:rude?String(e.rude||'').trim().toUpperCase()===rude:[e.paterno,e.materno,e.nombres].filter(Boolean).join(' ').replace(/\s+/g,' ').trim().toUpperCase()===nombre);if(encontrados.length===1)mapa.set(String(d[0]),encontrados[0]);}return mapa;}
+  const mapaOrigen=moviendoNivel?enlazar(sourceD,curso(nivel,paralelo)):null,mapaDestino=moviendoNivel&&destinoFila?enlazar(destD,curso(origen[4],String(origen[9]||'A').toUpperCase())):null;
+  const faltantesOrigen=mapaOrigen?sourceD.length-mapaOrigen.size:0,faltantesDestino=mapaDestino?destD.length-mapaDestino.size:0;
+  const catalogo=catalogoModuloFijoCEA(ss,origen[2],nivel,tipo),modulo=catalogo[numero-1];
+  const version=hashCEA([origen,destinoFila,sourceD,destD,catalogo]);
+  return {filas,detalles,origen,destinoFila,sourceD,destD,mapaOrigen,mapaDestino,modulo,numeroOrigen,nivel,paralelo,numero,version,
+    vista:{status:'success',version,origen:{id:origen[0],nivel:origen[4],paralelo:origen[9],moduloNumero:numeroOrigen,modulo:origen[5]},destino:{id:destinoFila?.[0]||null,nivel,paralelo,moduloNumero:numero,modulo:modulo.codigo+': '+modulo.nombre},estudiantes:sourceD.length,conNotas:sourceD.filter(evaluado).length,destinoConNotas:destD.filter(evaluado).length,faltantesOrigen,faltantesDestino,puedeMover:!destD.some(evaluado)&&!faltantesOrigen,puedeIntercambiar:Boolean(destinoFila)&&!faltantesOrigen&&!faltantesDestino}};
+}
+function trasladarNotasModuloCEA(ss,data,auth){
+  const ctx=prepararTrasladoNotasCEA(ss,data,auth);exigirCEA(data.baseVersion===ctx.version,'Las notas o la malla cambiaron mientras revisabas el traslado. Vuelve a consultar el destino.','CONFLICTO');
+  exigirCEA(['mover','intercambiar'].includes(data.modo),'Selecciona trasladar o intercambiar.');
+  exigirCEA(data.modo==='mover'?ctx.vista.puedeMover:ctx.vista.puedeIntercambiar,ctx.vista.faltantesOrigen||ctx.vista.faltantesDestino?'Para trasladar entre niveles o paralelos, los mismos estudiantes deben estar afiliados en el destino.':'El destino tiene notas. Selecciona Intercambiar para conservar ambos registros.');
+  // Una planilla antigua sin identificar en otro curso no debe impedir
+  // intercambiar dos registros cuya identidad ya fue comprobada.
+  fijarIdentidadModulosCEA(ss,ctx.origen[2],new Set([String(ctx.origen[0]),...(ctx.destinoFila?[String(ctx.destinoFila[0])]:[])]));
+  const filas=ss.getSheetByName('Calificaciones_Registros').getDataRange().getValues(),campos=columnasModuloCEA(filas),origen=filas.slice(1).find(r=>String(r[0])===String(ctx.origen[0])),destino=ctx.destinoFila?filas.slice(1).find(r=>String(r[0])===String(ctx.destinoFila[0])):null;
+  const antes={origen:origen.slice(),destino:destino?.slice()||null},cambios=new Map();
+  function mover(fila,nivel,paralelo,numero){const modulo=catalogoModuloFijoCEA(ss,fila[2],nivel,fila[1])[numero-1];fila[4]=nivel;fila[9]=paralelo;fila[5]=modulo.codigo+': '+modulo.nombre;fila[campos.numero]=numero;fila[campos.codigo]=modulo.codigo;fila[12]=new Date().toISOString();fila[13]=auth.u;if(fila[11]==='PUBLICADO')fila[11]='EN EDICION';for(const n of ['EstadoPublicacion','FechaPublicacion']){const i=filas[0].indexOf(n);if(i>=0)fila[i]='';}cambios.set(String(fila[0]),fila);}
+  mover(origen,ctx.nivel,ctx.paralelo,ctx.numero);if(destino)mover(destino,ctx.origen[4],String(ctx.origen[9]||'A'),ctx.numeroOrigen);
+  const idsDetalles=new Map();for(const [ds,mapa]of [[ctx.sourceD,ctx.mapaOrigen],[ctx.destD,ctx.mapaDestino]])if(mapa)for(const d of ds){const est=mapa.get(String(d[0]));exigirCEA(est?.matriculaId,'No se confirmó la matrícula de destino.');idsDetalles.set(String(d[0]),'DET-'+d[1]+'-'+est.matriculaId);}
+  if(idsDetalles.size){const filasD=ctx.detalles;for(const d of filasD.slice(1))if(idsDetalles.has(String(d[0])))d[0]=idsDetalles.get(String(d[0]));escribirTablaCEA(ss,'Calificaciones_Detalle',filasD);}
+  for(const nombre of Object.keys(TABLAS_CRITERIOS_CEA)){
+    const sheet=ss.getSheetByName(nombre);if(!sheet||sheet.getLastRow()<2)continue;const datos=sheet.getDataRange().getValues();let cambio=false;
+    for(const f of datos.slice(1)){const reg=cambios.get(String(f[0]));if(!reg)continue;if(nombre==='Criterios_Configuracion'){f[4]=Utilities.getUuid();f[8]=reg[4];f[9]=reg[9];f[10]=reg[5];cambio=true;}const indice=nombre==='Criterios_Notas'?3:nombre==='Criterios_Resultados'?2:-1;if(indice>=0&&idsDetalles.has(String(f[indice]))){f[indice]=idsDetalles.get(String(f[indice]));cambio=true;}}
+    if(cambio)escribirTablaCEA(ss,nombre,datos);
+  }
+  escribirTablaCEA(ss,'Calificaciones_Registros',filas);
+  const historial=ss.getSheetByName('Traslados_Notas')||ss.insertSheet('Traslados_Notas');if(!historial.getLastRow())historial.appendRow(['ID','Fecha','Usuario','Modo','AntesJSON','DespuesJSON','DetalleIDsJSON']);
+  const id=data.requestId||Utilities.getUuid();historial.appendRow([id,new Date().toISOString(),auth.u,data.modo,JSON.stringify(antes),JSON.stringify({origen,destino}),JSON.stringify([...idsDetalles])]);
+  return {status:'success',trasladoConfirmado:true,id,registros:[...cambios.keys()],destino:ctx.vista.destino,estudiantes:ctx.sourceD.length,publicacionPendiente:true};
 }

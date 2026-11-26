@@ -876,19 +876,14 @@
     if (modificado) {
       setRegistros(regs);
     }
-    return regs.map(registro => {
-      registro = {...registro,bloqueado:false,estadoBloqueo:'DESBLOQUEADO'};
-      if (registro.tipo === 'humanistica') {
-        const nivel = nivelHumanisticoOficialCalif(registro.nivel);
-        const modulo = obtenerMallaOficialHumanistica(registro.areaKey || registro.carreraAreaKey, nivel,registro.gestion,registro.semestre)[numeroModuloHumanisticoCalif(registro) - 1];
-        return {...registro, nivel, moduloCodigo: modulo.codigo, moduloNombre: modulo.nombre, modulo: modulo.completo, criterios: CRITERIOS_HUMANISTICA_DEFAULT};
-      }
-      const malla = mallaSistemasCalif(registro.areaKey || registro.carreraAreaKey, registro.nivel);
-      if (!malla) return registro;
-      const indice = numeroModuloRegistroCalif(registro) - numeroModuloCalif(malla[0][0]);
-      if (indice !== 2 && indice !== 3) return registro;
-      const modulo = malla[indice];
-      return {...registro, moduloCodigo: modulo[0], moduloNombre: modulo[1], modulo: modulo.join(': ')};
+    return regs.map(registro=>{
+      registro={...registro,bloqueado:false,estadoBloqueo:'DESBLOQUEADO'};
+      const area=registro.areaKey||registro.carreraAreaKey,humanistica=registro.tipo==='humanistica';
+      const numero=humanistica?numeroModuloHumanisticoCalif(registro):((numeroModuloRegistroCalif(registro)-1)%5)+1;
+      if(!numero)return registro;
+      const modulos=humanistica?obtenerMallaOficialHumanistica(area,registro.nivel,registro.gestion,registro.semestre):obtenerMallaOficialTecnica(area,registro.nivel);
+      const modulo=modulos[numero-1];if(!modulo)return registro;
+      return {...registro,moduloNumero:numero,moduloCodigo:modulo.codigo,moduloNombre:modulo.nombre,modulo:modulo.completo,...(humanistica?{nivel:nivelHumanisticoOficialCalif(registro.nivel),criterios:CRITERIOS_HUMANISTICA_DEFAULT}:{})};
     });
   }
 
@@ -1132,6 +1127,7 @@
   }
 
   function numeroModuloHumanisticoCalif(registro) {
+    if([1,2].includes(Number(registro.moduloNumero)))return Number(registro.moduloNumero);
     return /-M2\b/i.test(String(registro.moduloCodigo || '')) || /-HUM[A-Z0-9]*M2-\d{4}-S[12]-P/i.test(String(registro.id || '')) ? 2 : 1;
   }
 
@@ -1196,14 +1192,16 @@
     const mallaSistemas = mallaSistemasCalif(carreraKey, nivelNombre);
     return Array.from({length: 5}, (_, idx) => {
       const posicion = Math.max(0, nivel) * 5 + idx;
+      const identidadNueva=personalizados.some(item=>Number(item?.[2])>0);
       const m = mallaSistemas
-        ? (idx === 2 || idx === 3 ? mallaSistemas[idx] : personalizados.find(item =>
+        ? (!identidadNueva&&(idx === 2 || idx === 3) ? mallaSistemas[idx] : personalizados.find(item =>
           numeroModuloCalif(Array.isArray(item) ? item[0] : item?.codigo) === posicion + 1) || mallaSistemas[idx])
-        : personalizados[idx] || base?.modulos?.[idx];
+        : personalizados.find(item=>Number(item?.[2])===idx+1||numeroModuloCalif(Array.isArray(item)?item[0]:item?.codigo)===posicion+1)||personalizados[idx]||base?.modulos?.[idx];
       const cod = (Array.isArray(m) ? m[0] : m?.codigo) || ('Módulo ' + romanos[posicion]);
       const nom = (Array.isArray(m) ? m[1] : m?.nombre) || 'Módulo ' + romanos[posicion];
       return {
         codigo: cod,
+        numero:idx+1,
         nombre: nom,
         completo: `${cod}: ${nom}`
       };
@@ -1394,6 +1392,7 @@
   }
 
   function numeroModuloRegistroCalif(registro) {
+    if(Number(registro.moduloNumero)>=1&&Number(registro.moduloNumero)<=5){const nivel=NIVELES_TECNICOS_OFICIALES.findIndex(n=>normalizarNivelCanonica(n)===normalizarNivelCanonica(registro.nivel));return Math.max(0,nivel)*5+Number(registro.moduloNumero);}
     const codigoId = String(registro.id || '').match(/-(?:m[oó]?dulo|mod)([ivx]+|\d+)-\d{4}-s[12]-p/i)?.[1];
     const numero = numeroModuloCalif(codigoId) || numeroModuloCalif(String(registro.moduloCodigo || '').split(':')[0]) ||
       numeroModuloCalif(String(registro.modulo || '').split(':')[0]);
@@ -1416,19 +1415,13 @@
           String(r.paralelo || 'A').trim().toUpperCase() !== paralelo ||
           !coincidePeriodoMatricula(r, gestion, semestre)) return false;
       if (asig.tipo === 'humanistica') return numeroModuloHumanisticoCalif(r) === numeroModuloHumanisticoCalif(asig);
-      if (r.id === id) return true;
       const [prefijo, titulo] = separar(r.modulo);
       const numero = numeroModuloCalif(asig.moduloCodigo);
       const numeroGuardado = numeroModuloRegistroCalif(r);
       if (numero && numeroGuardado) return numero === numeroGuardado;
       if (r.id === asig.registroId) return true;
-      const malla = mallaSistemasCalif(asig.areaKey, asig.nivel);
-      if (malla && [malla[2], malla[3]].some(([clave]) => numeroModuloCalif(clave) === numero)) {
-        return nombre && [normal(r.moduloNombre), titulo, normal(r.modulo)].includes(nombre);
-      }
-      return Boolean((completo && normal(r.modulo) === completo) ||
-        (nombre && [normal(r.moduloNombre), titulo, normal(r.modulo)].includes(nombre)) ||
-        (cod && [codigo(separar(r.moduloCodigo)[0]), codigo(prefijo)].includes(cod)));
+      // Los títulos nunca deciden a qué módulo pertenecen las notas.
+      return r.id===id||Boolean(cod&&[codigo(separar(r.moduloCodigo)[0]),codigo(prefijo)].includes(cod));
     });
     return candidatos.sort((a, b) =>
       String(b.fechaModificacion || '').localeCompare(String(a.fechaModificacion || '')) ||
@@ -1452,7 +1445,8 @@
 
     if (!reg) {
       reg = {
-        id: id,
+        id:registros.some(r=>r.id===id)?'REG-'+crypto.randomUUID():id,
+        moduloNumero:asig.tipo==='humanistica'?numeroModuloHumanisticoCalif(asig):((numeroModuloCalif(asig.moduloCodigo)-1)%5)+1,
         tipo: asig.tipo,
         areaKey: asig.areaKey,
         carrera: asig.carrera,
@@ -3520,7 +3514,7 @@
 
         const sSemMatHum = _semestreActivo;
         const idReg = generarIdRegistro(dummyAsigHum, sSemMatHum, _gestionActiva, nav.paralelo);
-        const reg = registros.find(r => r.id === idReg);
+        const reg=buscarPlanillaDelModulo(registros,dummyAsigHum,sSemMatHum,_gestionActiva,nav.paralelo);
         const estado = reg ? reg.estado : 'PENDIENTE';
         const bloqueado = Boolean(reg && (reg.bloqueado || reg.estadoBloqueo === 'BLOQUEADO'));
 
@@ -4705,7 +4699,7 @@
           <template class="calif-acciones-superiores">
             <span class="calif-contexto-superior">${escapeHTML(carreraTitulo)} · ${escapeHTML(nivelTitulo)} · Paralelo ${escapeHTML(paraleloTitulo)} · ${escapeHTML(moduloTitulo)}</span>
             <div class="calif-estado-planilla"></div>
-            <button type="button" class="btn-calif btn-calif-secondary" onclick="window.imprimirRegistroOficial()">${SVG_ICONS.PRINT} Imprimir</button>
+            <button type="button" class="btn-calif btn-calif-secondary" onclick="window.imprimirOpcionesRegistro()">${SVG_ICONS.PRINT} Imprimir todos</button><button type="button" class="btn-calif btn-calif-secondary" onclick="window.imprimirRegistroOficial()">${SVG_ICONS.PRINT} Imprimir</button>
             <button type="button" class="btn-calif btn-calif-secondary" onclick="window.guardarRegistroCalificaciones()" ${puedeEditar && !esBloqueado ? '' : 'disabled'}>Guardar</button>
           </template>
         </div>
@@ -5327,12 +5321,12 @@
       acciones.className = 'calif-acciones-barra-superior';
       acciones.append(fuente.content.cloneNode(true));
       const guardar = acciones.querySelector('button[onclick*="guardar"]');
-      const imprimir = acciones.querySelector('button[onclick*="imprimir"]');
+      const impresiones=[...acciones.querySelectorAll('button[onclick*="imprimir"]')];
       const informacion = document.createElement('div');
       informacion.className = 'calif-info-acciones';
-      [...acciones.children].filter(item => item !== guardar && item !== imprimir).forEach(item => informacion.appendChild(item));
+      [...acciones.children].filter(item => item !== guardar && !impresiones.includes(item)).forEach(item => informacion.appendChild(item));
       acciones.replaceChildren(informacion);
-      if (imprimir) acciones.appendChild(imprimir);
+      acciones.append(...impresiones);
       if (guardar) { guardar.classList.add('calif-guardar-destacado'); acciones.appendChild(guardar); }
       barra.append(acciones);
     }
@@ -6161,8 +6155,9 @@
     return dialog;
   };
   ['pointerdown','click','dblclick'].forEach(tipo=>document.addEventListener(tipo,e=>{const elemento=e.target.closest?.('button,[data-criterio-cabecera]');if(elemento)window._origenDialogoCEA={elemento,fecha:Date.now()};},true));
-  window.paginarDocumentoCalif = function(doc,horizontal=true){
-    const raiz=doc.querySelector('.criterios-impresion');if(!raiz)return paginarRegistroSinCriteriosCalif(doc);
+  window.paginarDocumentoCalif = function(doc,horizontal=true,ambito=doc){
+    const lote=ambito.querySelector('.calif-print-lote-modulos');if(lote){let total=0;for(const modulo of lote.children){const horizontalModulo=modulo.dataset.horizontal==='true';modulo.style.width=(horizontalModulo?263.4:199.9)+'mm';total+=window.paginarDocumentoCalif(doc,horizontalModulo,modulo);}doc.body.style.width=([...lote.children].some(m=>m.dataset.horizontal==='true')?263.4:199.9)+'mm';return total;}
+    const raiz=ambito.querySelector('.criterios-impresion');if(!raiz)return paginarRegistroSinCriteriosCalif(doc,ambito);
     doc.body.style.width=(horizontal?263.4:199.9)+'mm';doc.body.style.maxWidth='none';
     const medidor=doc.createElement('div');medidor.style.cssText='position:absolute;visibility:hidden;width:1mm;height:'+(horizontal?197.9:261.4)+'mm';doc.body.append(medidor);const altoMaximo=medidor.getBoundingClientRect().height;medidor.remove();
     const originales=[...raiz.querySelectorAll(':scope > .criterios-print-pagina')];raiz.replaceChildren();
@@ -6186,9 +6181,9 @@
     }
     const paginas=[...raiz.children];paginas.forEach((pagina,i)=>{const pie=pagina.querySelector('footer');if(pie)pie.innerHTML='Página <strong>'+(i+1)+'</strong> de <strong>'+paginas.length+'</strong>';});return paginas.length;
   };
-  function paginarRegistroSinCriteriosCalif(doc){
-    const listo=doc.querySelector('.calif-print-documento');if(listo)return listo.children.length;
-    const original=doc.querySelector('.calif-print-container');if(!original)return 0;
+  function paginarRegistroSinCriteriosCalif(doc,ambito=doc){
+    const listo=ambito.querySelector('.calif-print-documento');if(listo)return listo.children.length;
+    const original=ambito.querySelector('.calif-print-container');if(!original)return 0;
     const tabla=original.querySelector('.calif-print-table'),filas=[...tabla?.querySelectorAll('tbody tr')||[]];if(!tabla)return 0;
     const cierre=doc.createElement('div');cierre.className='calif-print-cierre';
     for(const selector of ['.calif-print-stats-box','.calif-print-signatures']){const el=original.querySelector(selector);if(el)cierre.append(el);}
@@ -6208,8 +6203,9 @@
     const ancho=horizontal?263.4:199.9;
     frame.style.cssText='position:fixed;left:-12000px;top:0;width:'+Math.ceil(ancho*96/25.4)+'px;height:1000px;border:0';
     const escapar=valor=>String(valor).replace(/[&"<>]/g,c=>({'&':'&amp;','"':'&quot;','<':'&lt;','>':'&gt;'}[c]));
-    frame.documentoListo=new Promise((resolve,reject)=>{frame.onload=()=>resolve(frame.contentDocument);frame.onerror=()=>reject(Error('No se pudo preparar el documento de impresión.'));});
-    frame.srcdoc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Valoración del módulo</title><base href="'+escapar(document.baseURI)+'"><link rel="stylesheet" href="calificaciones-impresion.css?v=73.97"><style>@page{size:letter '+(horizontal?'landscape':'portrait')+';margin:8mm}html,body{margin:0;padding:0;width:'+ancho+'mm;max-width:none}</style></head><body>'+html+'</body></html>';
+    frame.documentoListo=new Promise((resolve,reject)=>{frame.onload=async()=>{try{const doc=frame.contentDocument;await Promise.race([Promise.all([...doc.images].map(img=>img.decode?img.decode().catch(()=>{}):Promise.resolve())),new Promise(r=>setTimeout(r,2000))]);if(doc.fonts?.ready)await Promise.race([doc.fonts.ready,new Promise(r=>setTimeout(r,2000))]);resolve(doc);}catch(error){reject(error);}};frame.onerror=()=>reject(Error('No se pudo preparar el documento de impresión.'));});
+    const lote=html.includes('calif-print-lote-modulos');
+    frame.srcdoc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Valoración del módulo</title><base href="'+escapar(document.baseURI)+'"><link rel="stylesheet" href="calificaciones-impresion.css?v=74.01"><style>'+(lote?'':'@page{size:letter '+(horizontal?'landscape':'portrait')+';margin:8mm}')+'html,body{margin:0;padding:0;width:'+ancho+'mm;max-width:none}</style></head><body>'+html+'</body></html>';
     document.body.append(frame);return frame;
   };
   window.imprimirDocumentoCalif = function(html,horizontal){
@@ -6226,7 +6222,7 @@
     return frame;
   };
 
-  function imprimirRegistroOficial(confirmado = false, borrador = false) {
+  function imprimirRegistroOficial(confirmado = false, borrador = false, todos = false, modoImpresion='automatico') {
     if (!_registroActivo || !_detallesActivos) {
       alert('No hay ninguna planilla seleccionada para imprimir.');
       return;
@@ -6236,10 +6232,11 @@
       const dialog=document.createElement('dialog');dialog.className='criterios-dialog';
       dialog.innerHTML='<h3>Hay cambios sin guardar</h3><p>Puedes guardar e imprimir o imprimir los datos que estás viendo.</p><p role="status"></p><div><button type="button" data-cancelar>Cancelar</button><button type="button" data-borrador>Imprimir ahora</button><button type="button" data-guardar>Guardar e imprimir</button></div>';
       document.body.append(dialog);dialog.onclose=()=>dialog.remove();dialog.querySelector('[data-cancelar]').onclick=()=>dialog.close();
-      dialog.querySelector('[data-borrador]').onclick=()=>{dialog.close();imprimirRegistroOficial(true,true);};
-      dialog.querySelector('[data-guardar]').onclick=async e=>{e.target.disabled=true;dialog.querySelector('[role="status"]').textContent='Guardando…';const ok=await guardarRegistroCalificaciones();if(ok){dialog.close();imprimirRegistroOficial(true);}else{e.target.disabled=false;dialog.querySelector('[role="status"]').textContent='No se pudo guardar. Revisa el registro antes de imprimir.';}};
+      dialog.querySelector('[data-borrador]').onclick=()=>{dialog.close();imprimirRegistroOficial(true,true,todos,modoImpresion);};
+      dialog.querySelector('[data-guardar]').onclick=async e=>{e.target.disabled=true;dialog.querySelector('[role="status"]').textContent='Guardando…';const ok=await guardarRegistroCalificaciones();if(ok){dialog.close();imprimirRegistroOficial(true,false,todos,modoImpresion);}else{e.target.disabled=false;dialog.querySelector('[role="status"]').textContent='No se pudo guardar. Revisa el registro antes de imprimir.';}};
       window.mostrarDialogoAcademico(dialog);return;
     }
+    if(todos){void window.documentosTodosModulosCalif(modoImpresion).then(doc=>window.imprimirDocumentoCalif(doc.html,doc.horizontal)).catch(error=>alert(error.message));return;}
     const criteriosImpresion=window.ceaCriterios?.print(_registroActivo,_detallesActivos);
     window.imprimirDocumentoCalif(criteriosImpresion || generarHTMLImpresion(_registroActivo,_detallesActivos),!!criteriosImpresion);
   }
@@ -6342,7 +6339,7 @@
       const regExistente = buscarPlanillaDelModulo(todosRegistros, dummyAsig, s, g, p);
 
       const idBuscado = regExistente ? regExistente.id : idReg;
-      const detallesMod = detallesDePlanillaCalif(todosDetalles, idBuscado);
+      const detallesMod=regExistente?detallesDePlanillaCalif(todosDetalles,idBuscado):[];
 
       mapaModuloInfo.push({
         modulo: mod,
@@ -8680,6 +8677,60 @@
     const criterios=window.ceaCriterios?.print(_registroActivo,_detallesActivos);
     return {html:criterios || generarHTMLImpresion(_registroActivo,_detallesActivos),horizontal:!!criterios,nombre:'Registro_'+_registroActivo.carrera+'_'+_registroActivo.nivel+'_'+_registroActivo.modulo+'_'+_registroActivo.gestion+'_Paralelo_'+_registroActivo.paralelo};
   };
+  window.contextoModulosNotas=function(numero,registrosOficiales){
+    if(!_registroActivo)throw Error('Abre primero un registro de evaluación.');
+    const base=structuredClone(_registroActivo),area=base.areaKey||base.carreraAreaKey,humanistica=base.tipo==='humanistica';
+    const paralelo=String(base.paralelo||_paraleloActivo||'A').trim().toUpperCase();
+    const modulos=humanistica?obtenerMallaOficialHumanistica(area,base.nivel,base.gestion,base.semestre):obtenerMallaOficialTecnica(area,base.nivel);
+    const numeroActivo=humanistica?numeroModuloHumanisticoCalif(base):(((numeroModuloRegistroCalif(base)-1)%5)+1);
+    const esModuloActivo=!numero||Number(numero)===numeroActivo;
+    let origen=base;
+    if(numero){
+      const m=modulos[numero-1];if(!m)throw Error('Módulo no válido.');
+      const nivelTecnico=NIVELES_TECNICOS_OFICIALES.findIndex(n=>normalizarNivelCanonica(n)===normalizarNivelCanonica(base.nivel));
+      const romanos=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+      const codigoFijo=humanistica?m.codigo:'Módulo '+romanos[Math.max(0,nivelTecnico)*5+numero-1];
+      const asig={...base,registroId:null,paralelo,moduloNumero:numero,moduloCodigo:codigoFijo,moduloNombre:m.nombre,moduloCompleto:m.completo};
+      const locales=getRegistros(),local=buscarPlanillaDelModulo(locales,asig,base.semestre,base.gestion,paralelo)||(esModuloActivo?base:null);
+      origen=esModuloActivo && !registrosOficiales ? base : buscarPlanillaDelModulo(registrosOficiales||locales,asig,base.semestre,base.gestion,paralelo)||(!registrosOficiales&&esModuloActivo?base:null);
+      // Algunos registros antiguos no tienen número legible en el servidor.
+      // El identificador exacto del registro mostrado permite reconocerlos sin
+      // asociar notas por nombre ni elegir entre registros diferentes.
+      if(!origen&&registrosOficiales&&local?.id){
+        const candidatos=registrosOficiales.filter(r=>String(r.id)===String(local.id)&&String(r.areaKey||r.carreraAreaKey)===String(base.areaKey||base.carreraAreaKey)&&normalizarNivelCanonica(r.nivel)===normalizarNivelCanonica(base.nivel)&&String(r.paralelo||'A').trim().toUpperCase()===paralelo&&coincidePeriodoMatricula(r,base.gestion,base.semestre));
+        if(candidatos.length===1){const r=candidatos[0],numeroOficial=humanistica?numeroModuloHumanisticoCalif(r):numeroModuloRegistroCalif(r),esperado=humanistica?numero:Math.max(0,nivelTecnico)*5+numero;if(!numeroOficial||numeroOficial===esperado)origen=r;}
+      }
+      if(!origen)throw Error('No se encontró una planilla guardada para este módulo en el servidor. Abre ese módulo y guarda sus notas antes de intercambiarlas.');
+    }
+    return {registro:base,origen,numeroOrigen:Number(numero)||numeroActivo,modulos,esModuloActivo,niveles:humanistica?NIVELES_HUMANISTICA_OFICIALES.map(n=>n.nivel):NIVELES_TECNICOS_OFICIALES,pendiente:hayNotasPendientes(_registroActivo)||Boolean(window.ceaCriterios?.pending())};
+  };
+  window.catalogoDestinoNotas=function(nivel){const base=_registroActivo,area=base.areaKey||base.carreraAreaKey;return {modulos:base.tipo==='humanistica'?obtenerMallaOficialHumanistica(area,nivel,base.gestion,base.semestre):obtenerMallaOficialTecnica(area,nivel),paralelos:getParalelosDisponibles(area,nivel,base.gestion)};};
+  window.documentosTodosModulosCalif = async function(modoImpresion='automatico'){
+    if(!_registroActivo)throw Error('Abre un registro de evaluación.');
+    await window.ceaCriterios?.awaitReady(_registroActivo.id);
+    const base=structuredClone(_registroActivo),estudiantes=structuredClone(_detallesActivos),token=getSessionSegura().token;
+    const area=base.areaKey||base.carreraAreaKey,tecnica=base.tipo==='tecnica';
+    const modulos=tecnica?obtenerMallaOficialTecnica(area,base.nivel):obtenerMallaOficialHumanistica(area,base.nivel,base.gestion,base.semestre);
+    const registros=getRegistros(),guardadas=getDetalles(),documentos=[];
+    const identidad=d=>String(d.ci||d.rude||d.nombreCompleto||[d.paterno,d.materno,d.nombres].filter(Boolean).join(' ')).trim().toUpperCase();
+    for(const modulo of modulos){
+      if(token!==getSessionSegura().token)throw Error('La sesión cambió.');
+      const asig={tipo:base.tipo,areaKey:area,carrera:base.carrera,nivel:base.nivel,docente:base.docente,moduloCodigo:modulo.codigo,moduloNombre:modulo.nombre,moduloCompleto:modulo.completo||modulo.codigo+': '+modulo.nombre};
+      const actual=String(base.moduloCodigo)===String(modulo.codigo),existente=actual?base:buscarPlanillaDelModulo(registros,asig,base.semestre,base.gestion,base.paralelo);
+      const registro={...base,...existente,id:existente?.id||'PDF-'+crypto.randomUUID(),moduloCodigo:asig.moduloCodigo,moduloNombre:asig.moduloNombre,modulo:asig.moduloCompleto};
+      const oficiales=actual||existente?.id===base.id?estudiantes:existente?detallesDePlanillaCalif(guardadas,existente.id):[];
+      const detalles=estudiantes.map((d,i)=>{const encontrado=oficiales.find(f=>identidad(f)===identidad(d));return {...d,ser:'',saber:'',hacer:'',decidir:'',proceso:'',producto:'',autoevaluacion:'',notaFinal:'',observacion:'',observacionManual:'',...encontrado,id:encontrado?.id||'PDF-'+registro.id+'-'+i,idRegistro:registro.id,nro:i+1};});
+      const criterios=modoImpresion==='sin'? '':await window.ceaCriterios.printSnapshot(registro,detalles,modoImpresion==='con'?true:'automatico',Boolean(existente));
+      documentos.push('<section class="calif-lote-modulo" data-horizontal="'+Boolean(criterios)+'">'+(criterios||generarHTMLImpresion(registro,detalles))+'</section>');
+    }
+    return {tipo:'registro',todosModulos:true,horizontal:documentos.some(d=>d.includes('data-horizontal="true"')),html:'<div class="calif-print-lote-modulos">'+documentos.join('')+'</div>',nombre:'Todos_los_modulos_'+base.carrera+'_'+base.nivel+'_'+base.gestion+'_Paralelo_'+base.paralelo,cantidad:modulos.length};
+  };
+  window.imprimirOpcionesRegistro=function(){
+    const dialog=document.createElement('dialog');dialog.className='criterios-dialog';
+    dialog.innerHTML='<h3>Imprimir todos los módulos</h3><p>En automático, cada módulo conserva su configuración. Con criterios se imprime horizontal y sin criterios, vertical.</p><div><button type="button" data-modo="automatico" data-todos>Automático: según cada módulo</button><button type="button" data-modo="con">Todos con criterios</button><button type="button" data-modo="sin">Todos sin criterios</button><button type="button" data-cancelar>Cancelar</button></div>';
+    dialog.onclose=()=>dialog.remove();dialog.querySelector('[data-cancelar]').onclick=()=>dialog.close();dialog.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{const modo=b.dataset.modo;dialog.close();imprimirRegistroOficial(false,false,true,modo);});document.body.append(dialog);window.mostrarDialogoAcademico(dialog);
+  };
+
   window.limpiarEdicionBoletin = function() {
     window.ceaCriterios?.clear();
     generacionSesionBoletin++;

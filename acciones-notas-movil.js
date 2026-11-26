@@ -117,20 +117,58 @@
     d.innerHTML='<h3>Generando PDF</h3><p role="status" aria-live="polite">Preparando el documento. Espera un momento.</p>';
     d.addEventListener('cancel',e=>e.preventDefault());document.body.append(d);window.mostrarDialogoAcademico?window.mostrarDialogoAcademico(d):d.showModal();return d;
   }
+  function opcionesPDF(){
+    if(actual?.tipo!=='registro')return pdf();
+    const d=document.createElement('dialog');d.className='criterios-dialog notas-movil-pdf-alcance';d.dataset.notasMovilUi='true';
+    d.innerHTML='<h3>Guardar PDF de módulos</h3><p>Se usará el curso, paralelo, gestión y semestre que estás viendo.</p><div class="notas-pdf-opciones"><button type="button" data-pdf-actual>Guardar PDF de este módulo</button><button type="button" data-pdf-todos>Todos los módulos: automático</button><button type="button" data-pdf-con>Todos con criterios</button><button type="button" data-pdf-sin>Todos sin criterios</button><button type="button" data-cancelar>Cancelar</button></div>';
+    d.onclose=()=>d.remove();d.querySelector('[data-cancelar]').onclick=()=>d.close();d.querySelector('[data-pdf-actual]').onclick=()=>{d.close();return pdf();};for(const [selector,modo]of [['[data-pdf-todos]','automatico'],['[data-pdf-con]','con'],['[data-pdf-sin]','sin']])d.querySelector(selector).onclick=()=>{d.close();return pdf({todosModulos:true,modoImpresion:modo});};document.body.append(d);window.mostrarDialogoAcademico?window.mostrarDialogoAcademico(d):d.showModal();
+  }
+  async function convertirPaginasRegistroPDF(motor,frame,papel,horizontal,progreso){
+    const PDF=frame.contentWindow.jspdf?.jsPDF||frame.contentWindow.jsPDF;
+    if(!PDF)throw Error('No se pudo preparar el archivo PDF.');
+    const paginas=[...papel.querySelectorAll('.calif-print-pagina,.criterios-print-pagina')];
+    if(!paginas.length)throw Error('El registro no contiene páginas para descargar.');
+    const esHorizontal=p=>p.closest('.calif-lote-modulo')?p.closest('.calif-lote-modulo').dataset.horizontal==='true':horizontal;
+    const pdf=new PDF({unit:'mm',format:'letter',orientation:esHorizontal(paginas[0])?'landscape':'portrait'});
+    for(let i=0;i<paginas.length;i++){
+      if(progreso)progreso.querySelector('[role=status]').textContent='Generando página '+(i+1)+' de '+paginas.length+'…';
+      const pagina=paginas[i],horizontalPagina=esHorizontal(pagina),ancho=horizontalPagina?263.4:199.9,alto=horizontalPagina?199.9:263.4;pagina.style.width=ancho+'mm';
+      // El motor toma el viewport del iframe para centrar su contenedor temporal.
+      // Debe tener la misma anchura que la página, también en lotes mixtos.
+      frame.style.width=Math.ceil(ancho*96/25.4)+'px';
+      frame.contentDocument.documentElement.style.width=ancho+'mm';
+      frame.contentDocument.body.style.width=ancho+'mm';
+      const estilo=frame.contentWindow.getComputedStyle(pagina);pagina.style.fontSize=estilo.fontSize;pagina.style.fontFamily=estilo.fontFamily;
+      // Capturar una copia aislada evita que el ancho y la posición del lote
+      // horizontal recorten las páginas verticales en html2canvas.
+      const copia=pagina.cloneNode(true),contenedor=frame.contentDocument.createElement('div');
+      contenedor.style.cssText='position:absolute;left:0;top:0;width:'+ancho+'mm;background:#fff;z-index:10';
+      copia.style.width=ancho+'mm';contenedor.append(copia);frame.contentDocument.body.append(contenedor);
+      let canvas;
+      try{canvas=await tiempoPDF(motor().set({margin:8,jsPDF:{unit:'mm',format:'letter',orientation:horizontalPagina?'landscape':'portrait'},html2canvas:{scale:2,foreignObjectRendering:true,allowTaint:false,useCORS:true,imageTimeout:8000,backgroundColor:'#ffffff',scrollX:0,scrollY:0,windowWidth:Math.ceil(ancho*96/25.4)},pagebreak:{mode:[],avoid:[]}}).from(copia).toCanvas().get('canvas'),60000,'No se pudo preparar una página del PDF.');}finally{contenedor.remove();}
+      if(!canvas.width||!canvas.height)throw Error('La página generada está vacía.');
+      const proporcion=Math.min(ancho/canvas.width,alto/canvas.height);
+      if(i)pdf.addPage('letter',horizontalPagina?'landscape':'portrait');
+      pdf.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',8,8,canvas.width*proporcion,canvas.height*proporcion);
+      canvas.width=1;canvas.height=1;
+    }
+    return pdf.output('blob');
+  }
   async function pdf(documento){
-    if(!documento?.html)documento=null;
+    if(!documento?.html&&!documento?.todosModulos)documento=null;
     if((!actual&&!documento)||estado().guardando||exportando||!await confirmarPDF())return;
     const ctx=actual;exportando=true;actualizarPie();let frame,progreso;
     try{
       progreso=progresoPDF();
       if(typeof window.html2pdf!=='function'){aviso('Selecciona Guardar como PDF en la ventana de impresión.');ctx.tipo==='boletin'?window.imprimirCentralizadorOficial():window.imprimirRegistroOficial(true);return;}
-      const doc=documento||window.documentoNotasMovil(ctx.tipo),esRegistro=doc.tipo==='registro'||(!documento&&ctx?.tipo==='registro'),ancho=doc.horizontal?263.4:199.9,anchoPixeles=Math.ceil(ancho*96/25.4);
+      if(ctx?.tipo==='registro')await window.ceaCriterios?.awaitReady(window.estadoNotasMovil?.().registro?.id);
+      const doc=documento?.todosModulos&&!documento.html?await window.documentosTodosModulosCalif(documento.modoImpresion):documento||window.documentoNotasMovil(ctx.tipo),esRegistro=doc.tipo==='registro'||(!documento&&ctx?.tipo==='registro'),ancho=doc.horizontal?263.4:199.9,anchoPixeles=Math.ceil(ancho*96/25.4);
       aviso('Generando PDF…');let listo;
       if(esRegistro){frame=window.crearDocumentoCalif(doc.html,doc.horizontal);listo=frame.documentoListo;}
       else{
         frame=document.createElement('iframe');frame.className='notas-movil-pdf-frame';frame.title='Documento académico PDF';frame.style.cssText='position:fixed;left:-12000px;top:0;width:'+anchoPixeles+'px;height:1000px;border:0';
         listo=new Promise((resolve,reject)=>{frame.onload=resolve;frame.onerror=()=>reject(Error('No se pudo preparar el documento PDF.'));});
-        frame.srcdoc='<!doctype html><html><head><meta charset="UTF-8"><base href="'+esc(document.baseURI)+'"><link rel="stylesheet" href="calificaciones-impresion.css?v=73.97"><style>html,body{margin:0;padding:0;width:'+ancho+'mm;max-width:none;background:white}.cen-doc-page{width:100%!important;max-width:none!important;box-sizing:border-box}</style></head><body>'+doc.html+'</body></html>';
+        frame.srcdoc='<!doctype html><html><head><meta charset="UTF-8"><base href="'+esc(document.baseURI)+'"><link rel="stylesheet" href="calificaciones-impresion.css?v=73.99"><style>html,body{margin:0;padding:0;width:'+ancho+'mm;max-width:none;background:white}.cen-doc-page{width:100%!important;max-width:none!important;box-sizing:border-box}</style></head><body>'+doc.html+'</body></html>';
         document.body.append(frame);
       }
       await tiempoPDF(listo,15000,'No se pudo preparar el documento. Intenta nuevamente.');const contenido=frame.contentDocument;
@@ -152,7 +190,7 @@
         const cargado=new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=()=>reject(Error('No se pudo cargar el generador PDF.'));});contenido.head.append(script);await tiempoPDF(cargado,15000,'No se pudo cargar el generador PDF.');motor=frame.contentWindow.html2pdf;
       }
       const nombre=doc.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'_').slice(0,180)+'.pdf';
-      const archivo=await tiempoPDF(motor().set({margin:8,filename:nombre,image:{type:'jpeg',quality:.96},html2canvas:{scale:Math.min(2,Math.max(1,Math.sqrt(12000000/Math.max(1,papel.scrollWidth*papel.scrollHeight)))),allowTaint:false,useCORS:true,foreignObjectRendering:esRegistro,imageTimeout:8000,scrollX:0,scrollY:0,windowWidth:anchoPixeles,onclone:doc=>{doc.querySelectorAll('.notas-pdf-contenido img').forEach(img=>{if(!/^data:image\/(png|jpeg|webp);base64,/i.test(img.src))img.remove();});}},jsPDF:{unit:'mm',format:'letter',orientation:doc.horizontal?'landscape':'portrait'},pagebreak:{mode:['css','legacy'],avoid:['tr','.criterios-print-cierre','.calif-print-signatures']}}).from(papel).outputPdf('blob'),90000,'La generación está tardando demasiado. Intenta nuevamente.');
+      const archivo=esRegistro?await convertirPaginasRegistroPDF(motor,frame,papel,doc.horizontal,progreso):await tiempoPDF(motor().set({margin:8,filename:nombre,image:{type:'jpeg',quality:.96},html2canvas:{scale:Math.min(2,Math.max(1,Math.sqrt(12000000/Math.max(1,papel.scrollWidth*papel.scrollHeight)))),allowTaint:false,useCORS:true,foreignObjectRendering:esRegistro,imageTimeout:8000,scrollX:0,scrollY:0,windowWidth:anchoPixeles,onclone:doc=>{doc.querySelectorAll('.notas-pdf-contenido img').forEach(img=>{if(!/^data:image\/(png|jpeg|webp);base64,/i.test(img.src))img.remove();});}},jsPDF:{unit:'mm',format:'letter',orientation:doc.horizontal?'landscape':'portrait'},pagebreak:{mode:['css','legacy'],avoid:['tr','.criterios-print-cierre','.calif-print-signatures']}}).from(papel).outputPdf('blob'),90000,'La generación está tardando demasiado. Intenta nuevamente.');
       if(!archivo||archivo.type!=='application/pdf'||archivo.size<1000)throw Error('El documento generado está vacío.');
       progreso.close();progreso.remove();progreso=null;
       presentarPDF(archivo,nombre);
@@ -175,7 +213,7 @@
   function actualizarPie(){
     if(!actual)return;
     let pie=document.querySelector('.notas-movil-pie');
-    if(!pie){pie=document.createElement('div');pie.className='notas-movil-pie';pie.dataset.notasMovilUi='true';pie.innerHTML='<p role="status" aria-live="polite"></p><div><button type="button" data-movil-pdf>Guardar PDF</button><button type="button" data-movil-guardar>Guardar</button></div>';if(typeof pie.showPopover==='function')pie.setAttribute('popover','manual');document.body.append(pie);if(pie.hasAttribute('popover'))pie.showPopover();pie.querySelector('[data-movil-pdf]').onclick=pdf;pie.querySelector('[data-movil-guardar]').onclick=guardar;}
+    if(!pie){pie=document.createElement('div');pie.className='notas-movil-pie';pie.dataset.notasMovilUi='true';pie.innerHTML='<p role="status" aria-live="polite"></p><div><button type="button" data-movil-pdf>Guardar PDF</button><button type="button" data-movil-guardar>Guardar</button></div>';if(typeof pie.showPopover==='function')pie.setAttribute('popover','manual');document.body.append(pie);if(pie.hasAttribute('popover'))pie.showPopover();pie.querySelector('[data-movil-pdf]').onclick=opcionesPDF;pie.querySelector('[data-movil-guardar]').onclick=guardar;}
     if(pie._ribbon!==actual.ribbon){pie.querySelector('[role=status]').textContent='';pie._ribbon=actual.ribbon;pie._pendiente=false;}
     const e=estado(),save=pie.querySelector('[data-movil-guardar]');save.hidden=!e.pendiente&&!e.guardando;save.disabled=e.guardando||exportando;save.textContent=e.guardando?'Guardando…':'Guardar';save.setAttribute('aria-busy',String(e.guardando));
     pie.dataset.pendiente=String(!!e.pendiente);
@@ -203,7 +241,14 @@
     const nombreModulo=ctx.root.querySelector('[data-nombre-modulo-humanistica]');if(nombreModulo){const label=document.createElement('label');label.textContent='Nombre del módulo';const input=nombreModulo.cloneNode();input.removeAttribute('id');input.value=nombreModulo.value;input.oninput=()=>{nombreModulo.value=input.value;};label.append(input);selects.append(label);}
     ctx.root.querySelectorAll('input[type=checkbox]').forEach(origen=>{if(origen.closest('table,.criterios-panel,[data-notas-movil-ui]'))return;const label=document.createElement('label'),input=origen.cloneNode();input.removeAttribute('id');input.removeAttribute('onchange');input.removeAttribute('onclick');input.checked=origen.checked;input.onchange=()=>{origen.checked=input.checked;origen.dispatchEvent(new Event('change',{bubbles:true}));};label.append(input,' '+(origen.closest('label')?.textContent.replace(/\s+/g,' ').trim()||'Notas subidas'));selects.append(label);});
     const agregar=(texto,fn,disabled=false)=>{const b=document.createElement('button');b.type='button';b.textContent=texto;b.disabled=disabled;b.onclick=()=>{cerrar();fn();};acciones.append(b);};
-    agregar('Guardar notas',guardar,!estado().pendiente||estado().guardando||exportando);agregar('Guardar PDF',pdf,estado().guardando||exportando);agregar('Imprimir',()=>ctx.tipo==='boletin'?window.imprimirCentralizadorOficial():window.imprimirRegistroOficial());
+    agregar('Guardar notas',guardar,!estado().pendiente||estado().guardando||exportando);agregar('Guardar PDF',opcionesPDF,estado().guardando||exportando);
+    if(ctx.tipo==='boletin')agregar('Imprimir',()=>window.imprimirCentralizadorOficial());
+    else {
+      // En teléfono no se oculta la decisión de alcance detrás de una impresión directa:
+      // se distingue claramente la planilla visible del lote completo.
+      agregar('Imprimir este módulo',()=>window.imprimirRegistroOficial());
+      agregar('Imprimir todos los módulos',()=>window.imprimirOpcionesRegistro());
+    }
     const publicar=ctx.root.querySelector('[data-publicar-registro],[data-publicar-boletin]');
     const botones=[...(publicar?[publicar]:[]),...ctx.root.querySelectorAll('button')];
     botones.forEach(b=>{
@@ -256,7 +301,7 @@
       [...ctx.root.children].filter(el=>el!==actual.ribbon&&el.tagName!=='TEMPLATE'&&!el.querySelector('table.cen-digital-table,table.calif-revisar-table-clean')).forEach(el=>marcar(el,'notas-movil-origen'));
       const tabla=ctx.root.querySelector('table.cen-digital-table,table.calif-revisar-table-clean');marcar(tabla?.parentElement,'notas-movil-tabla-contenedor');tabla?.parentElement.querySelectorAll(':scope > div:not(.boletin-tabla-movil)').forEach(el=>marcar(el,'notas-movil-origen'));
     }
-    actualizarPie();
+    window.prepararSelectoresNotasMovil?.();actualizarPie();
   }
   function programar(){if(pendiente)return;pendiente=true;requestAnimationFrame(()=>{pendiente=false;actualizar();});}
   function iniciar(){

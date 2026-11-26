@@ -390,6 +390,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
       const control=e.target.dataset.control;if(!control)return;
       if(control==='alumno'){s.alumno=e.target.value;dibujar(s);return;}
       if(control==='dimension'){s.dimension=e.target.value;dibujar(s);return;}
+      if(control==='habilitado'){s.data.habilitado=e.target.checked;dibujar(s);window.dispatchEvent(new Event('cea-edicion-academica'));return;}
       if(control==='sobre100'){
         const sobre=e.target.checked;
         const anteriores=s.detalles.flatMap(d=>dimensionesConversion(s).map(dim=>({d,dim,m:media(s,d.id,dim)})));
@@ -444,7 +445,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
       const habilitado=estado?.token===sesion().token?estado.data.habilitado:dato?.habilitado;
       return '<section class="criterios-panel" data-criterios-inicial aria-label="Evaluación por criterios"><div class="criterios-interruptores"><label><input type="checkbox" role="switch" data-control="habilitado" '+(habilitado?'checked':'')+'> Evaluar con criterios</label></div><div data-estado-carga role="status" aria-live="polite"></div></section>';
     },
-    async awaitReady(id){const carga=cargas.get(id);if(!carga||carga.token!==sesion().token||carga.intencion==null)return;const resultado=await carga.lista;if(resultado.error)throw resultado.error;},
+    async awaitReady(id){const carga=cargas.get(id);if(!carga||carga.token!==sesion().token)return;const resultado=await carga.lista;if(resultado.error)throw resultado.error;},
     epoch:()=>epocaCache,
     preload(datos,token,epoca=epocaCache){
       if(epoca!==epocaCache||token!==sesion().token||sesion().role!=='docente'||!Array.isArray(datos))return;
@@ -470,7 +471,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
       const carga={host,token,intencion:typeof opciones.habilitadoPendiente==='boolean'?opciones.habilitadoPendiente:anteriorCarga?.token===token?anteriorCarga.intencion:null};
       carga.lista=new Promise(resolve=>{carga.resolver=resolve;});cargas.set(registro.id,carga);
       host.innerHTML='<div class="criterios-interruptores"><label><input type="checkbox" role="switch" data-control="habilitado" '+((carga.intencion??existente?.data.habilitado)?'checked':'')+'> Evaluar con criterios</label><span class="criterios-consulta-indicador" role="status" aria-label="Consultando opciones guardadas"></span></div><div data-estado-carga role="status" aria-live="polite"></div>';
-      const elegir=e=>{if(e.target.dataset.control==='habilitado'){carga.intencion=e.target.checked;window.registrarCambioCriteriosCalif?.();}};
+      const elegir=e=>{if(e.target.dataset.control==='habilitado')carga.intencion=e.target.checked;};
       host.addEventListener('change',elegir);
       try{
         const clave=claveCache(token,registro.id);
@@ -484,13 +485,13 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
         host.removeEventListener('change',elegir);
         const cambio=carga.intencion!=null&&data.habilitado!==carga.intencion;
         if(carga.intencion!=null)data.habilitado=carga.intencion;
-        estados.set(registro.id,s);vincular(s);dibujar(s);if(cambio)marcar(s);
+        estados.set(registro.id,s);vincular(s);dibujar(s);
       }catch(error){carga.error=error;if(host.isConnected){host.querySelector('.criterios-consulta-indicador')?.remove();const estado=host.querySelector('[data-estado-carga]');if(estado){estado.textContent='No se pudieron recuperar los criterios. '+error.message;const b=document.createElement('button');b.type='button';b.textContent='Reintentar';b.onclick=()=>api.mount(container,registro,detalles,modo,{...opciones,habilitadoPendiente:carga.intencion});estado.append(b);}}}
       finally{carga.resolver({error:carga.error});if(!carga.error&&cargas.get(registro.id)===carga)cargas.delete(registro.id);}
 
     },
     payload(registro,detalles,cambios) {
-      const s=estados.get(registro.id);if(!s||s.version===s.confirmada||sesion().role!=='docente'||sesion().token!==s.token)return null;
+      const s=estados.get(registro.id);if(!s||(s.version===s.confirmada&&s.data.habilitado===s.original.habilitado)||sesion().role!=='docente'||sesion().token!==s.token)return null;
       const ids=new Set(detalles.map(d=>String(d.id)));
       const notas=[...s.notas].map(([k,valor])=>{const [detalleId,criterioId]=JSON.parse(k);return {detalleId,criterioId,valor,origen:s.origenes.get(k)||'manual'};}).filter(n=>ids.has(n.detalleId));
       for(const n of notas){const c=s.data.criterios.find(c=>c.id===n.criterioId),max=s.data.sobre100?100:limites(registro.tipo)[c.dimension];if(n.valor!==''&&(!Number.isFinite(n.valor)||n.valor<0||n.valor>max))throw Error(`Hay notas de criterios fuera del rango 0–${max}.`);}
@@ -517,8 +518,18 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
       setTimeout(()=>{dibujar(s);if(s.version===s.confirmada)s.host.querySelector('[data-estado-criterios]').textContent='Criterios y resultados guardados y confirmados.';},0);
     },
     discard(id){const carga=cargas.get(id);if(carga){carga.intencion=null;const control=carga.host.querySelector('[data-control="habilitado"]');if(control)control.checked=false;}const s=estados.get(id);if(!s)return;s.data=structuredClone(s.original);s.notas=new Map(s.data.notas.map(n=>[key(n.detalleId,n.criterioId),n.valor]));s.origenes=new Map(s.data.notas.map(n=>[key(n.detalleId,n.criterioId),n.origen||'manual']));s.editables.clear();s.version=s.confirmada=0;s.tocadas.clear();s.forzadas.clear();s.eliminados.clear();dibujar(s);},
-    print(registro,detalles){
-      const s=estados.get(registro.id);if(!s||!s.data.habilitado||s.token!==sesion().token||sesion().role!=='docente')return '';
+    async printSnapshot(registro,detalles,habilitado='automatico',consultar=true){
+      if(sesion().role!=='docente'||!habilitado)return '';
+      const existente=estados.get(registro.id),token=sesion().token;
+      const data=existente?.token===token?structuredClone(existente.data):consultar?await consultarCriterios(registro,token):{criterios:[],notas:[],resultados:[],sobre100:false};
+      if(token!==sesion().token)throw Error('La sesión cambió.');
+      if(habilitado==='automatico'&&!data.habilitado)return '';
+      const s={token,registro,detalles,data:{...data,habilitado:true},notas:existente?.token===token?new Map(existente.notas):new Map(data.notas.map(n=>[key(n.detalleId,n.criterioId),n.valor]))};
+      return api.print(registro,detalles,s);
+    },
+    enabled(id){const s=estados.get(id);return Boolean(s&&s.token===sesion().token&&s.data.habilitado);},
+    print(registro,detalles,instantanea){
+      const s=instantanea||estados.get(registro.id);if(!s||!s.data.habilitado||s.token!==sesion().token||sesion().role!=='docente')return '';
       const plantilla=document.createElement('template');plantilla.innerHTML=window.generarHTMLImpresionCalif(registro,detalles);
       const extra=clase=>plantilla.content.querySelector('.'+clase)?.outerHTML||'';
       const cabecera=extra('calif-print-header')+extra('calif-print-meta-grid'),estadisticas=extra('calif-print-stats-box'),firmas=extra('calif-print-signatures');
@@ -562,7 +573,7 @@ function distribuirCriteriosCEA(nota, maximo, escala, cantidad, semilla) {
     },
     dimensionEdit(id,detalle,dimension,v){const s=estados.get(id);if(!s||s.aplicando||s.token!==sesion().token)return;const actual=s.detalles.find(d=>String(d.id)===String(detalle.id));if(actual)Object.assign(actual,detalle);ajustar(s,detalle,dimension,v);refrescar(s);},
     lock(id){const s=estados.get(id);if(s){s.editables.clear();bloquearPromedios(s);refrescar(s);}},
-    pending(){return [...cargas.values()].some(c=>c.token===sesion().token&&c.intencion!=null&&c.host.isConnected&&c.host.getClientRects().length)||[...estados.values()].some(s=>s.token===sesion().token&&sesion().role==='docente'&&(s.version!==s.confirmada||(s.data.habilitado&&window.hayNotasRegistroPendientesCalif?.(s.registro.id)))&&s.host.isConnected&&s.host.getClientRects().length);},
+    pending(){return [...estados.values()].some(s=>s.token===sesion().token&&sesion().role==='docente'&&(s.version!==s.confirmada||(s.data.habilitado&&window.hayNotasRegistroPendientesCalif?.(s.registro.id)))&&s.host.isConnected&&s.host.getClientRects().length);},
     refresh(id,detalles){const s=estados.get(id);if(s){if(detalles)s.detalles=detalles;else if(window._registroActivo?.id===id&&window._detallesActivos)s.detalles=window._detallesActivos;refrescar(s);}},
     clear(){for(const s of estados.values())s.observadorAncho?.disconnect();for(const c of cargas.values())c.resolver({error:Error("La sesión cambió.")});cargas.clear();epocaCache++;precargados.clear();consultas.clear();document.querySelectorAll('.calif-con-criterios').forEach(el=>el.classList.remove('calif-con-criterios'));estados.clear();document.querySelectorAll('.criterios-dialog, .criterios-panel, .criterios-menu').forEach(d=>d.remove());}
   };

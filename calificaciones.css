@@ -5137,7 +5137,7 @@ body.acceso-panel-pendiente :is(#admin-panel, #docente-panel) { display: none !i
 #admin-stage-topbar .calif-acciones-barra-superior,
 #docente-stage-topbar .calif-acciones-barra-superior {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 8px;
   flex: 0 0 100%;
@@ -5147,6 +5147,7 @@ body.acceso-panel-pendiente :is(#admin-panel, #docente-panel) { display: none !i
 }
 .calif-info-acciones { min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; overflow-wrap: anywhere; }
 .calif-acciones-barra-superior > button { margin: 0 !important; min-height: 44px; white-space: nowrap; }
+@media (min-width:901px) { .calif-acciones-barra-superior > button { width:auto !important; justify-self:end; } }
 button.calif-guardar-destacado {
   background: #facc15 !important;
   color: #362900 !important;

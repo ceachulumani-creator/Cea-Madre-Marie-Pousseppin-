@@ -570,7 +570,7 @@ function lsGet(key, def) {
 function lsSet(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
   if (!_aplicandoDatosRemotos && _inicializacionCompleta && typeof key === 'string' && key.startsWith('cea_')) {
-    const kIgnore = ['cea_session', 'cea_gsheet_url', 'cea_visitas', 'cea_dark_override', 'cea_inscripciones'];
+    const kIgnore = ['cea_docentes','cea_docentes_asignaciones','cea_docentes_eliminados','cea_session', 'cea_gsheet_url', 'cea_visitas', 'cea_dark_override', 'cea_inscripciones'];
     if (!kIgnore.includes(key) && !ceaPersistencia.privateKey(key)) {
       _ultimaEdicionLocalTimestamp = Date.now();
       programarSincronizacionGlobalCEA(key);
@@ -2714,20 +2714,35 @@ window.addEventListener('beforeunload', event => {
   event.returnValue = '';
 });
 
-async function guardarPaqueteDocentesConfirmado(paquete, revision) {
+let colaMutacionesDocentes=Promise.resolve();
+const docentesEnEliminacion=new Set();
+function ejecutarMutacionDocente(tarea){const turno=colaMutacionesDocentes.catch(()=>{}).then(tarea);colaMutacionesDocentes=turno;return turno;}
+function guardarPaqueteDocentesConfirmado(paquete,revision){
+  const copia=structuredClone(paquete),token=getSessionToken();
+  return ejecutarMutacionDocente(()=>{
+    if(revision!==revisionEdicionDocentes)return false;
+    if(token!==getSessionToken())throw Error('La sesión cambió. Vuelve a ingresar.');
+    const omitidos=new Set([...lsGet('cea_docentes_eliminados',[]),...docentesEnEliminacion]);
+    const nombresOmitidos=new Set([...omitidos].map(k=>copia.docentes?.[k]).filter(Boolean));
+    for(const campo of ['docentes','usuarios'])if(copia[campo])for(const key of omitidos)delete copia[campo][key];
+    if(copia.carreras){copia.carrerasDocentes=copia.carreras.filter(c=>!omitidos.has(c.key)&&!nombresOmitidos.has(c.docente)).map(c=>({key:c.key,docente:c.docente||''}));delete copia.carreras;}
+    return guardarPaqueteDocentesAhora(copia,revision);
+  });
+}
+async function guardarPaqueteDocentesAhora(paquete, revision) {
   guardadosDocentesEnCurso++;
   try {
-    const respuesta = await enviarGoogleSheet({action:'guardar-docentes-completo', ...paquete});
-    if (respuesta?.status !== 'success' || !respuesta.docentesConfirmados) throw new Error('No se confirmó el guardado. Actualiza la implementación de Apps Script y vuelve a guardar.');
-    if (Object.entries(paquete.docentes).some(([key,nombre]) => respuesta.docentesConfirmados[key] !== String(nombre))) throw new Error('No se confirmaron todos los nombres. Vuelve a guardar.');
-    if (revision !== revisionEdicionDocentes) {
-      mostrarMsg('msg-docentes-unificados', 'Se guardó la versión enviada. Hay cambios nuevos pendientes de guardar.', 'info');
-      return false;
+    const respuesta=await enviarGoogleSheet({action:'guardar-docentes-completo',...paquete});
+    if(respuesta?.status!=='success'||!respuesta.docentesConfirmados)throw Error('No se confirmó el guardado. Actualiza Apps Script y vuelve a guardar.');
+    if(Object.entries(paquete.docentes).some(([key,nombre])=>respuesta.docentesConfirmados[key]!==String(nombre)))throw Error('No se confirmaron todos los nombres. Vuelve a guardar.');
+    if(revision!==revisionEdicionDocentes){mostrarMsg('msg-docentes-unificados','Se guardó la versión enviada. Hay cambios nuevos pendientes de guardar.','info');return false;}
+    if(respuesta.usuariosConfirmados){
+      const usuarios=lsGet('cea_usuarios_docentes',{});
+      for(const [key,cuenta]of Object.entries(respuesta.usuariosConfirmados)){const clave=paquete.usuarios?.[key]?.pass;if(clave&&!String(clave).startsWith('cea$'))credencialesDocentesActuales.set(key,String(clave));usuarios[key]={...usuarios[key],...cuenta,pass:''};}
+      lsSet('cea_usuarios_docentes',usuarios);
     }
-    docentesSinConfirmar = false;
-    mostrarMsg('msg-docentes-unificados', 'Datos guardados y confirmados. Ya puedes salir o cerrar la página.', 'success');
-    return true;
-  } finally { guardadosDocentesEnCurso--; }
+    docentesSinConfirmar=false;mostrarMsg('msg-docentes-unificados','Datos guardados y confirmados. Ya puedes salir o cerrar la página.','success');return true;
+  }finally{guardadosDocentesEnCurso--;}
 }
 
 function autoGuardarCredencialDocente(inp) {
@@ -2756,7 +2771,7 @@ function autoGuardarCredencialDocente(inp) {
   const escrita = passInp ? passInp.value.trim() : '';
   const passVal = escrita === credencialesDocentesActuales.get(docKey) ? '' : escrita;
   const esComision = chkCom ? chkCom.checked : false;
-  const areaTipo = card.dataset.area || (asigKey.startsWith('hum') ? 'hum' : 'tec');
+  const areaTipo = asigKey.startsWith('hum')?'hum':asigKey.startsWith('tec')?'tec':card.dataset.area||'tec';
 
   // 1. Guardar de inmediato en LocalStorage por docKey único
   const usuarios = lsGet('cea_usuarios_docentes', typeof USUARIOS_DOCENTES_DEFAULT !== 'undefined' ? USUARIOS_DOCENTES_DEFAULT : {});
@@ -2790,7 +2805,7 @@ function autoGuardarCredencialDocente(inp) {
   const aItem = areas.find(a => a.key === asigKey);
   if (aItem && (!aItem.docente || aItem.docente === nombre)) {
     aItem.docente = nombre;
-    lsSet('cea_areas_tec', areas);
+    localStorage.setItem('cea_areas_tec',JSON.stringify(areas));
   }
 
   _ultimaEdicionLocalTimestamp = Date.now();
@@ -2832,7 +2847,7 @@ function renderDocenteCardAdmin(doc, idx, areaTipo) {
         <input type="text" class="doc-input-nombre" value="${escapeHTML(doc.nombre)}" placeholder="Nombre del docente..." style="flex:1.4;min-width:140px;box-sizing:border-box;padding:6px 9px;font-size:0.88rem;font-weight:800;border:2px solid var(--verde);border-radius:6px;background:var(--bg-body);color:var(--text-main);font-family:inherit;outline:none" title="Nombre completo del docente" oninput="autoGuardarCredencialDocente(this)" onchange="autoGuardarCredencialDocente(this)" />
         
         <select class="doc-select-carrera" style="flex:1.2;min-width:120px;box-sizing:border-box;padding:6px 8px;font-size:0.80rem;font-weight:700;border:1.5px solid var(--border-col);border-radius:6px;background:var(--bg-body);color:var(--text-main);font-family:inherit" title="Materia o Carrera asignada" onchange="autoGuardarCredencialDocente(this)">
-          ${generarOpcionesAsignacion(doc.area, doc.asigKey)}
+          ${generarOpcionesAsignacion('todas', doc.asigKey)}
         </select>
 
         <label for="chk-com-${idx}-${areaTipo}" style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;font-weight:700;color:var(--verde-dark);cursor:pointer;user-select:none;background:var(--verde-light);padding:4px 8px;border-radius:6px;border:1px dashed var(--verde);white-space:nowrap" title="Marcar si es miembro de la comisión pedagógica">
@@ -3041,7 +3056,7 @@ function cargarDocentesUnificados() {
     const asig = asignaciones[docKey] || {};
     const u = usuarios[docKey] || {};
     const asigFinal = asig.asigKey || u.asigKey || asigKey || docKey;
-    const areaFinal = asig.area || u.area || areaTipo || (asigFinal.startsWith('hum') ? 'hum' : 'tec');
+    const areaFinal = asigFinal.startsWith('hum')?'hum':asigFinal.startsWith('tec')?'tec':asig.area||u.area||areaTipo||'tec';
     const nom = (d && d[docKey] !== undefined) ? d[docKey] : (asig.nombre || nombreDef || '');
 
     const defPass = ''; 
@@ -3324,7 +3339,9 @@ async function eliminarDocenteCardOElemento(btn) {
   mostrarMsg('msg-docentes-unificados', 'Eliminando docente…', 'info');
   clearTimeout(_timerAutoGuardarDocente);
   try {
-    const result = await enviarGoogleSheet({action:'eliminar-docente', codigo});
+    ++revisionEdicionDocentes;
+    docentesEnEliminacion.add(codigo);
+    const result = await ejecutarMutacionDocente(()=>enviarGoogleSheet({action:'eliminar-docente', codigo}));
     if (result?.status !== 'success' || result.codigo !== codigo || !result.docentesEliminados?.includes(codigo)) throw new Error('El servidor no confirmó la eliminación. Actualiza su implementación y vuelve a consultar.');
     if (getSessionToken() !== token) return;
     _ultimaEdicionLocalTimestamp = Math.max(Date.now(), _ultimaEdicionLocalTimestamp + 1);
@@ -3338,13 +3355,13 @@ async function eliminarDocenteCardOElemento(btn) {
         lsSet(campo, datos);
       }
     } finally { _aplicandoDatosRemotos = anterior; }
-    cargarDocentes();
-    try { await cargarDatosGoogleSheets(true, {silencioso:true, acceso:true}); }
-    catch (_) { mostrarMsg('msg-docentes-unificados', 'Docente eliminado. No se pudo actualizar el resto de la vista; vuelve a consultar.', 'info'); return; }
+    const areas=lsGet('cea_areas_tec',AREAS_TEC_DEFAULT);for(const area of areas)if(area.key===result.areaKey&&(area.docente===nombre||area.docente===codigo))area.docente=result.docenteReemplazo||'';localStorage.setItem('cea_areas_tec',JSON.stringify(areas));
+    card.remove();cargarDocentes();
     mostrarMsg('msg-docentes-unificados', 'Docente eliminado correctamente.', 'success');
   } catch (error) {
     mostrarMsg('msg-docentes-unificados', 'No se pudo eliminar. ' + error.message, 'error');
   } finally {
+    docentesEnEliminacion.delete(codigo);
     btn.disabled = false;
     card.removeAttribute('aria-busy');
   }
@@ -3426,7 +3443,8 @@ async function guardarDocentesUnificados() {
   if (guardandoDocentesManualmente) return false;
   clearTimeout(_timerAutoGuardarDocente);
   const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
-  const elements = document.querySelectorAll('.docente-admin-card, .fila-docente-unificado, #tbody-docentes-unificados tr');
+  const claves=new Set();
+  const elements=[...document.querySelectorAll('.docente-admin-card'),...document.querySelectorAll('.fila-docente-unificado,#tbody-docentes-unificados tr')].filter(r=>{const key=r.dataset.key;if(!key)return true;if(claves.has(key))return false;claves.add(key);return true;});
   if (!elements.length) {
     mostrarMsg('msg-docentes-unificados', 'No hay docentes para guardar.', 'error');
     return;
@@ -3447,7 +3465,7 @@ async function guardarDocentesUnificados() {
     const userVal = (r.querySelector('.doc-user-inp')?.value || '').trim();
     const passVal = (r.querySelector('.doc-pass-inp')?.value || '').trim();
     const esComision = r.querySelector('.doc-chk-comision')?.checked || false;
-    const areaTipo = r.dataset.area || (asigKey.startsWith('hum') ? 'hum' : 'tec');
+    const areaTipo = asigKey.startsWith('hum')?'hum':asigKey.startsWith('tec')?'tec':r.dataset.area||'tec';
 
     const viejoNom = viejoDocentesMap[docKey] || viejoDocentesMap[asigKey];
     if (viejoNom && viejoNom !== nom) {
@@ -3485,7 +3503,7 @@ async function guardarDocentesUnificados() {
   });
 
   lsSet('cea_docentes', nuevoDocentesMap);
-  lsSet('cea_areas_tec', areas);
+  localStorage.setItem('cea_areas_tec',JSON.stringify(areas));
   lsSet('cea_usuarios_docentes', nuevoUsuariosMap);
   lsSet('cea_docentes_asignaciones', asignacionesMap);
 
@@ -3506,7 +3524,7 @@ async function guardarDocentesUnificados() {
   botonesGuardar.forEach(({boton}) => {boton.disabled=true;boton.textContent='Guardando…';boton.setAttribute('aria-busy','true');});
   try {
     const confirmado = await guardarPaqueteDocentesConfirmado({docentes:nuevoDocentesMap, carreras:areas, usuarios:nuevoUsuariosMap}, revision);
-    if (confirmado) await refrescarCredencialesDocentesDesdeServidor();
+    if(confirmado)cargarDocentes();
     return confirmado;
   } catch (error) {
     mostrarMsg('msg-docentes-unificados', 'No se guardaron los cambios. ' + error.message, 'error');
@@ -21883,7 +21901,7 @@ function renderMallaDocenteEditor(areaKey) {
   const mallaValida = asegurarMallaOficialCarrera(areaObj);
   if (idx >= 0) {
     areas[idx].malla = mallaValida;
-    lsSet('cea_areas_tec', areas);
+    localStorage.setItem('cea_areas_tec',JSON.stringify(areas));
   }
 
   const nivelesInfo = [
@@ -21962,50 +21980,29 @@ async function guardarMiMallaDocente(areaKey) {
     }
   }
 
-  areas[idx].malla = nuevaMalla;
-  lsSet('cea_areas_tec', areas);
-  _ultimaEdicionLocalTimestamp = Date.now();
-
-  cargarAreasTecSilencioso();
-  if (typeof cargarAreasTec === 'function') cargarAreasTec();
-
-  mostrarMsg('msg-doc-malla', 'Guardando y sincronizando malla curricular con Oferta Académica...', 'success');
-  mostrarToastLive('Guardando malla curricular...');
-
-  const res1 = await enviarGoogleSheet({ action: 'guardar-malla', carreraKey: areaKey, malla: nuevaMalla });
-  const res2 = await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
-
-  mostrarMsg('msg-doc-malla', '¡Malla Curricular oficial guardada y actualizada en Oferta Académica!', 'success');
-  mostrarToastLive('¡Malla curricular actualizada exitosamente en Oferta Académica!');
+  const botones=[...document.querySelectorAll('[onclick*="guardarMiMallaDocente"]')];
+  if(botones.some(b=>b.disabled))return false;
+  botones.forEach(b=>{b.disabled=true;b.setAttribute('aria-busy','true');});
+  mostrarMsg('msg-doc-malla','Guardando malla curricular…','info');
+  try{
+    const res=await enviarGoogleSheet({action:'guardar-malla',carreraKey:area.key,malla:nuevaMalla});
+    if(res?.status!=='success'||res.carreraKey!==area.key||!Array.isArray(res.mallaConfirmada)||res.mallaConfirmada.length!==20)throw Error('No se confirmó la malla. Actualiza Apps Script y vuelve a guardar.');
+    const actualizadas=lsGet('cea_areas_tec',AREAS_TEC_DEFAULT),actual=actualizadas.find(a=>a.key===area.key);
+    if(actual)actual.malla=nuevaMalla.map(n=>({...n,modulos:res.mallaConfirmada.filter(m=>m.nivel===n.nivel).map(m=>[m.codigo,m.nombre,m.numero])}));
+    localStorage.setItem('cea_areas_tec',JSON.stringify(actualizadas));_ultimaEdicionLocalTimestamp=Date.now();
+    cargarAreasTecSilencioso();if(typeof cargarAreasTec==='function')cargarAreasTec();
+    mostrarMsg('msg-doc-malla','Malla curricular guardada y confirmada.','success');return true;
+  }catch(error){mostrarMsg('msg-doc-malla','No se guardó la malla. '+error.message,'error');return false;}
+  finally{botones.forEach(b=>{b.disabled=false;b.removeAttribute('aria-busy');});}
 }
 
 async function restablecerMallaPorDefectoDocente(areaKey) {
-  const ok = await mostrarConfirmModal('¿Deseas restablecer los 20 módulos de la Malla Curricular a los valores oficiales por defecto del Ministerio de Educación?', 'Restablecer Malla por Defecto', 'Restablecer');
-  if (!ok) return;
-
-  const areas = lsGet('cea_areas_tec', AREAS_TEC_DEFAULT);
-  const idx = areas.findIndex(a => a.key === areaKey || a.docente === areaKey);
-  if (idx < 0) return;
-
-  const carOficial = BASE_CARRERAS_20.find(c => c.key === areas[idx].key || c.nombre.toLowerCase() === areas[idx].nombre.toLowerCase());
-  if (carOficial && carOficial.malla) {
-    areas[idx].malla = JSON.parse(JSON.stringify(carOficial.malla));
-  } else {
-    areas[idx].malla = asegurarMallaOficialCarrera(areas[idx]);
-  }
-
-  lsSet('cea_areas_tec', areas);
-  _ultimaEdicionLocalTimestamp = Date.now();
-
-  renderMallaDocenteEditor(areaKey);
-  cargarAreasTecSilencioso();
-  if (typeof cargarAreasTec === 'function') cargarAreasTec();
-
-  mostrarMsg('msg-doc-malla', 'Malla curricular restablecida a los 20 módulos oficiales por defecto.', 'success');
-  mostrarToastLive('Malla restablecida a los 20 módulos oficiales.');
-
-  await enviarGoogleSheet({ action: 'guardar-malla', carreraKey: areaKey, malla: areas[idx].malla });
-  await enviarGoogleSheet({ action: 'guardar-carreras', carreras: areas });
+  if(!await mostrarConfirmModal('¿Deseas restablecer los 20 módulos oficiales de la malla curricular?','Restablecer Malla por Defecto','Restablecer'))return false;
+  const area=lsGet('cea_areas_tec',AREAS_TEC_DEFAULT).find(a=>a.key===areaKey||a.docente===areaKey);if(!area)return false;
+  const oficial=BASE_CARRERAS_20.find(c=>c.key===area.key||c.nombre.toLowerCase()===area.nombre.toLowerCase());
+  const malla=structuredClone(oficial?.malla||asegurarMallaOficialCarrera({...area}));
+  malla.forEach((nivel,l)=>nivel.modulos.forEach((modulo,m)=>{const input=document.getElementById('doc-malla-mod-'+l+'-'+m);if(input)input.value=modulo[1]||'';}));
+  return guardarMiMallaDocente(area.key);
 }
 
 

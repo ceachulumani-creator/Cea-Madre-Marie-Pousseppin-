@@ -86,6 +86,13 @@
 @media(min-width:901px){.notas-movil-ribbon,.notas-movil-pie,.boletin-tabla-movil{display:none!important}}
 @media(prefers-reduced-motion:reduce){.notas-movil-pie [data-movil-guardar]{animation:none}.notas-movil-criterios input::after{transition:none}}
 @media print{.notas-movil-ribbon,.notas-movil-pie,.notas-movil-menu,.boletin-tabla-movil{display:none!important}}
+.notas-movil-pdf-alcance{width:min(500px,calc(100vw - 24px));box-sizing:border-box;padding:20px;border:1px solid #bad4c2;border-top:5px solid #14532d;border-radius:18px;background:#f7faf8;color:#193d28}
+.notas-movil-pdf-alcance::backdrop{background:#06201280;backdrop-filter:blur(3px)}
+.notas-pdf-opciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.notas-pdf-opciones button{min-width:0;min-height:58px;padding:10px;border:1px solid #b9d1c1;border-radius:10px;background:#fff;color:#14532d;font-weight:700;line-height:1.3}
+.notas-pdf-opciones [data-pdf-actual]{background:#facc15;border-color:#eab308;color:#3e3200}
+.notas-pdf-opciones [data-pdf-todos]{background:#14532d;border-color:#14532d;color:#fff}
+.notas-pdf-opciones [data-cancelar]{grid-column:1/-1;justify-self:center;min-height:44px;min-width:130px}
 @media screen and (max-width:900px){
   body.movil-grados-activos.movil-grados-activos.movil-grados-activos :is(#admin-stage-body,#admin-stage-content,#docente-stage-content){padding-left:0!important;padding-right:0!important;padding-top:0!important}
   body.movil-grados-activos.movil-grados-activos.movil-grados-activos :is(#admin-planilla-container,#docente-planilla-container)>.calif-card{padding:0!important;border:0!important;border-radius:0!important}
