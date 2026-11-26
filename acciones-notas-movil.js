@@ -242,7 +242,9 @@
     document.body.classList.toggle('notas-movil-teclado', teclado);
     pie.style.bottom=desfase+'px';if(viewport){pie.style.left=viewport.offsetLeft+'px';pie.style.width=viewport.width+'px';pie.style.right='auto';pie.style.boxSizing='border-box';}
     document.documentElement.style.setProperty('--notas-movil-pie',Math.ceil(teclado ? Math.max(0, innerHeight - viewport.height) : pie.getBoundingClientRect().height + 12 + desfase)+'px');
-    const header=actual.ribbon.closest('header');document.documentElement.style.setProperty('--notas-movil-header',Math.ceil(header.getBoundingClientRect().height)+'px');
+    const header = actual.ribbon.parentElement;
+    document.documentElement.style.setProperty('--notas-movil-header', Math.ceil(header.getBoundingClientRect().height) + 'px');
+    document.documentElement.style.setProperty('--notas-movil-vista', Math.floor(viewport?.height ?? innerHeight) + 'px');
   }
   function abrirMenu(){
     if(!actual)return;document.querySelector('.notas-movil-menu')?.close();
@@ -255,7 +257,21 @@
     if(f.modulos.length)selects.append(listaBotones(f.modulos,'Módulo','modulo'));
     const otras=ctx.tipo==='boletin'?f.selectores:[...ctx.ribbon.closest('header').querySelectorAll('select')].filter(s=>!s.closest('[data-notas-movil-ui]'));
     otras.filter(s=>s!==f.nivel&&s!==f.paralelo&&!s.disabled).forEach(s=>{const label=s.parentElement.querySelector('label')?.textContent.trim()||s.closest('label')?.firstChild?.textContent.trim()||'Selección';selects.append(copiarSelect(s,label));});
-    const sobre=ctx.root.querySelector('[data-control=sobre100]');if(sobre){const label=document.createElement('label');const input=sobre.cloneNode();input.removeAttribute('id');input.checked=sobre.checked;input.onchange=()=>{sobre.checked=input.checked;sobre.dispatchEvent(new Event('change',{bubbles:true}));};label.append(input,' Evaluar criterios sobre 100');selects.append(label);}
+    for (const [origen, texto] of [[f.criterios, 'Evaluar con criterios'],
+      [ctx.root.querySelector('[data-control=sobre100]'), 'Evaluar criterios sobre 100']]) {
+      if (!origen) continue;
+      const label = document.createElement('label');
+      const control = origen.cloneNode();
+      control.removeAttribute('id');
+      control.checked = origen.checked;
+      control.onchange = () => {
+        origen.checked = control.checked;
+        origen.dispatchEvent(new Event('change', {bubbles:true}));
+        programar();
+      };
+      label.append(control, ' ' + texto);
+      selects.append(label);
+    }
     const nombreModulo=ctx.root.querySelector('[data-nombre-modulo-humanistica]');if(nombreModulo){const label=document.createElement('label');label.textContent='Nombre del módulo';const input=nombreModulo.cloneNode();input.removeAttribute('id');input.value=nombreModulo.value;input.oninput=()=>{nombreModulo.value=input.value;};label.append(input);selects.append(label);}
     ctx.root.querySelectorAll('input[type=checkbox]').forEach(origen=>{if(origen.closest('table,.criterios-panel,[data-notas-movil-ui]'))return;const label=document.createElement('label'),input=origen.cloneNode();input.removeAttribute('id');input.removeAttribute('onchange');input.removeAttribute('onclick');input.checked=origen.checked;input.onchange=()=>{origen.checked=input.checked;origen.dispatchEvent(new Event('change',{bubbles:true}));};label.append(input,' '+(origen.closest('label')?.textContent.replace(/\s+/g,' ').trim()||'Notas subidas'));selects.append(label);});
     const agregar=(texto,fn,disabled=false)=>{const b=document.createElement('button');b.type='button';b.textContent=texto;b.disabled=disabled;b.onclick=()=>{cerrar();fn();};acciones.append(b);};
@@ -277,6 +293,11 @@
     });
     const afiliacion=[...document.querySelectorAll('.docente-sidebar-item,.admin-sidebar-item,.admin-sidebar-subitem')].find(b=>/afiliaci[oó]n/i.test(b.textContent));
     if(afiliacion)agregar('Afiliación de estudiantes',()=>afiliacion.click());
+    const controles = ctx.ribbon.parentElement.querySelector('.panel-ventana-controles');
+    for (const [clase, texto] of [['minimizar', 'Minimizar panel'], ['cerrar', 'Cerrar sesión']]) {
+      const original = controles?.querySelector('.panel-ventana-' + clase);
+      if (original) agregar(texto, () => original.click(), original.disabled);
+    }
     const estadisticas=ctx.root.querySelector('.calif-stats-pills');if(estadisticas){const detalle=document.createElement('details');detalle.innerHTML='<summary>Resumen de rendimiento</summary>';detalle.append(estadisticas.cloneNode(true));d.append(detalle);}
     document.body.append(d);window.mostrarDialogoAcademico?window.mostrarDialogoAcademico(d):d.showModal();
   }
