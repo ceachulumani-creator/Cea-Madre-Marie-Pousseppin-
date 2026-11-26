@@ -3598,6 +3598,9 @@ function filtrarDatosCEA(data, auth, precargarCriterios = false) {
     }
     data.criteriosEvaluaciones = data.calificacionesRegistros.map(reg => leerCriteriosEvaluacionCEA(ss, reg.id, auth, tablas));
   }
+  const estadosBoletin = ss.getSheetByName('Estados_Boletin');
+  data.estadosBoletin = Object.fromEntries((estadosBoletin?.getDataRange().getValues().slice(1) || [])
+    .filter(row => permisoAreaCEA(auth, row[1], false)).map(row => [String(row[0]), String(row[2])]));
   data._revisions = revisionesCEA(ss);
   data.nominaRespaldo = leerRespaldoNominaCEA(ss).filter(est => permisoAreaCEA(auth, est.areaKey, true));
   if (auth.r === 'director') {
@@ -3677,6 +3680,7 @@ function versionNotasCEA(ss, id) {
 
 function autorizarOperacionCEA(ss, data, auth) {
   const action = data.action;
+  if (action === 'guardar-estado-boletin') return;
   if (action === 'obtener-plantillas-criterios') {
     exigirCEA(auth.r === 'docente', 'Las plantillas de criterios corresponden al docente.', 'PERMISO');
     return;
@@ -3803,6 +3807,26 @@ function doPost(e) {
     if (auth) autorizarOperacionCEA(ss, data, auth);
     depurarDocentesEliminadosCEA(ss, data);
     if (data.action === 'login') return responseJSON(iniciarSesionCEA(ss, data));
+    if (data.action === 'guardar-estado-boletin') {
+      const clave = String(data.clave || '');
+      let partes;
+      try { partes = JSON.parse(clave); } catch (_) {}
+      exigirCEA(Array.isArray(partes) && partes.length === 6 &&
+        partes.every(v => typeof v === 'string' && v.length > 0 && v.length <= 250) &&
+        JSON.stringify(partes) === clave && /^[a-z0-9_-]+$/i.test(partes[0]), 'El estudiante o curso no es válido.');
+      exigirCEA(auth.r === 'director' || (auth.r === 'docente' && permisoAreaCEA(auth, partes[0], false)),
+        'Solo puedes cambiar el estado de tu especialidad o asignatura.', 'PERMISO');
+      const estado = data.estado;
+      exigirCEA(['', '-', 'PENDIENTE', 'APROBADO', 'REPROBADO', 'PROMOVIDO EXCELENTE',
+        'PROMOVIDO', 'POSTERGADO', 'RETIRADO'].includes(estado), 'Selecciona un estado válido.');
+      const hoja = ss.getSheetByName('Estados_Boletin') || ss.insertSheet('Estados_Boletin');
+      if (!hoja.getLastRow()) hoja.appendRow(['Clave', 'Área', 'Estado']);
+      const fila = hoja.getDataRange().getValues().findIndex((row, i) => i > 0 && row[0] === clave);
+      if (fila >= 0) hoja.getRange(fila + 1, 3).setValue(estado);
+      else if (estado) hoja.appendRow([clave, partes[0], estado]);
+      SpreadsheetApp.flush();
+      return responseJSON({status:'success', clave, estado});
+    }
     if (data.action === 'obtener-datos-privados') return leerDatosCEA(auth, true);
     if (data.action === 'obtener-criterios-evaluacion') return responseJSON({status:'success', criteriosEvaluacion:leerCriteriosEvaluacionCEA(ss, data.registro.id, auth)});
     if (data.action === 'obtener-plantillas-criterios') {
@@ -4367,7 +4391,7 @@ function recalcularDetalleLeidoCEA(detalle, tipo) {
   const manual = detalle.observacionManual;
   if (manual && manual !== 'AUTOMATICO') detalle.observacion = manual;
   else if (detalle.estadoParticipante === 'RETIRADO') detalle.observacion = 'RETIRADO';
-  else detalle.observacion = detalle.notaFinal >= 76 ? 'PROMOVIDO EXCELENTE' : detalle.notaFinal >= 51 ? 'PROMOVIDO'
+  else detalle.observacion = detalle.notaFinal >= 85 ? 'PROMOVIDO EXCELENTE' : detalle.notaFinal >= 51 ? 'PROMOVIDO'
     : detalle.notaFinal > 0 || tieneDimensiones ? 'POSTERGADO' : '';
 }
 
@@ -4435,7 +4459,7 @@ function prepararNotasCEA(ss, data, auth) {
     else if (['RETIRADO', 'ABANDONO'].includes(detail.estadoParticipante)) detail.observacion = detail.estadoParticipante;
     else if (manual || detail.estadoParticipante || detail.observacion !== 'RETIRADO') {
       const nota = detail.notaFinal;
-      detail.observacion = !nota ? (hasNotes ? 'D' : 'ABANDONO') : nota >= 76 ? 'PROMOVIDO EXCELENTE' : nota >= 51 ? 'PROMOVIDO' : 'POSTERGADO';
+      detail.observacion = !nota ? (hasNotes ? 'D' : 'ABANDONO') : nota >= 85 ? 'PROMOVIDO EXCELENTE' : nota >= 51 ? 'PROMOVIDO' : 'POSTERGADO';
     }
   });
 }

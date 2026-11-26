@@ -1195,7 +1195,7 @@
   font-weight: 800 !important;
   text-align: left !important;
   padding-left: 6pt !important;
-  width: 165pt !important;
+  width: 27% !important;
 }
 
 .cen-th-num-col {
@@ -1203,15 +1203,15 @@
   color: #ffffff !important;
   font-size: 7.2pt !important;
   font-weight: 800 !important;
-  width: 20pt !important;
+  width: 4% !important;
 }
 
 .cen-th-promedio-col {
   background-color: #04260e !important;
   color: #ffffff !important;
-  font-size: 7.2pt !important;
+  font-size: 6.4pt !important;
   font-weight: 800 !important;
-  width: 60pt !important;
+  width: 8% !important;
   line-height: 1.15 !important;
 }
 
@@ -2060,6 +2060,95 @@
   border-color: var(--verde);
   box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.2);
   background: #f0fdf4;
+}
+
+[data-activar-promedios] {
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+[data-activar-promedios][aria-pressed="true"] { color: #fef08a; }
+.boletin-estado-control {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+.boletin-estado-control:hover { background: #eaf5ed; }
+.boletin-estado-control:focus-within { outline: 2px solid #15803d; }
+.boletin-estado-control select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.boletin-estado-flecha {
+  width: 6px;
+  height: 6px;
+  border: solid #14532d;
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-2px) rotate(45deg);
+}
+.promedio-boletin-input { display: none !important; }
+.boletin-promedios-editables [data-valor-promedio] { display: none !important; }
+.boletin-promedios-editables .promedio-boletin-input {
+  display: inline-block !important;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 58px;
+  padding: 4px 2px;
+  font-family: inherit;
+  font-size: .88rem;
+  font-weight: 400;
+  text-align: center;
+  appearance: textfield;
+}
+.promedio-boletin-input::-webkit-inner-spin-button,
+.promedio-boletin-input::-webkit-outer-spin-button { appearance: none; }
+/* El contorno de la planilla cruza las columnas fijas y duplica el borde de las celdas. */
+.cen-digital-table.calif-eval-table tbody tr.row-eval-active {
+  outline: none;
+  position: static;
+  z-index: auto;
+}
+table.cen-digital-table[data-navegacion-boletin] tbody tr.row-eval-active > td,
+table[data-navegacion-boletin] tbody tr.row-eval-active > td,
+.boletin-tabla-movil .movil-planilla tbody tr.row-eval-active > td {
+  background: #e1efe8 !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 3px #0284c7, inset 0 -3px #0284c7 !important;
+}
+
+table[data-navegacion-boletin] :is(.cen-digital-nota-input:not([data-promedio-boletin]), .cen-digital-nota-badge, .cen-nota-modulo),
+.boletin-tabla-movil tbody .movil-dimension,
+.boletin-tabla-movil .movil-centralizador-nota {
+  color: #1e293b !important;
+}
+
+@media (min-width: 901px) {
+  table[data-navegacion-boletin] [data-valor-promedio],
+  table[data-navegacion-boletin] .promedio-boletin-input {
+    color: #0f172a !important;
+  }
+  table[data-navegacion-boletin] .promedio-boletin-input {
+    font-weight: 400 !important;
+  }
+  table[data-navegacion-boletin] tr.row-eval-active .cen-digital-nota-input:focus {
+    box-shadow: none !important;
+  }
 }
 
 .badge-subida-status {
@@ -4661,10 +4750,6 @@ tr.estudiante-fila-seleccionada {
 .revision-notas-tabla .calif-revisar-table-clean td { border-bottom: 1px solid #e7eee9 !important; }
 .revision-notas-tabla .calif-revisar-table-clean :is(th, td):nth-child(2) { position: sticky; left: 0; z-index: 1; }
 .revision-notas-tabla .calif-revisar-table-clean tbody td:nth-child(2) { background-color: inherit; }
-.revision-notas-tabla .boletin-en-edicion tbody tr:has(.cen-digital-nota-input:focus) > td {
-  background-color: #e0f2fe !important;
-  box-shadow: inset 0 2px #0284c7, inset 0 -2px #0284c7;
-}
 .revision-notas-modulo { display: block; margin-bottom: 3px; color: #c7e8d2; font-size: .7rem; }
 .revision-notas :is(select, button, .revision-notas-tabla):focus-visible { outline: 2px solid #187249; outline-offset: 2px; }
 

@@ -83,7 +83,7 @@
     const manual = item.detalle.observacionManual;
     if (/^(PROMOVIDO EXCELENTE|PROMOVIDO|POSTERGADO|RETIRADO)$/i.test(manual || '')) return manual;
     if (/^RETIRADO$/i.test(item.detalle.observacion || '')) return 'Retirado';
-    return nota(item) >= 76 ? 'Promovido excelente' : nota(item) >= 51 ? 'Promovido' : 'Postergado';
+    return nota(item) >= 85 ? 'Promovido excelente' : nota(item) >= 51 ? 'Promovido' : 'Postergado';
   }
 
   function nombreEstudiante(detalle) {

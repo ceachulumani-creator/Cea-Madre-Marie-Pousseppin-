@@ -17,7 +17,7 @@
   function marcar(el,clase){if(el&&!el.classList.contains(clase))el.classList.add(clase);}
   function fuentes(ctx){
     const r=ctx.root,boletin=ctx.tipo==='boletin';
-    const selectores=[...r.querySelectorAll('select')].filter(s=>!s.closest('[data-notas-movil-ui]'));
+    const selectores=[...r.querySelectorAll('select')].filter(s=>!s.closest('[data-notas-movil-ui],.boletin-estado-control'));
     const nivel=boletin?(r.querySelector('#revision-notas-curso')||selectores.find(s=>(s.getAttribute('onchange')||'').includes('cambiarNivelCentralizador'))):r.querySelector('.calif-course-switch select');
     const paralelo=boletin?(r.querySelector('#revision-notas-paralelo')||selectores.find(s=>/^PARALELO/i.test(s.parentElement.querySelector('label')?.textContent.trim()||''))):null;
     const paralelos=boletin?[]:[...r.querySelectorAll('.calif-sheet-paralelos-bar .calif-paralelo-pill')];
@@ -210,6 +210,21 @@
     d.querySelector('[data-cerrar]').onclick=()=>d.close();d.onclose=()=>{d.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);};
     document.body.append(d);window.mostrarDialogoAcademico?window.mostrarDialogoAcademico(d):d.showModal();enlace.click();
   }
+  const selectorNotaMovil = '.movil-nota,.movil-centralizador-nota,.criterio-nota,.criterio-promedio-input,.promedio-boletin-input';
+  let focoNotaReciente = 0, alturaSinTeclado = 0, anchoTeclado = 0;
+  function tecladoNotasAbierto(viewport) {
+    if (!viewport) return false;
+    if (anchoTeclado !== innerWidth) {
+      anchoTeclado = innerWidth;
+      alturaSinTeclado = 0;
+    }
+    const foco = document.activeElement?.matches(selectorNotaMovil);
+    const alturaVisible = viewport.height * viewport.scale;
+    if (!foco) alturaSinTeclado = Math.max(alturaSinTeclado, alturaVisible);
+    const espacio = Math.max(innerHeight, alturaSinTeclado) - alturaVisible;
+    return espacio > 100 && (foco || focoNotaReciente > Date.now());
+  }
+
   function actualizarPie(){
     if(!actual)return;
     let pie=document.querySelector('.notas-movil-pie');
@@ -222,8 +237,11 @@
     if(!e.pendiente&&!e.guardando&&pie.querySelector('[role=status]').textContent==='Cambios sin guardar')aviso('');
     pie._pendiente=e.pendiente;
     const viewport=window.visualViewport,desfase=viewport?Math.max(0,innerHeight-viewport.height-viewport.offsetTop):0;
+    const teclado = tecladoNotasAbierto(viewport);
+    if (pie.hidden !== teclado) pie.hidden = teclado;
+    document.body.classList.toggle('notas-movil-teclado', teclado);
     pie.style.bottom=desfase+'px';if(viewport){pie.style.left=viewport.offsetLeft+'px';pie.style.width=viewport.width+'px';pie.style.right='auto';pie.style.boxSizing='border-box';}
-    document.documentElement.style.setProperty('--notas-movil-pie',Math.ceil(pie.getBoundingClientRect().height+12+desfase)+'px');
+    document.documentElement.style.setProperty('--notas-movil-pie',Math.ceil(teclado ? Math.max(0, innerHeight - viewport.height) : pie.getBoundingClientRect().height + 12 + desfase)+'px');
     const header=actual.ribbon.closest('header');document.documentElement.style.setProperty('--notas-movil-header',Math.ceil(header.getBoundingClientRect().height)+'px');
   }
   function abrirMenu(){
@@ -266,15 +284,25 @@
     const origen=ctx.root.querySelector('table.cen-digital-table,table.calif-revisar-table-clean');if(!origen)return;
     if(actual.tabla!==origen){
       ctx.root.querySelector('.boletin-tabla-movil')?.remove();
-      const heads=[...origen.querySelectorAll('thead th')],prom=heads.findIndex(th=>/^PROMEDIO/.test(th.textContent.trim())),cuantos=Math.max(0,prom-2);
+      const heads=[...origen.querySelectorAll('thead th')],prom=heads.findIndex(th=>/^PROMEDIO/i.test(th.textContent.trim())),cuantos=Math.max(0,prom-2);
       const cont=document.createElement('div');cont.className='movil-planilla-scroll boletin-tabla-movil';cont.dataset.notasMovilUi='true';
-      cont.innerHTML='<table class="movil-planilla" aria-label="Boletín centralizador móvil" style="width:'+(338+cuantos*38+(heads.length>prom+2?76:0))+'px"><thead><tr><th class="movil-numero">N°</th><th class="movil-nombre">Estudiantes</th>'+heads.slice(2,prom).map(th=>'<th class="movil-dimension"><span title="'+esc(th.textContent.trim())+'">'+esc(th.textContent.replace(/\s+/g,' ').trim())+'</span></th>').join('')+'<th class="movil-observacion">Observación</th>'+(heads.length>prom+2?'<th class="movil-subido">Notas subidas</th>':'')+'<th class="movil-final"><span>Promedio final</span></th></tr></thead><tbody></tbody></table>';
+      cont.innerHTML='<table class="movil-planilla" aria-label="Boletín centralizador móvil" style="width:'+(338+cuantos*38+(heads.length>prom+2?76:0))+'px"><thead><tr><th class="movil-numero">N°</th><th class="movil-nombre">Estudiantes</th>'+heads.slice(2,prom).map(th=>'<th class="movil-dimension"><span title="'+esc(th.textContent.trim())+'">'+esc(th.textContent.replace(/\s+/g,' ').trim())+'</span></th>').join('')+'<th class="movil-observacion">Estado</th>'+(heads.length>prom+2?'<th class="movil-subido">Notas subidas</th>':'')+'<th class="movil-final"><span>Promedio final</span></th></tr></thead><tbody></tbody></table>';
+      const encabezado = cont.querySelector('thead .movil-final span');
+      const activador = heads[prom]?.querySelector('[data-activar-promedios]');
+      if (activador) encabezado.replaceChildren(activador.cloneNode(true));
+      cont.querySelector('table').classList.toggle('boletin-promedios-editables', origen.classList.contains('boletin-promedios-editables'));
       const cuerpo=cont.querySelector('tbody'),espejos=[];
       [...origen.querySelectorAll('tbody tr')].filter(row=>row.cells.length>prom+1).forEach((row,idx)=>{
         const tr=document.createElement('tr');tr.dataset.filaBoletinMovil=idx;
         tr.innerHTML='<td class="movil-numero">'+esc(row.cells[0].textContent.trim())+'</td><td class="movil-nombre" title="'+esc(row.cells[1].textContent)+'"><span>'+esc(row.cells[1].textContent)+'</span></td>'+Array(cuantos).fill('<td class="movil-dimension"></td>').join('')+'<td class="movil-observacion"></td>'+(heads.length>prom+2?'<td class="movil-subido"></td>':'')+'<td class="movil-final"><span class="movil-nota-final"></span></td>';
-        row.querySelectorAll('.cen-digital-nota-input').forEach((input,i)=>{const copia=input.cloneNode();copia.removeAttribute('id');copia.removeAttribute('style');copia.removeAttribute('oninput');copia.className='movil-centralizador-nota';copia.dataset.columna=i;copia.oninput=()=>{if(copia.value!==''&&Number.isFinite(Number(copia.value))&&Number(copia.value)>=0&&Number(copia.value)<=100)copia.value=Math.round(Number(copia.value));input.value=copia.value;if(input.id.startsWith('cen-input-')&&window.editarNotaBoletinMovil)Promise.resolve(window.editarNotaBoletinMovil(input,copia.value)).then(()=>{if(input.isConnected)copia.value=input.value;programar();}).catch(e=>aviso(e.message));else input.dispatchEvent(new Event(input.hasAttribute('oninput')?'input':'change',{bubbles:true}));copia.value=input.value;programar();};copia.onfocus=()=>copia.select();tr.cells[i+2].append(copia);espejos.push({input,copia});});
-        if(!row.querySelector('.cen-digital-nota-input'))for(let i=0;i<cuantos;i++)tr.cells[i+2].textContent=row.cells[i+2].textContent.trim();
+        row.querySelectorAll('.cen-digital-nota-input:not([data-promedio-boletin])').forEach((input,i)=>{const copia=input.cloneNode();copia.removeAttribute('id');copia.removeAttribute('style');copia.removeAttribute('oninput');copia.className='movil-centralizador-nota';copia.dataset.columna=i;copia.oninput=()=>{if(copia.value!==''&&Number.isFinite(Number(copia.value))&&Number(copia.value)>=0&&Number(copia.value)<=100)copia.value=Math.round(Number(copia.value));input.value=copia.value;if(input.id.startsWith('cen-input-')&&window.editarNotaBoletinMovil)Promise.resolve(window.editarNotaBoletinMovil(input,copia.value)).then(()=>{if(input.isConnected)copia.value=input.value;programar();}).catch(e=>aviso(e.message));else input.dispatchEvent(new Event(input.hasAttribute('oninput')?'input':'change',{bubbles:true}));copia.value=input.value;programar();};copia.onfocus=()=>copia.select();tr.cells[i+2].append(copia);espejos.push({input,copia});});
+        if(!row.querySelector('.cen-digital-nota-input:not([data-promedio-boletin])'))for(let i=0;i<cuantos;i++)tr.cells[i+2].textContent=row.cells[i+2].textContent.trim();
+        const celdaPromedio = tr.querySelector('.movil-final');
+        celdaPromedio.innerHTML = window.controlPromedioBoletinMovil(idx);
+        const celdaEstado = tr.querySelector('.movil-observacion');
+        celdaEstado.dataset.estadoBoletinFila = idx;
+        celdaEstado.dataset.estadoBoletinVista = row.cells[prom+1].querySelector('.boletin-estado-control select') ? 'movil' : '';
+        celdaEstado.innerHTML = window.estadoCentralizadorMovil(idx, celdaEstado.dataset.estadoBoletinVista === 'movil');
         const check=row.cells[prom+2]?.querySelector('input[type=checkbox]');if(check){const label=document.createElement('label'),copia=check.cloneNode();copia.removeAttribute('onchange');copia.onchange=()=>{check.checked=copia.checked;check.dispatchEvent(new Event('change',{bubbles:true}));};label.append(copia,' Subido');tr.querySelector('.movil-subido').append(label);}
         cuerpo.append(tr);
       });
@@ -285,14 +313,21 @@
       marcar(origen,'boletin-tabla-origen-movil');
     }
     actual.espejos.forEach(({input,copia})=>{if(document.activeElement!==copia)copia.value=input.value;copia.readOnly=input.readOnly;copia.disabled=input.disabled;});
-    [...origen.querySelectorAll('tbody tr')].filter(row=>row.cells.length>actual.prom+1).forEach((row,i)=>{const tr=actual.cuerpo.children[i];if(!tr)return;const valor=row.cells[actual.prom]?.textContent.trim()||'-',circulo=tr.querySelector('.movil-nota-final');if(circulo.textContent!==valor)circulo.textContent=valor;circulo.dataset.estado=Number.isFinite(Number(valor))?(Number(valor)>=51?'aprobado':'postergado'):'pendiente';const obs=row.cells[actual.prom+1]?.textContent.trim()||'';if(tr.querySelector('.movil-observacion').textContent!==obs)tr.querySelector('.movil-observacion').textContent=obs;
-      if(!row.querySelector('.cen-digital-nota-input'))for(let c=0;c<actual.cuantos;c++){const texto=row.cells[c+2].textContent.trim();if(tr.cells[c+2].textContent!==texto)tr.cells[c+2].textContent=texto;}
+    [...origen.querySelectorAll('tbody tr')].filter(row=>row.cells.length>actual.prom+1).forEach((row,i)=>{
+      const tr=actual.cuerpo.children[i];if(!tr)return;
+      const celda = row.cells[actual.prom], circulo = tr.querySelector('[data-valor-promedio]');
+      const valor = celda.querySelector('[data-valor-promedio]')?.textContent ?? celda.textContent.trim();
+      if (circulo.textContent !== valor) circulo.textContent = valor;
+      circulo.dataset.estado = Number.isFinite(Number(valor)) ? (Number(valor)>=51?'aprobado':'postergado') : 'pendiente';
+      const campo = tr.querySelector('[data-promedio-boletin]');
+      if (document.activeElement !== campo) campo.value = valor === '-' ? '' : valor;
+      if(!row.querySelector('.cen-digital-nota-input:not([data-promedio-boletin])'))for(let c=0;c<actual.cuantos;c++){const texto=row.cells[c+2].textContent.trim();if(tr.cells[c+2].textContent!==texto)tr.cells[c+2].textContent=texto;}
       const check=row.querySelector('input[type=checkbox]'),copia=tr.querySelector('input[type=checkbox]');if(check&&copia){copia.checked=check.checked;copia.disabled=check.disabled;}
     });
   }
   function actualizar(){
     const ctx=contexto();
-    if(!ctx){actual?.ribbon.remove();actual=null;document.querySelector('.notas-movil-pie')?.remove();document.querySelector('.notas-movil-menu')?.close();if(document.body.classList.contains('movil-grados-activos'))document.body.classList.remove('movil-grados-activos');return;}
+    if(!ctx){document.body.classList.remove('notas-movil-teclado');actual?.ribbon.remove();actual=null;document.querySelector('.notas-movil-pie')?.remove();document.querySelector('.notas-movil-menu')?.close();if(document.body.classList.contains('movil-grados-activos'))document.body.classList.remove('movil-grados-activos');return;}
     if(!document.body.classList.contains('movil-grados-activos'))document.body.classList.add('movil-grados-activos');
     barra(ctx);if(!actual)return;
     document.querySelectorAll('[data-notas-movil-ui] select').forEach(s=>{const fuente=s._fuenteNotasMovil;if(fuente?.isConnected){s.disabled=fuente.disabled;if(s.value!==fuente.value)s.value=fuente.value;}});
@@ -302,10 +337,20 @@
       const tabla=ctx.root.querySelector('table.cen-digital-table,table.calif-revisar-table-clean');marcar(tabla?.parentElement,'notas-movil-tabla-contenedor');tabla?.parentElement.querySelectorAll(':scope > div:not(.boletin-tabla-movil)').forEach(el=>marcar(el,'notas-movil-origen'));
     }
     window.prepararSelectoresNotasMovil?.();actualizarPie();
+    const nota = document.activeElement;
+    if (nota?.matches(selectorNotaMovil)) window.asegurarNotaMovil?.(nota);
   }
   function programar(){if(pendiente)return;pendiente=true;requestAnimationFrame(()=>{pendiente=false;actualizar();});}
   function iniciar(){
     new MutationObserver(cambios=>{if(cambios.some(c=>!c.target.closest?.('[data-notas-movil-ui]')&&!c.target.parentElement?.closest('[data-notas-movil-ui]')))programar();}).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','hidden','disabled','aria-busy']});
+    document.addEventListener('focusin', programar);
+    document.addEventListener('focusout', evento => {
+      if (evento.target.matches(selectorNotaMovil)) {
+        focoNotaReciente = Date.now() + 450;
+        setTimeout(programar, 460);
+      }
+      programar();
+    });
     document.addEventListener('input',programar);document.addEventListener('change',programar);window.addEventListener('cea-edicion-academica',programar);window.addEventListener('resize',programar);window.visualViewport?.addEventListener('resize',programar);window.visualViewport?.addEventListener('scroll',programar);programar();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar);else iniciar();

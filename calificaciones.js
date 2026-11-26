@@ -1626,8 +1626,7 @@
             d.observacion = matchRemoto.observacion === 'APROBADO' ? 'PROMOVIDO' :
                             matchRemoto.observacion === 'REPROBADO' ? 'POSTERGADO' : matchRemoto.observacion;
           }
-          else if (Number(d.notaFinal) >= 51) d.observacion = 'PROMOVIDO';
-          else if (Number(d.notaFinal) > 0) d.observacion = 'POSTERGADO';
+          else if (Number(d.notaFinal) > 0) d.observacion = resultadoCalif(Number(d.notaFinal));
         }
       });
     }
@@ -5038,8 +5037,93 @@
   }
 
   function resultadoCalif(nota) {
-    return !nota ? '-' : nota >= 76 ? 'PROMOVIDO EXCELENTE' : nota >= 51 ? 'PROMOVIDO' : 'POSTERGADO';
+    return !nota ? '-' : nota >= 85 ? 'PROMOVIDO EXCELENTE' : nota >= 51 ? 'PROMOVIDO' : 'POSTERGADO';
   }
+
+  const ESTADOS_CENTRALIZADOR = ['-', 'PENDIENTE', 'APROBADO', 'REPROBADO', 'PROMOVIDO EXCELENTE', 'PROMOVIDO', 'POSTERGADO', 'RETIRADO'];
+
+  function claveEstadoCentralizador(curso, estudiante) {
+    return JSON.stringify([curso.carreraKey, curso.nivelNombre, curso.gestion, curso.semestre, curso.paralelo,
+      String(estudiante.ci || estudiante.rude || estudiante.nombreCompleto).trim().toUpperCase()].map(v => String(v).trim()));
+  }
+
+  function estadoCentralizador(estudiante) {
+    return estudiante.estadoManual || resultadoCalif(estudiante.promedio);
+  }
+
+  function menuResultadoCalif(id, valor, etiqueta, opciones) {
+    const esPromovido = valor.startsWith('PROMOVIDO') || valor === 'APROBADO';
+    const clase = esPromovido ? 'calif-obs-aprobado' :
+      ['POSTERGADO', 'REPROBADO'].includes(valor) ? 'calif-obs-reprobado' : 'calif-obs-retirado';
+    const insignia = `<span class="calif-badge-obs ${clase}">${escapeHTML(valor)}</span>`;
+    if (!id) return insignia;
+    return `<button type="button" class="calif-obs-trigger" popovertarget="${id}" aria-label="${etiqueta}: ${escapeHTML(valor)}">
+      ${insignia}<svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m4 6 4 4 4-4"/></svg>
+    </button><div id="${id}" class="calif-obs-menu" popover role="group" aria-label="${etiqueta}" onbeforetoggle="window.ubicarMenuObservacionCalif(event, this)">
+      ${opciones}
+    </div>`;
+  }
+
+  function controlEstadoCentralizador(estudiante, indice, vista) {
+    if (!vista) return menuResultadoCalif(null, estadoCentralizador(estudiante));
+    const estados = [['', 'Automático (' + resultadoCalif(estudiante.promedio) + ')'],
+      ...ESTADOS_CENTRALIZADOR.map(estado => [estado, estado[0] + estado.slice(1).toLowerCase()])];
+    const opciones = estados.map(([estado, texto]) => `<option value="${estado}" ${estado === (estudiante.estadoManual || '') ? 'selected' : ''}>${escapeHTML(texto)}</option>`).join('');
+    return `<label class="boletin-estado-control">
+      ${menuResultadoCalif(null, estadoCentralizador(estudiante))}
+      <span class="boletin-estado-flecha" aria-hidden="true"></span>
+      <select aria-label="Estado de ${escapeHTML(estudiante.nombreCompleto)}" onchange="window.cambiarEstadoCentralizadorManual(this, ${indice})" ${estudiante.guardandoEstado ? 'disabled' : ''}>${opciones}</select>
+    </label>`;
+  }
+
+  function refrescarEstadoCentralizador(estudiante, indice) {
+    document.querySelectorAll('[data-estado-boletin-fila="' + indice + '"]').forEach(celda => {
+      celda.innerHTML = controlEstadoCentralizador(estudiante, indice, celda.dataset.estadoBoletinVista);
+    });
+  }
+
+  window.estadoCentralizadorMovil = (indice, editable) => {
+    const estudiante = _centralizadorActivoDatos?.estudiantes[indice];
+    return estudiante ? controlEstadoCentralizador(estudiante, indice, editable ? 'movil' : '') : '';
+  };
+
+  window.cambiarEstadoCentralizadorManual = async (selector, indice) => {
+    const curso = _centralizadorActivoDatos, estudiante = curso?.estudiantes[indice];
+    const token = getSessionSegura().token;
+    const valor = selector.value;
+    if (!estudiante || estudiante.guardandoEstado || (valor && !ESTADOS_CENTRALIZADOR.includes(valor))) return;
+    const celda = selector.closest('td');
+    if (valor === (estudiante.estadoManual || '')) return;
+    const clave = claveEstadoCentralizador(curso, estudiante);
+    estudiante.guardandoEstado = true;
+    selector.disabled = true;
+    try {
+      const respuesta = await enviarGoogleSheet({action:'guardar-estado-boletin', clave, estado:valor});
+      if (getSessionSegura().token !== token) return;
+      if (respuesta.clave !== clave || respuesta.estado !== valor) throw Error('Google Sheets no confirmó el estado.');
+      const estados = lsGet('cea_calificaciones_estado_boletin', {});
+      estados[clave] = valor;
+      lsSet('cea_calificaciones_estado_boletin', estados);
+      estudiante.estadoManual = valor;
+      estudiante.guardandoEstado = false;
+      const activo = _centralizadorActivoDatos;
+      const actual = activo?.estudiantes.findIndex(e => claveEstadoCentralizador(activo, e) === clave);
+      if (actual >= 0) {
+        activo.estudiantes[actual].estadoManual = valor;
+        refrescarEstadoCentralizador(activo.estudiantes[actual], actual);
+        celda?.querySelector('select')?.focus({preventScroll:true});
+      }
+    } catch (error) {
+      mostrarToastCalif(error.message || 'No se pudo guardar el estado.');
+    } finally {
+      estudiante.guardandoEstado = false;
+      const control = celda?.querySelector('select');
+      if (control && _centralizadorActivoDatos === curso) {
+        control.value = estudiante.estadoManual || '';
+        control.disabled = false;
+      }
+    }
+  };
 
   function estadoParticipanteCalif(fila) {
     if (ESTADOS_PARTICIPANTE_CALIF.includes(fila.estadoParticipante)) return fila.estadoParticipante;
@@ -5055,17 +5139,9 @@
 
   function controlObservacionCalif(fila, i, editable) {
     const observacion = observacionCalif(fila);
-    const clase = observacion.startsWith('PROMOVIDO') ? 'calif-obs-aprobado' :
-      observacion === 'POSTERGADO' ? 'calif-obs-reprobado' : 'calif-obs-retirado';
-    const etiqueta = `<span class="calif-badge-obs ${clase}">${escapeHTML(observacion)}</span>`;
-    if (!editable) return etiqueta;
-    const id = 'calif-opciones-obs-' + i;
     const nombres = ['Promovido excelente', 'Promovido', 'Postergado', 'Retirado'];
-    return `<button type="button" class="calif-obs-trigger" popovertarget="${id}" aria-label="Observación: ${escapeHTML(observacion)}">
-        ${etiqueta}<svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m4 6 4 4 4-4"/></svg>
-      </button><div id="${id}" class="calif-obs-menu" popover role="group" aria-label="Resultados de evaluación" onbeforetoggle="window.ubicarMenuObservacionCalif(event, this)">
-        ${RESULTADOS_OBSERVACION_CALIF.map((opcion, indice) => `<button type="button" data-valor="${opcion}" aria-pressed="${opcion === observacion}" onclick="window.cambiarObservacionCalif(this, ${i})">${nombres[indice]}</button>`).join('')}
-      </div>`;
+    const opciones = RESULTADOS_OBSERVACION_CALIF.map((opcion, indice) => `<button type="button" data-valor="${opcion}" aria-pressed="${opcion === observacion}" onclick="window.cambiarObservacionCalif(this, ${i})">${nombres[indice]}</button>`).join('');
+    return menuResultadoCalif(editable ? 'calif-opciones-obs-' + i : null, observacion, 'Observación', opciones);
   }
 
   window.controlObservacionCriteriosCalif = (fila, idx) => controlObservacionCalif(fila, idx, true).replaceAll('calif-opciones-obs-', 'criterios-opciones-obs-');
@@ -5083,9 +5159,14 @@
   };
 
   window.cambiarObservacionCalif = (boton, idx) => {
-    recordarOriginalPlanillaCalif();
     const fila = _detallesActivos?.[idx];
     if (!fila || !_registroActivo || !RESULTADOS_OBSERVACION_CALIF.includes(boton.dataset.valor)) return;
+    if (boton.dataset.valor === observacionCalif(fila)) {
+      boton.closest('.calif-obs-menu')?.hidePopover?.();
+      boton.closest('td')?.querySelector('.calif-obs-trigger')?.focus({preventScroll:true});
+      return;
+    }
+    recordarOriginalPlanillaCalif();
     if (!fila.estadoParticipante && estadoParticipanteCalif(fila) !== 'EFECTIVO') {
       fila.estadoParticipante = estadoParticipanteCalif(fila);
       const cambios = camposEditadosCalif.get(_registroActivo) || new Map();
@@ -5104,7 +5185,7 @@
     boton.closest('tr')?.classList.toggle('row-reprobado', fila.observacion === 'POSTERGADO');
     const celda = boton.closest('td');
     if (celda) {
-      celda.innerHTML = celda.classList.contains('criterios-observacion') ? window.controlObservacionCriteriosCalif(fila,idx).replaceAll('criterios-opciones-obs-',celda.closest('.criterios-final-movil')?'criterios-movil-opciones-obs-':'criterios-opciones-obs-') : controlObservacionCalif(fila, idx, true);
+      celda.innerHTML = celda.classList.contains('criterios-observacion') ? window.controlObservacionCriteriosCalif(fila,idx).replaceAll('criterios-opciones-obs-',celda.closest('.criterios-final-movil')?'criterios-movil-opciones-obs-':'criterios-opciones-obs-') : controlObservacionCalif(fila, idx, true).replaceAll('calif-opciones-obs-', celda.classList.contains('movil-observacion') ? 'movil-calif-opciones-obs-' : 'calif-opciones-obs-');
       celda.querySelector('.calif-obs-trigger')?.focus();
     }
     marcarNotasPendientes();
@@ -5299,7 +5380,7 @@
     return cambiosPendientesCalif.has(registro) || guardadosEnCursoCalif.has(registro);
   }
 
-  window.hayNotasRegistroPendientesCalif = id => Boolean(_registroActivo && String(_registroActivo.id)===String(id) && hayNotasPendientes(_registroActivo));
+  window.hayNotasRegistroPendientesCalif = id => Boolean(_registroActivo && String(_registroActivo.id)===String(id) && cambiosPendientesCalif.has(_registroActivo));
 
   function actualizarAccionesSuperioresCalif() {
     for (const modo of ['admin', 'docente']) {
@@ -5681,7 +5762,7 @@
         mostrarProgresoGuardadoCalif(registro, pendiente ? 'pendiente' : 'confirmado', pendiente ? 0 : 100);
         return !pendiente;
       } catch (error) {
-        if (!cambiosPendientesCalif.has(registro)) cambiosPendientesCalif.set(registro, 1);
+        if (!soloNotas && !cambiosPendientesCalif.has(registro)) cambiosPendientesCalif.set(registro, 1);
         mostrarProgresoGuardadoCalif(registro, 'error', 0, error.message || 'No se pudo guardar. Vuelve a pulsar Guardar.');
         return false;
       }
@@ -6381,11 +6462,14 @@
     let totalPendientes = 0;
     let sumaPromedios = 0;
 
+    const estados = lsGet('cea_calificaciones_estado_boletin', {});
     estudiantes.forEach(est => {
-      const notasValidas = est.notas.filter(v => Number.isFinite(v) && v > 0);
+      const estado = estados[claveEstadoCentralizador({carreraKey, nivelNombre, gestion:g, semestre:s, paralelo:p}, est)];
+      est.estadoManual = ESTADOS_CENTRALIZADOR.includes(estado) ? estado : '';
+      const notasValidas = est.notas.filter(Number.isFinite);
       if (notasValidas.length > 0) {
         const suma = notasValidas.reduce((acc, curr) => acc + curr, 0);
-        const prom = Math.round((suma / notasValidas.length) * 10) / 10;
+        const prom = Math.round(suma / notasValidas.length);
         est.promedio = prom;
         totalEvaluados++;
         sumaPromedios += prom;
@@ -6505,21 +6589,29 @@
         </div>
 
         <!-- 3. TABLA CENTRALIZADORA (FORMATO CARTA VERTICAL CON BAJO CONSUMO DE TINTA, BORDES REDONDEADOS Y SIN BORDE EXTERIOR) -->
-        <table class="cen-main-table" style="width:100%;border-collapse:separate;border-spacing:2.5px 2.5px;font-size:7.2pt;margin-bottom:6pt;border:none">
+        <table class="cen-main-table" style="width:100%;table-layout:fixed;border-collapse:separate;border-spacing:2.5px 2.5px;font-size:7.2pt;margin-bottom:6pt;border:none">
+          <colgroup>
+            <col style="width:4%">
+            <col style="width:27%">
+            ${modulos.map(() => '<col>').join('')}
+            <col style="width:8%">
+            <col style="width:13%">
+          </colgroup>
           <thead>
             <!-- ENCABEZADO UNIFICADO: BORDES REDONDEADOS SIN LÍNEAS INTERMEDIAS NI RECUADRO EXTERIOR -->
             <tr style="background-color:transparent;color:#063b17">
-              <th class="cen-th-num-col" style="background:#f8fafc;color:#063b17;border:0.8pt solid #063b17;border-radius:6px;padding:3.5pt 2pt;width:24pt;text-align:center;font-weight:800;vertical-align:middle">N°</th>
+              <th class="cen-th-num-col" style="background:#f8fafc;color:#063b17;border:0.8pt solid #063b17;border-radius:6px;padding:3.5pt 2pt;text-align:center;font-weight:800;vertical-align:middle">N°</th>
               <th class="cen-th-estudiante-col" style="background:#f8fafc;color:#063b17;border:0.8pt solid #063b17;border-radius:6px;padding:3.5pt 5pt;text-align:left;font-weight:800;vertical-align:middle">PARTICIPANTE / APELLIDOS Y NOMBRES</th>
               ${modulos.map((m, idx) => `
-                <th class="cen-th-mod-oficial" style="background:#f4fbf6;color:#0c5825;border:0.8pt solid #063b17;border-radius:6px;padding:3pt 3pt;font-size:6.8pt;font-weight:700;line-height:1.2;max-width:85pt;text-align:center;vertical-align:middle">
-                  <div style="font-weight:800;color:#063b17;margin-bottom:2pt;line-height:1.15;word-break:break-word">${escapeHTML(m.nombre)}</div>
+                <th class="cen-th-mod-oficial" style="background:#f4fbf6;color:#0c5825;border:0.8pt solid #063b17;border-radius:6px;padding:3pt 3pt;font-size:6.8pt;font-weight:700;line-height:1.2;text-align:center;vertical-align:middle">
+                  <div style="font-weight:800;color:#063b17;margin-bottom:2pt;line-height:1.15;white-space:normal;overflow-wrap:anywhere;word-wrap:break-word">${escapeHTML(m.nombre)}</div>
                   <div style="font-weight:900;color:#0c5825;text-transform:uppercase;letter-spacing:0.4px;font-size:7pt">MÓDULO ${idx + 1}</div>
                 </th>
               `).join('')}
-              <th class="cen-th-promedio-col" style="background:#f8fafc;color:#063b17;border:0.8pt solid #063b17;border-radius:6px;padding:3.5pt 2pt;width:55pt;text-align:center;font-weight:800;line-height:1.15;vertical-align:middle">
-                PROMEDIO<br>CENTRALIZADOR
+              <th class="cen-th-promedio-col" style="background:#f8fafc;color:#063b17;border:0.8pt solid #063b17;border-radius:6px;padding:3.5pt 1pt;text-align:center;font-weight:800;line-height:1.15;vertical-align:middle">
+                PROMEDIO
               </th>
+              <th scope="col" style="background:#f8fafc;color:#063b17;border:0.8pt solid #063b17;border-radius:6px;text-align:center">ESTADO</th>
             </tr>
           </thead>
           <tbody>
@@ -6546,11 +6638,12 @@
                   <td class="cen-td-prom" style="border:0.6pt solid #cbd5e1;border-radius:5px;padding:2.5pt 2pt;text-align:center;font-weight:900;color:#000000;font-size:8pt">
                     ${est.promedio !== null ? est.promedio : '-'}
                   </td>
+                  <td style="border:0.6pt solid #cbd5e1;border-radius:5px;padding:2.5pt 1pt;text-align:center;white-space:normal"><strong style="font-weight:800">${escapeHTML(estadoCentralizador(est))}</strong></td>
                 </tr>
               `;
             }).join('') : `
               <tr>
-                <td colspan="${modulos.length + 2}" style="text-align:center;padding:14pt;color:#64748b;font-style:italic">
+                <td colspan="${modulos.length + 3}" style="text-align:center;padding:14pt;color:#64748b;font-style:italic">
                   No se encontraron estudiantes inscritos para este nivel y paralelo.
                 </td>
               </tr>
@@ -8365,16 +8458,31 @@
   function habilitarNavegacionBoletin(tabla) {
     if (!tabla || tabla.dataset.navegacionBoletin === 'activa') return;
     tabla.dataset.navegacionBoletin = 'activa';
-    const selectorNota = '.cen-digital-nota-input:not(:disabled):not([readonly])';
+    const selectorNota = '.cen-digital-nota-input:not(.promedio-boletin-input):not(:disabled):not([readonly])';
+
+    function resaltarFila(fila) {
+      const activa = tabla.querySelector('tbody tr.row-eval-active');
+      if (activa === fila) return;
+      activa?.classList.remove('row-eval-active');
+      fila.classList.add('row-eval-active');
+    }
 
     tabla.addEventListener('click', event => {
-      if (event.target.closest('input, button, label, a, select, textarea')) return;
       const fila = event.target.closest('tbody tr');
-      if (fila && !fila.contains(document.activeElement)) fila.querySelector(selectorNota)?.focus();
+      if (!fila) return;
+      resaltarFila(fila);
+      if (event.target.closest('input, button, label, a, select, textarea')) return;
+      if (!fila.contains(document.activeElement)) fila.querySelector(selectorNota)?.focus();
     });
 
     tabla.addEventListener('focusin', event => {
-      if (event.target.matches(selectorNota)) event.target.select();
+      const campo = event.target;
+      if (!campo.matches(selectorNota + ', [data-promedio-boletin]')) return;
+      resaltarFila(campo.closest('tr'));
+      campo.select();
+      if (campo.matches('[data-promedio-boletin]')) {
+        campo.scrollIntoView({block:'nearest', inline:'nearest'});
+      }
     });
 
     tabla.addEventListener('keydown', event => {
@@ -8467,7 +8575,7 @@
               <span class="calif-contexto-superior">${escapeHTML(nomCarrera)} · ${escapeHTML(nivDef)} · Paralelo ${escapeHTML(parDef)}</span>
               <div class="calif-estado-planilla"></div>
               <button type="button" class="btn-calif btn-calif-secondary" onclick="window.imprimirCentralizadorOficial()" ${datos.estudiantes.length ? '' : 'hidden'}>${SVG_ICONS.PRINT} Imprimir</button>
-              <button type="button" class="btn-calif btn-calif-secondary" onclick="window.guardarNotasBoletin()" ${window._revisarNotasModoEdicion ? '' : 'disabled'}>Guardar</button>
+              <button type="button" class="btn-calif btn-calif-secondary" data-guardar-boletin="revision" onclick="window.guardarNotasBoletin()" ${window._revisarNotasModoEdicion ? '' : 'disabled'}>Guardar</button>
             </template>
           </div>
         </header>
@@ -8520,7 +8628,7 @@
                   </th>
                 `).join('')}
                 <th style="padding:10px 8px;text-align:center;width:90px;border:none !important;background:#04260e;color:#ffffff;border-radius:0">
-                  PROMEDIO
+                  ${botonPromedioBoletin(datos.estudiantes.length > 0)}
                 </th>
                 <th style="padding:10px 8px;text-align:center;width:95px;border:none !important;background:#04260e;color:#ffffff;border-radius:0">
                   ESTADO
@@ -8551,11 +8659,11 @@
                           <input type="number" min="0" max="100" class="cen-digital-nota-input" id="rev-input-${i}-${mIdx}" value="${nVal === '-' ? '' : nVal}" placeholder="-" style="width:54px;padding:4px 4px;text-align:center;font-weight:800;font-size:0.88rem;border:1.5px solid #0284c7;border-radius:6px;background:#ffffff;color:#0f172a" onchange="window.alEditarNotaDesdeRevisarNotasDirector('${escapeHTML(carDef)}', '${escapeHTML(nivDef)}', '${escapeHTML(_gestionActiva)}', '${escapeHTML(_semestreActivo)}', '${escapeHTML(parDef)}', ${i}, ${mIdx}, this.value, '${escapeHTML(estKey)}')">
                         </td>`;
                       } else {
-                        return `<td style="padding:9px 6px;text-align:center;font-weight:800;border-radius:0;color:${nVal >= 51 ? '#15803d' : (nVal === '-' ? '#94a3b8' : '#b91c1c')}">${nVal}</td>`;
+                        return `<td class="cen-nota-modulo" style="padding:9px 6px;text-align:center;font-weight:800;border-radius:0">${nVal}</td>`;
                       }
                     }).join('')}
-                    <td id="rev-prom-${i}" style="padding:9px 6px;text-align:center;font-weight:900;border-radius:0;color:#15803d">${est.promedioFinal || est.promedio || '-'}</td>
-                    <td id="rev-est-${i}" style="padding:9px 6px;text-align:center;font-weight:800;font-size:0.75rem;border-radius:0;color:${est.estadoFinal === 'APROBADO' ? '#15803d' : (est.estadoFinal === 'REPROBADO' ? '#b91c1c' : '#64748b')}">${est.estadoFinal || 'PENDIENTE'}</td>
+                    <td id="rev-prom-${i}" style="padding:9px 6px;text-align:center;font-weight:900;border-radius:0;color:#15803d">${controlPromedioBoletin(est, i)}</td>
+                    <td id="rev-est-${i}" data-estado-boletin-fila="${i}" data-estado-boletin-vista="revision" style="padding:9px 6px;text-align:center">${controlEstadoCentralizador(est, i, 'revision')}</td>
                     <td style="padding:9px 10px;text-align:center;border-radius:0">
                       <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
                         <input type="checkbox" data-subida-est="${estKey}" data-subida-course="${carDef}_${nivDef}_${parDef}" ${estaSubido ? 'checked' : ''} onchange="window.conmutarNotaSubidaEstudiante('${escapeHTML(carDef)}', '${escapeHTML(nivDef)}', '${escapeHTML(parDef)}', '${estKey}', this.checked)" />
@@ -8578,8 +8686,7 @@
         </div>
       </section>
     `;
-    const tablaEditable = container.querySelector('.boletin-en-edicion');
-    if (tablaEditable) habilitarNavegacionBoletin(tablaEditable);
+    habilitarNavegacionBoletin(container.querySelector('.calif-revisar-table-clean'));
   }
   window.renderVistaRevisarNotas = renderVistaRevisarNotas;
 
@@ -8746,7 +8853,11 @@
   function estadoBotonesGuardarBoletin() {
     window.dispatchEvent(new Event('cea-edicion-academica'));
     document.querySelectorAll('[data-guardar-boletin]').forEach(button => {
-      button.disabled = guardandoNotasBoletin || !window._docenteCentralizadorModoEdicion;
+      const modo = button.dataset.guardarBoletin;
+      const habilitado = modo === 'revision'
+        ? window._revisarNotasModoEdicion || notasBoletinPendientes.size > 0
+        : modo === 'direccion' || window._docenteCentralizadorModoEdicion;
+      button.disabled = guardandoNotasBoletin || !habilitado;
       button.textContent = guardandoNotasBoletin ? 'Guardando…' : 'Guardar';
     });
   }
@@ -8767,7 +8878,7 @@
 
   function hayEdicionSinGuardarCalif() {
     return Boolean(window.ceaCriterios?.pending()) || notasBoletinPendientes.size > 0 || guardandoNotasBoletin ||
-      Boolean(_registroActivo && document.getElementById(getSessionSegura().role==='docente'?'docente-planilla-container':'admin-planilla-container')?.getClientRects().length && hayNotasPendientes(_registroActivo));
+      Boolean(_registroActivo && document.getElementById(getSessionSegura().role==='docente'?'docente-planilla-container':'admin-planilla-container')?.getClientRects().length && cambiosPendientesCalif.has(_registroActivo));
   }
 
   function descartarEdicionCalif() {
@@ -8957,20 +9068,7 @@
     if (typeof alEditarNotaDesdeCentralizador === 'function') {
       await alEditarNotaDesdeCentralizador(cKey, nNom, g, s, p, estIndex, mIdx, nuevoValor, estKey, true);
     }
-    const d = _centralizadorActivoDatos;
-    if (d && d.estudiantes && d.estudiantes[estIndex]) {
-      const estActual = d.estudiantes[estIndex];
-      const elProm = document.getElementById(`rev-prom-${estIndex}`);
-      if (elProm) {
-        elProm.textContent = estActual.promedioFinal || estActual.promedio || '-';
-      }
-      const elEst = document.getElementById(`rev-est-${estIndex}`);
-      if (elEst) {
-        const estF = estActual.estadoFinal || 'PENDIENTE';
-        elEst.textContent = estF;
-        elEst.style.color = (estF === 'APROBADO' ? '#15803d' : (estF === 'REPROBADO' ? '#b91c1c' : '#64748b'));
-      }
-    }
+
   };
 
 
@@ -9645,6 +9743,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
     // Detectar si el usuario actual es director
     const session = getSessionSegura();
     const esDirector = session.role === 'director' || session.role === 'admin';
+    const puedeEditarEstado = esDirector || session.role === 'docente';
     const docInfo = (typeof obtenerDocenteLogueado === 'function') ? obtenerDocenteLogueado() : null;
     const esDocente = (session.role === 'docente') || (typeof document !== 'undefined' && document.body && document.body.classList.contains('docente-logged-in'));
     const aKey = (docInfo?.areaKey || cKey || '').toLowerCase();
@@ -9726,6 +9825,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
                 </button>
               `}
             ` : ''}
+            ${esDirector ? '<button type="button" class="btn-calif btn-calif-publish" data-guardar-boletin="direccion" onclick="window.guardarNotasBoletin()">Guardar</button>' : ''}
             <button type="button" class="btn-calif btn-calif-secondary" style="background:#ffffff;color:#0f172a;border:1px solid #cbd5e1;font-weight:700" onclick="window.abrirModalImpresionMasiva(${esDocente ? (esHum ? "'area_humanistica'" : "'especialidad'") : "'especialidad'"}, '${escapeHTML(cKey)}')" title="Imprimir todos los boletines centralizados">
               ${SVG_ICONS.PRINT} Imprimir Todos
             </button>
@@ -9824,7 +9924,7 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
                   </th>
                 `).join('')}
                 <th style="padding:8px 6px;text-align:center;width:90px" class="th-sub-cat">
-                  PROMEDIO
+                  ${botonPromedioBoletin(datos.estudiantes.length > 0 && (esDirector || window._docenteCentralizadorModoEdicion))}
                 </th>
                 <th style="padding:8px 6px;text-align:center;width:95px" class="th-sub-cat">
                   ESTADO
@@ -9863,12 +9963,10 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
                       `;
                     }).join('')}
                     <td id="cen-prom-${i}" style="padding:6px;text-align:center;font-weight:800;color:var(--verde);background:#f2f9f4">
-                      ${est.promedio !== null && est.promedio !== undefined ? est.promedio : '-'}
+                      ${controlPromedioBoletin(est, i)}
                     </td>
-                    <td id="cen-est-${i}" style="padding:6px;text-align:center">
-                      <span class="badge-subida-status ${(est.promedio !== null && est.promedio >= 51) ? 'subida-ok' : 'subida-warn'}" style="font-size:0.72rem;padding:2px 6px">
-                        ${resultadoCalif(est.promedio)}
-                      </span>
+                    <td id="cen-est-${i}" data-estado-boletin-fila="${i}" data-estado-boletin-vista="${puedeEditarEstado ? 'centralizador' : ''}" style="padding:6px;text-align:center">
+                      ${controlEstadoCentralizador(est, i, puedeEditarEstado ? 'centralizador' : '')}
                     </td>
                     ${esDirector ? `                    <td style="padding:6px;text-align:center">
                       <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:0.75rem;font-weight:700">
@@ -9916,8 +10014,9 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
     if (!datos || !datos.estudiantes || !datos.estudiantes[estIndex]) return;
 
     if (String(datos.estudiantes[estIndex].notas[mIdx] ?? '') === String(nuevoValor === '' ? '' : val)) return true;
+    diferir = diferir || notasBoletinPendientes.size > 0 || guardandoNotasBoletin;
     if (diferir && !originalBoletinCalif) originalBoletinCalif = {registros:structuredClone(getRegistros()), detalles:structuredClone(getDetalles())};
-    for(const id of ['cen-input-'+estIndex+'-'+mIdx,'rev-input-'+estIndex+'-'+mIdx]){const input=document.getElementById(id);if(input&&nuevoValor!=='')input.value=val;}
+    for(const id of ['cen-input-'+estIndex+'-'+mIdx,'rev-input-'+estIndex+'-'+mIdx]){const input=document.getElementById(id);if(input)input.value=nuevoValor===''?'':val;}
     // Actualizar en memoria activa
     datos.estudiantes[estIndex].notas[mIdx] = nuevoValor === '' ? null : val;
 
@@ -9931,26 +10030,121 @@ function renderVistaListaRegistrosDirector(container, tipo = 'tecnica') {
     datos.estudiantes[estIndex].promedio = nuevoProm;
 
     // Actualizar celdas en el DOM
-    const cellProm = document.getElementById('cen-prom-' + estIndex);
-    if (cellProm) cellProm.textContent = nuevoProm !== null ? nuevoProm : '-';
-
-    const cellEst = document.getElementById('cen-est-' + estIndex);
-    if (cellEst) {
-      const esAprob = nuevoProm !== null && nuevoProm >= 51;
-      const textoEst = nuevoProm === null ? 'PENDIENTE' : (esAprob ? 'APROBADO' : 'REPROBADO');
-      const cls = esAprob ? 'subida-ok' : 'subida-warn';
-      cellEst.innerHTML = `<span class="badge-subida-status ${cls}" style="font-size:0.72rem;padding:2px 6px">${textoEst}</span>`;
+    for (const prefijo of ['cen', 'rev']) {
+      const celda = document.getElementById(prefijo + '-prom-' + estIndex);
+      if (celda) {
+        const valor = celda.querySelector('[data-valor-promedio]');
+        if (valor) valor.textContent = nuevoProm ?? '-';
+        const input = celda.querySelector('[data-promedio-boletin]');
+        if (input) input.value = nuevoProm ?? '';
+      }
     }
+    refrescarEstadoCentralizador(datos.estudiantes[estIndex], estIndex);
 
     // Persistir y sincronizar hacia la planilla de detalles del módulo específico
     const cambio = [cKey, nNom, g, s, p, mIdx, estKey, nuevoValor === '' ? null : val];
     if (diferir) {
       notasBoletinPendientes.set(JSON.stringify(cambio.slice(0, 7)), cambio);
+      if (notasBoletinPendientes.size === 1) estadoBotonesGuardarBoletin();
       if (!guardandoNotasBoletin) mostrarProgresoGuardadoCalif(null, 'pendiente', 0);
     } else {
       await sincronizarNotaAModuloOficial(...cambio);
     }
   }
+
+  function distribuirPromedioBoletin(promedio, cantidad) {
+    if (cantidad < 2) return Array(cantidad).fill(promedio);
+    const minimo = Math.max(promedio >= 51 ? 51 : 0, promedio - 5);
+    const maximo = Math.min(promedio >= 51 ? 100 : 50, promedio + 5);
+    const elegir = (desde, hasta) => desde + Math.floor(Math.random() * (hasta - desde + 1));
+    let suma = promedio * cantidad;
+
+    // En un extremo usamos el margen que permite redondear al promedio solicitado.
+    if (promedio === minimo) {
+      const margen = Math.floor((cantidad - 1) / 2);
+      if (margen) suma += elegir(1, margen);
+    } else if (promedio === maximo) {
+      suma -= elegir(1, Math.floor(cantidad / 2));
+    }
+
+    const notas = Array.from({length:cantidad}, (_, indice) => {
+      const pendientes = cantidad - indice - 1;
+      const desde = Math.max(minimo, suma - pendientes * maximo);
+      const hasta = Math.min(maximo, suma - pendientes * minimo);
+      const nota = Math.round((elegir(desde, hasta) + elegir(desde, hasta)) / 2);
+      suma -= nota;
+      return nota;
+    });
+    if (minimo < promedio && promedio < maximo && notas.every(nota => nota === promedio)) {
+      const primera = elegir(0, cantidad - 1);
+      notas[primera]--;
+      notas[(primera + elegir(1, cantidad - 1)) % cantidad]++;
+    }
+    return notas;
+  }
+
+  function botonPromedioBoletin(editable) {
+    return editable ? '<button type="button" data-activar-promedios aria-pressed="false">Promedio</button>' : 'PROMEDIO';
+  }
+
+  function controlPromedioBoletin(estudiante, indice) {
+    const promedio = estudiante.promedio;
+    return `<span class="movil-nota-final" data-valor-promedio>${promedio ?? '-'}</span>
+      <input class="cen-digital-nota-input promedio-boletin-input" data-promedio-boletin="${indice}" type="number"
+        min="0" max="100" step="1" inputmode="numeric" value="${promedio ?? ''}"
+        aria-label="Promedio de ${escapeHTML(estudiante.nombreCompleto)}">`;
+  }
+  window.controlPromedioBoletinMovil = indice => {
+    const estudiante = _centralizadorActivoDatos?.estudiantes[indice];
+    return estudiante ? controlPromedioBoletin(estudiante, indice) : '';
+  };
+
+  function aplicarPromedioBoletin(campo) {
+    const curso = _centralizadorActivoDatos;
+    const indice = Number(campo.dataset.promedioBoletin);
+    const estudiante = curso?.estudiantes[indice];
+    if (!estudiante) return;
+    const promedio = campo.valueAsNumber;
+    const valido = campo.validity.valid && Number.isInteger(promedio);
+    campo.value = estudiante.promedio ?? '';
+    if (!valido || promedio === estudiante.promedio || !curso.modulos.length || guardandoNotasBoletin) return;
+
+    const estKey = estudiante.id || estudiante.ci || estudiante.rude || estudiante.nombreCompleto;
+    const notas = distribuirPromedioBoletin(promedio, curso.modulos.length);
+    const cambios = notas.map((nota, modulo) => alEditarNotaDesdeCentralizador(
+      curso.carreraKey, curso.nivelNombre, curso.gestion, curso.semestre, curso.paralelo,
+      indice, modulo, String(nota), estKey, true
+    ));
+    Promise.all(cambios).catch(error => mostrarToastCalif(error.message || 'No se pudo aplicar el promedio.'));
+  }
+
+  let ultimoEncabezadoPromedio, ultimoToquePromedio = 0, toquesPromedio = 0;
+  document.addEventListener('click', evento => {
+    const encabezado = evento.target.closest?.('[data-activar-promedios]');
+    const momento = performance.now();
+    toquesPromedio = encabezado && encabezado === ultimoEncabezadoPromedio && momento - ultimoToquePromedio < 1100 ? toquesPromedio + 1 : 1;
+    ultimoEncabezadoPromedio = encabezado;
+    ultimoToquePromedio = momento;
+    if (!encabezado || toquesPromedio !== 5) return;
+    toquesPromedio = 0;
+    const tabla = encabezado.closest('table');
+    const contenedorMovil = tabla.closest('.boletin-tabla-movil');
+    const otraTabla = contenedorMovil?.previousElementSibling || tabla.nextElementSibling?.querySelector('table');
+    const habilitar = !tabla.classList.contains('boletin-promedios-editables');
+    for (const vista of [tabla, otraTabla]) {
+      vista?.classList.toggle('boletin-promedios-editables', habilitar);
+      vista?.querySelector('[data-activar-promedios]')?.setAttribute('aria-pressed', String(habilitar));
+    }
+  });
+
+  document.addEventListener('change', evento => {
+    if (evento.target.matches?.('.boletin-promedios-editables [data-promedio-boletin]')) aplicarPromedioBoletin(evento.target);
+  });
+  document.addEventListener('keydown', evento => {
+    if (evento.key !== 'Enter' || !evento.target.matches?.('[data-promedio-boletin]')) return;
+    evento.preventDefault();
+    evento.target.blur();
+  });
 
   // Ajusta las dimensiones (Ser, Saber, Hacer, Decidir, Autoevaluación) para que sumen exactamente la nota final,
   // subiendo o bajando puntos de forma aleatoria (sin repartir uniforme) y respetando el máximo de cada dimensión.

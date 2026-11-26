@@ -45,16 +45,40 @@
   window.minimizarPanelAcademico = minimizar;
   window.restaurarPanelAcademico = restaurar;
   window.asegurarNotaMovil = input => {
-    const wrap=input.closest('.movil-planilla-scroll');if(!wrap)return;
-    const fila=input.closest('tr'),r=wrap.getBoundingClientRect(),c=input.getBoundingClientRect();
-    const izquierda=Math.max(r.left,fila.querySelector('.movil-nombre')?.getBoundingClientRect().right||r.left)+3;
-    const derecha=Math.min(r.right,innerWidth,fila.querySelector('.movil-final')?.getBoundingClientRect().left||r.right)-3;
-    if(c.left<izquierda)wrap.scrollLeft-=izquierda-c.left;else if(c.right>derecha)wrap.scrollLeft+=c.right-derecha;
-    const cabecera=wrap.querySelector('thead')?.getBoundingClientRect().height||0;
-    const pie=document.querySelector('.notas-movil-pie')?.getBoundingClientRect().top||innerHeight;
-    const abajo=Math.min(r.bottom,pie)-5,arriba=r.top+cabecera+3;
-    if(c.bottom>abajo)wrap.scrollTop+=c.bottom-abajo;
-    else if(c.top<arriba&&wrap.clientHeight-cabecera>=c.height)wrap.scrollTop-=arriba-c.top;
+    const tabla = input.closest('.movil-planilla');
+    const wrap = input.closest('.movil-planilla-scroll');
+    const celda = input.closest('td');
+    if (!wrap || !celda || !tabla) return;
+    const fila = celda.parentElement;
+    const viewport = window.visualViewport;
+    const limites = wrap.getBoundingClientRect();
+    const nota = input.getBoundingClientRect();
+    const inicioVista = viewport?.offsetLeft ?? 0;
+    const finVista = inicioVista + (viewport?.width ?? innerWidth);
+    const izquierda = Math.max(inicioVista, limites.left, fila.querySelector('.movil-nombre')?.getBoundingClientRect().right ?? 0) + 3;
+    const derecha = Math.min(finVista, limites.right, fila.querySelector('.movil-final')?.getBoundingClientRect().left ?? finVista) - 3;
+    if (!celda.matches('.movil-final')) {
+      if (nota.left < izquierda) wrap.scrollLeft -= izquierda - nota.left;
+      else if (nota.right > derecha) wrap.scrollLeft += nota.right - derecha;
+    }
+
+    const inicioVertical = viewport?.offsetTop ?? 0;
+    const finVertical = inicioVertical + (viewport?.height ?? innerHeight);
+    const cabecera = tabla.tHead?.getBoundingClientRect();
+    const pie = document.querySelector('.notas-movil-pie:not([hidden])');
+    const abajo = Math.min(limites.bottom, finVertical, pie?.getBoundingClientRect().top ?? finVertical) - 5;
+    const arriba = Math.max(inicioVertical, cabecera?.bottom ?? limites.top) + 3;
+    if (nota.bottom > abajo) wrap.scrollTop += nota.bottom - abajo;
+    else if (nota.top < arriba && abajo - arriba >= nota.height) wrap.scrollTop -= arriba - nota.top;
+
+    const columnas = tabla.tHead?.rows;
+    const filaTitulos = columnas?.[columnas.length - 1];
+    const titulo = filaTitulos?.cells[celda.cellIndex - (columnas.length > 1 ? 2 : 0)];
+    const anterior = tabla.querySelector('.nota-dimension-activa');
+    if (titulo && anterior !== titulo) {
+      anterior?.classList.remove('nota-dimension-activa');
+      titulo.classList.add('nota-dimension-activa');
+    }
   };
 
   function instalar() {

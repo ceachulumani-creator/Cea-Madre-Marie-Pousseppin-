@@ -1453,6 +1453,7 @@ async function aplicarDatosGoogleSheets(data) {
       if (data.controlSubidaCentralizadores && typeof data.controlSubidaCentralizadores === 'object') {
         lsSet('cea_calificaciones_subidas_centralizador', data.controlSubidaCentralizadores);
       }
+      if (data.estadosBoletin) lsSet('cea_calificaciones_estado_boletin', data.estadosBoletin);
       if (data.controlSubidaEstudiantes && typeof data.controlSubidaEstudiantes === 'object') {
         lsSet('cea_calificaciones_subidas_notas', data.controlSubidaEstudiantes);
       }
